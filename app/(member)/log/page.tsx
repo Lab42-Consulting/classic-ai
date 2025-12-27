@@ -7,7 +7,7 @@ import { getTranslations } from "@/lib/i18n";
 import { estimateMealMacros, Goal, MealSize as MealSizeType } from "@/lib/calculations";
 
 type LogType = "meal" | "training" | "water" | null;
-type MealSize = "small" | "medium" | "large";
+type MealSize = "small" | "medium" | "large" | "custom";
 
 const t = getTranslations("sr");
 
@@ -16,6 +16,8 @@ export default function LogPage() {
   const [selectedType, setSelectedType] = useState<LogType>(null);
   const [mealSize, setMealSize] = useState<MealSize | null>(null);
   const [mealName, setMealName] = useState("");
+  const [customCalories, setCustomCalories] = useState("");
+  const [customProtein, setCustomProtein] = useState("");
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [userGoal, setUserGoal] = useState<Goal>("fat_loss");
@@ -43,18 +45,35 @@ export default function LogPage() {
   const handleLog = async () => {
     if (!selectedType) return;
     if (selectedType === "meal" && !mealSize) return;
+    if (selectedType === "meal" && mealSize === "custom" && !customCalories) return;
 
     setLoading(true);
 
     try {
+      const payload: {
+        type: string;
+        mealSize?: string;
+        mealName?: string;
+        customCalories?: number;
+        customProtein?: number;
+      } = {
+        type: selectedType,
+        mealSize: selectedType === "meal" && mealSize ? mealSize : undefined,
+        mealName: selectedType === "meal" && mealName ? mealName : undefined,
+      };
+
+      // Add custom values if using custom size
+      if (selectedType === "meal" && mealSize === "custom") {
+        payload.customCalories = parseInt(customCalories, 10);
+        if (customProtein) {
+          payload.customProtein = parseInt(customProtein, 10);
+        }
+      }
+
       const response = await fetch("/api/logs", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: selectedType,
-          mealSize: selectedType === "meal" ? mealSize : undefined,
-          mealName: selectedType === "meal" && mealName ? mealName : undefined,
-        }),
+        body: JSON.stringify(payload),
       });
 
       if (response.ok) {
@@ -202,6 +221,8 @@ export default function LogPage() {
           setSelectedType(null);
           setMealSize(null);
           setMealName("");
+          setCustomCalories("");
+          setCustomProtein("");
         }}
         title={t.log.logMeal}
         variant="bottom-sheet"
@@ -209,19 +230,21 @@ export default function LogPage() {
         <div className="space-y-6">
           <div>
             <p className="text-label mb-4">{t.log.howBigMeal}</p>
-            <div className="grid grid-cols-3 gap-3">
+            <div className="grid grid-cols-4 gap-2">
               {([
-                { size: "small" as const, emoji: "🥗" },
-                { size: "medium" as const, emoji: "🍛" },
-                { size: "large" as const, emoji: "🍱" },
-              ]).map(({ size, emoji }) => {
-                const macros = getMacrosForSize(size);
+                { size: "small" as const, emoji: "🥗", label: t.log.small },
+                { size: "medium" as const, emoji: "🍛", label: t.log.medium },
+                { size: "large" as const, emoji: "🍱", label: t.log.large },
+                { size: "custom" as const, emoji: "✏️", label: "Tačno" },
+              ]).map(({ size, emoji, label }) => {
+                const isCustom = size === "custom";
+                const macros = isCustom ? null : getMacrosForSize(size as Exclude<MealSize, "custom">);
                 return (
                   <button
                     key={size}
                     onClick={() => setMealSize(size)}
                     className={`
-                      py-5 px-2 rounded-2xl border-2 transition-all btn-press
+                      py-4 px-1 rounded-2xl border-2 transition-all btn-press
                       ${
                         mealSize === size
                           ? "border-accent bg-accent/10 glow-accent"
@@ -229,21 +252,46 @@ export default function LogPage() {
                       }
                     `}
                   >
-                    <span className="block text-3xl mb-2">{emoji}</span>
-                    <span className="text-sm font-semibold text-foreground capitalize">
-                      {size === "small" ? t.log.small : size === "medium" ? t.log.medium : t.log.large}
+                    <span className="block text-2xl mb-1">{emoji}</span>
+                    <span className="text-xs font-semibold text-foreground">
+                      {label}
                     </span>
-                    <span className="block text-xs text-foreground-muted mt-1">
-                      ~{macros.calories} {t.common.cal}
-                    </span>
+                    {macros && (
+                      <span className="block text-xs text-foreground-muted mt-1">
+                        ~{macros.calories}
+                      </span>
+                    )}
                   </button>
                 );
               })}
             </div>
           </div>
 
-          {/* Macro Breakdown Preview */}
-          {mealSize && (
+          {/* Custom Calorie Input */}
+          {mealSize === "custom" && (
+            <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+              <p className="text-xs text-foreground-muted">Unesi tačne vrednosti:</p>
+              <div className="grid grid-cols-2 gap-3">
+                <Input
+                  label="Kalorije *"
+                  type="number"
+                  placeholder="npr. 450"
+                  value={customCalories}
+                  onChange={(e) => setCustomCalories(e.target.value)}
+                />
+                <Input
+                  label="Proteini (g)"
+                  type="number"
+                  placeholder="npr. 30"
+                  value={customProtein}
+                  onChange={(e) => setCustomProtein(e.target.value)}
+                />
+              </div>
+            </div>
+          )}
+
+          {/* Macro Breakdown Preview - only for preset sizes */}
+          {mealSize && mealSize !== "custom" && (
             <div className="p-4 rounded-xl bg-white/5 border border-white/10">
               <p className="text-xs text-foreground-muted mb-3">Procena za ovaj obrok:</p>
               <div className="grid grid-cols-4 gap-2 text-center">
@@ -281,7 +329,7 @@ export default function LogPage() {
             className="w-full btn-press glow-accent"
             size="lg"
             onClick={handleLog}
-            disabled={!mealSize || loading}
+            disabled={!mealSize || (mealSize === "custom" && !customCalories) || loading}
             loading={loading}
           >
             {t.log.logMeal}

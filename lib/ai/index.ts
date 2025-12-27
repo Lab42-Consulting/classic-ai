@@ -75,7 +75,7 @@ export async function generateAIResponse(
 
     const response = await client.messages.create({
       model: "claude-3-haiku-20240307",
-      max_tokens: 200,
+      max_tokens: 500,
       system: SYSTEM_PROMPT + "\n" + buildContextPrompt(context),
       messages: messages.map((m) => ({
         role: m.role,

@@ -48,15 +48,22 @@ function ChatContent() {
     if (!content.trim() || loading) return;
 
     const userMessage: Message = { role: "user", content: content.trim() };
-    setMessages((prev) => [...prev, userMessage]);
+    const updatedMessages = [...messages, userMessage];
+    setMessages(updatedMessages);
     setInput("");
     setLoading(true);
 
     try {
+      // Send conversation history (without isNew flag) for context
+      const history = messages.map(({ role, content }) => ({ role, content }));
+
       const response = await fetch("/api/ai/chat", {
         method: "POST",
         headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ message: content.trim() }),
+        body: JSON.stringify({
+          message: content.trim(),
+          history,
+        }),
       });
 
       const data = await response.json();

@@ -26,7 +26,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { message } = body;
+    const { message, history = [] } = body;
 
     if (!message || typeof message !== "string" || message.length > 500) {
       return NextResponse.json(
@@ -34,6 +34,23 @@ export async function POST(request: NextRequest) {
         { status: 400 }
       );
     }
+
+    // Use history from frontend (not database) to ensure fresh sessions
+    // Limit to last 10 messages for context window management
+    const validHistory: ChatMessage[] = Array.isArray(history)
+      ? history
+          .filter(
+            (m: { role?: string; content?: string }) =>
+              m.role &&
+              (m.role === "user" || m.role === "assistant") &&
+              typeof m.content === "string"
+          )
+          .slice(-10)
+          .map((m: { role: string; content: string }) => ({
+            role: m.role as "user" | "assistant",
+            content: m.content,
+          }))
+      : [];
 
     // Check cache for common questions (saves API costs)
     const cachedResponse = getCachedResponse(message);
@@ -85,12 +102,6 @@ export async function POST(request: NextRequest) {
       take: 4,
     });
 
-    const recentMessages = await prisma.chatMessage.findMany({
-      where: { memberId: session.userId },
-      orderBy: { createdAt: "desc" },
-      take: 6,
-    });
-
     const targets = calculateDailyTargets(
       member.weight || 70,
       member.goal as Goal
@@ -121,14 +132,11 @@ export async function POST(request: NextRequest) {
       })),
     };
 
-    const conversationHistory: ChatMessage[] = recentMessages
-      .reverse()
-      .map((m) => ({
-        role: m.role as "user" | "assistant",
-        content: m.content,
-      }));
-
-    conversationHistory.push({ role: "user", content: message });
+    // Build conversation from frontend history + current message
+    const conversationHistory: ChatMessage[] = [
+      ...validHistory,
+      { role: "user", content: message },
+    ];
 
     const aiResponse = await generateAIResponse(conversationHistory, context);
 

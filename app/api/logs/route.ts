@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, mealSize, mealName } = body;
+    const { type, mealSize, mealName, customCalories, customProtein } = body;
 
     if (!type || !["meal", "training", "water"].includes(type)) {
       return NextResponse.json(
@@ -44,27 +44,46 @@ export async function POST(request: NextRequest) {
     };
 
     if (type === "meal") {
-      if (!mealSize || !["small", "medium", "large"].includes(mealSize)) {
+      if (!mealSize || !["small", "medium", "large", "custom"].includes(mealSize)) {
         return NextResponse.json(
           { error: "Meal size is required" },
           { status: 400 }
         );
       }
 
-      const macros = estimateMealMacros(
-        mealSize as MealSize,
-        member.goal as Goal
-      );
+      if (mealSize === "custom") {
+        // Custom meal with user-provided calories
+        if (!customCalories || typeof customCalories !== "number" || customCalories <= 0) {
+          return NextResponse.json(
+            { error: "Custom calories are required" },
+            { status: 400 }
+          );
+        }
 
-      logData = {
-        ...logData,
-        mealSize,
-        mealName: mealName || undefined,
-        estimatedCalories: macros.calories,
-        estimatedProtein: macros.protein,
-        estimatedCarbs: macros.carbs,
-        estimatedFats: macros.fats,
-      };
+        logData = {
+          ...logData,
+          mealSize,
+          mealName: mealName || undefined,
+          estimatedCalories: customCalories,
+          estimatedProtein: customProtein && typeof customProtein === "number" ? customProtein : undefined,
+        };
+      } else {
+        // Preset meal size with estimated macros
+        const macros = estimateMealMacros(
+          mealSize as MealSize,
+          member.goal as Goal
+        );
+
+        logData = {
+          ...logData,
+          mealSize,
+          mealName: mealName || undefined,
+          estimatedCalories: macros.calories,
+          estimatedProtein: macros.protein,
+          estimatedCarbs: macros.carbs,
+          estimatedFats: macros.fats,
+        };
+      }
     }
 
     const log = await prisma.dailyLog.create({

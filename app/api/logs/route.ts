@@ -1,0 +1,188 @@
+import { NextRequest, NextResponse } from "next/server";
+import { getSession } from "@/lib/auth";
+import prisma from "@/lib/db";
+import { estimateMealMacros, Goal, MealSize } from "@/lib/calculations";
+
+export async function POST(request: NextRequest) {
+  try {
+    const session = await getSession();
+
+    if (!session || session.userType !== "member") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const body = await request.json();
+    const { type, mealSize, mealName } = body;
+
+    if (!type || !["meal", "training", "water"].includes(type)) {
+      return NextResponse.json(
+        { error: "Invalid log type" },
+        { status: 400 }
+      );
+    }
+
+    const member = await prisma.member.findUnique({
+      where: { id: session.userId },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    let logData: {
+      memberId: string;
+      type: string;
+      mealSize?: string;
+      mealName?: string;
+      estimatedCalories?: number;
+      estimatedProtein?: number;
+      estimatedCarbs?: number;
+      estimatedFats?: number;
+    } = {
+      memberId: session.userId,
+      type,
+    };
+
+    if (type === "meal") {
+      if (!mealSize || !["small", "medium", "large"].includes(mealSize)) {
+        return NextResponse.json(
+          { error: "Meal size is required" },
+          { status: 400 }
+        );
+      }
+
+      const macros = estimateMealMacros(
+        mealSize as MealSize,
+        member.goal as Goal
+      );
+
+      logData = {
+        ...logData,
+        mealSize,
+        mealName: mealName || undefined,
+        estimatedCalories: macros.calories,
+        estimatedProtein: macros.protein,
+        estimatedCarbs: macros.carbs,
+        estimatedFats: macros.fats,
+      };
+    }
+
+    const log = await prisma.dailyLog.create({
+      data: logData,
+    });
+
+    return NextResponse.json({ success: true, log });
+  } catch (error) {
+    console.error("Log creation error:", error);
+    return NextResponse.json(
+      { error: "Failed to create log" },
+      { status: 500 }
+    );
+  }
+}
+
+export async function GET(request: NextRequest) {
+  try {
+    const session = await getSession();
+
+    if (!session || session.userType !== "member") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { searchParams } = new URL(request.url);
+    const dateParam = searchParams.get("date");
+    const daysParam = searchParams.get("days");
+
+    let startDate: Date;
+    let endDate: Date;
+
+    // If days param is provided, fetch aggregated history
+    if (daysParam) {
+      const days = parseInt(daysParam, 10) || 30;
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+      startDate = new Date();
+      startDate.setDate(startDate.getDate() - days);
+      startDate.setHours(0, 0, 0, 0);
+
+      const logs = await prisma.dailyLog.findMany({
+        where: {
+          memberId: session.userId,
+          date: {
+            gte: startDate,
+            lte: endDate,
+          },
+        },
+        orderBy: { date: "desc" },
+      });
+
+      // Aggregate logs by date for history view
+      const aggregatedByDate: Record<string, {
+        date: string;
+        meals: number;
+        training: boolean;
+        water: number;
+        calories: number;
+        protein: number;
+      }> = {};
+
+      logs.forEach((log) => {
+        const dateStr = log.date.toISOString().split("T")[0];
+        if (!aggregatedByDate[dateStr]) {
+          aggregatedByDate[dateStr] = {
+            date: dateStr,
+            meals: 0,
+            training: false,
+            water: 0,
+            calories: 0,
+            protein: 0,
+          };
+        }
+
+        if (log.type === "meal") {
+          aggregatedByDate[dateStr].meals += 1;
+          aggregatedByDate[dateStr].calories += log.estimatedCalories || 0;
+          aggregatedByDate[dateStr].protein += log.estimatedProtein || 0;
+        } else if (log.type === "training") {
+          aggregatedByDate[dateStr].training = true;
+        } else if (log.type === "water") {
+          aggregatedByDate[dateStr].water += 1;
+        }
+      });
+
+      return NextResponse.json(Object.values(aggregatedByDate));
+    }
+
+    // Single date query (original behavior)
+    if (dateParam) {
+      startDate = new Date(dateParam);
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date(dateParam);
+      endDate.setHours(23, 59, 59, 999);
+    } else {
+      startDate = new Date();
+      startDate.setHours(0, 0, 0, 0);
+      endDate = new Date();
+      endDate.setHours(23, 59, 59, 999);
+    }
+
+    const logs = await prisma.dailyLog.findMany({
+      where: {
+        memberId: session.userId,
+        date: {
+          gte: startDate,
+          lte: endDate,
+        },
+      },
+      orderBy: { createdAt: "desc" },
+    });
+
+    return NextResponse.json({ logs });
+  } catch (error) {
+    console.error("Get logs error:", error);
+    return NextResponse.json(
+      { error: "Failed to get logs" },
+      { status: 500 }
+    );
+  }
+}

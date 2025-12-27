@@ -1,0 +1,389 @@
+"use client";
+
+import { useRouter } from "next/navigation";
+import {
+  Button,
+  GlassCard,
+  ProgressRing,
+  AnimatedNumber,
+  SlideUp,
+  FadeIn,
+  AIAvatar,
+} from "@/components/ui";
+import { StatusType } from "@/components/ui/status-indicator";
+import { getGreeting, getTranslations } from "@/lib/i18n";
+
+interface HomeData {
+  memberName: string;
+  status: StatusType;
+  caloriesRemaining: number;
+  targetCalories: number;
+  consumedCalories: number;
+  macros: {
+    protein: { percentage: number; status: StatusType };
+    carbs: { percentage: number; status: StatusType };
+    fats: { percentage: number; status: StatusType };
+  };
+  consistencyScore: number;
+  consistencyLevel: StatusType;
+  weeklyTrainingSessions: number;
+  trainingCountToday: number;
+  waterGlasses: number;
+  aiSummary: string | null;
+}
+
+interface HomeClientProps {
+  data: HomeData;
+}
+
+const t = getTranslations("sr");
+
+const statusConfig = {
+  on_track: { label: t.home.onTrack, color: "text-success", bg: "bg-success/10" },
+  needs_attention: { label: t.home.needsAttention, color: "text-warning", bg: "bg-warning/10" },
+  off_track: { label: t.home.offTrack, color: "text-error", bg: "bg-error/10" },
+};
+
+const macroColors: Record<StatusType, string> = {
+  on_track: "bg-success",
+  needs_attention: "bg-warning",
+  off_track: "bg-error",
+};
+
+const consistencyColors: Record<StatusType, string> = {
+  on_track: "text-success",
+  needs_attention: "text-warning",
+  off_track: "text-error",
+};
+
+export function HomeClient({ data }: HomeClientProps) {
+  const router = useRouter();
+  const statusInfo = statusConfig[data.status];
+  const greeting = getGreeting("sr");
+
+  // Calculate calorie status
+  const isOverCalories = data.consumedCalories > data.targetCalories;
+  const caloriesOver = data.consumedCalories - data.targetCalories;
+  const calorieProgress = (data.consumedCalories / data.targetCalories) * 100;
+
+  // Calculate recovery advice
+  const getRecoveryAdvice = () => {
+    if (!isOverCalories) return null;
+
+    const overPercent = (caloriesOver / data.targetCalories) * 100;
+
+    if (overPercent <= 10) {
+      // Small surplus (up to 10% over) - light adjustment
+      return {
+        icon: "🍃",
+        text: t.home.lightDay,
+        deficit: Math.round(caloriesOver * 0.5), // Spread over 2 days
+      };
+    } else if (overPercent <= 25) {
+      // Medium surplus (10-25% over) - skip a meal
+      return {
+        icon: "⏸️",
+        text: t.home.skipMeal,
+        deficit: caloriesOver,
+      };
+    } else {
+      // Large surplus (>25% over) - extra training
+      return {
+        icon: "🏃",
+        text: t.home.extraTraining,
+        deficit: caloriesOver,
+      };
+    }
+  };
+
+  const recoveryAdvice = getRecoveryAdvice();
+
+  // Get initials from name
+  const getInitials = (name: string) => {
+    return name
+      .split(" ")
+      .map((n) => n[0])
+      .join("")
+      .toUpperCase()
+      .slice(0, 2);
+  };
+
+  return (
+    <div className="min-h-screen bg-background pb-32">
+      {/* Header - Centered with User Avatar */}
+      <header className="px-6 pt-14 pb-6">
+        <FadeIn>
+          <div className="flex flex-col items-center text-center">
+            {/* User Avatar - Tappable for Profile */}
+            <button
+              onClick={() => router.push("/profile")}
+              className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mb-3 glow-accent btn-press hover:bg-accent/30 transition-colors"
+              aria-label="Open profile"
+            >
+              <span className="text-xl font-bold text-accent">
+                {getInitials(data.memberName)}
+              </span>
+            </button>
+            <p className="text-label">{greeting}</p>
+            <h1 className="text-3xl text-display text-foreground mt-1">
+              {data.memberName}
+            </h1>
+          </div>
+        </FadeIn>
+      </header>
+
+      {/* Main Content */}
+      <main className="px-6 space-y-5">
+        {/* Hero: Calorie Ring */}
+        <SlideUp delay={100}>
+          <GlassCard variant="prominent" className="relative">
+            {/* Status Badge */}
+            <div className="flex justify-center mb-2">
+              <div className={`
+                inline-flex items-center gap-2 px-4 py-1.5 rounded-full
+                ${isOverCalories ? "bg-error/10" : statusInfo.bg}
+              `}>
+                <span className={`w-2 h-2 rounded-full ${isOverCalories ? 'bg-error animate-pulse' : data.status === 'on_track' ? 'bg-success' : data.status === 'needs_attention' ? 'bg-warning' : 'bg-error'}`} />
+                <span className={`text-sm font-medium ${isOverCalories ? "text-error" : statusInfo.color}`}>
+                  {isOverCalories ? t.home.surplus : statusInfo.label}
+                </span>
+              </div>
+            </div>
+
+            {/* Calorie Ring */}
+            <div className="flex justify-center py-6">
+              <ProgressRing
+                progress={calorieProgress}
+                size={220}
+                strokeWidth={14}
+                showOverflow={true}
+              >
+                <div className="text-center">
+                  {isOverCalories ? (
+                    <>
+                      <div className="text-5xl text-display text-number text-error">
+                        +<AnimatedNumber value={caloriesOver} />
+                      </div>
+                      <p className="text-error text-sm mt-1">
+                        {t.home.caloriesOver}
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <div className="text-5xl text-display text-number text-foreground">
+                        <AnimatedNumber value={data.caloriesRemaining} />
+                      </div>
+                      <p className="text-foreground-muted text-sm mt-1">
+                        {t.home.caloriesLeft}
+                      </p>
+                    </>
+                  )}
+                </div>
+              </ProgressRing>
+            </div>
+
+            {/* Consumed / Target */}
+            <div className="flex justify-center gap-8 text-center">
+              <div>
+                <p className={`text-2xl font-semibold text-number ${isOverCalories ? "text-error" : "text-foreground"}`}>
+                  <AnimatedNumber value={data.consumedCalories} />
+                </p>
+                <p className="text-xs text-foreground-muted">{t.home.consumed}</p>
+              </div>
+              <div className="w-px bg-border" />
+              <div>
+                <p className="text-2xl font-semibold text-number text-foreground">
+                  {data.targetCalories.toLocaleString()}
+                </p>
+                <p className="text-xs text-foreground-muted">{t.home.target}</p>
+              </div>
+            </div>
+
+            {/* Recovery Advice - shown when over calories */}
+            {recoveryAdvice && (
+              <div className="mt-4 pt-4 border-t border-error/20">
+                <div className="bg-error/5 rounded-xl p-3">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">{recoveryAdvice.icon}</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-error">
+                        {t.home.surplusWarning}
+                      </p>
+                      <p className="text-sm text-foreground-muted mt-1">
+                        {recoveryAdvice.text}
+                      </p>
+                      <p className="text-sm text-foreground-muted mt-2">
+                        {t.home.recoveryOption1}{" "}
+                        <span className="font-semibold text-foreground">{recoveryAdvice.deficit} {t.home.recoveryKcal}</span>{" "}
+                        {t.home.recoveryOption2}
+                      </p>
+                    </div>
+                  </div>
+                  {/* Discuss with AI button */}
+                  <button
+                    onClick={() => {
+                      const prompt = `Prešao sam dnevni kalorijski cilj za ${caloriesOver} kalorija (ukupno ${data.consumedCalories} od ${data.targetCalories}). ${recoveryAdvice?.text || ""} Šta mi preporučuješ?`;
+                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
+                    }}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-accent/10 hover:bg-accent/20 rounded-lg transition-colors"
+                  >
+                    <span className="text-lg">💬</span>
+                    <span className="text-sm font-medium text-accent">
+                      {t.home.discussWithAi}
+                    </span>
+                  </button>
+                </div>
+              </div>
+            )}
+          </GlassCard>
+        </SlideUp>
+
+        {/* Macro Distribution */}
+        <SlideUp delay={200}>
+          <GlassCard>
+            <h3 className="text-label mb-4">{t.home.macroBalance}</h3>
+            <div className="space-y-4">
+              {[
+                { label: t.home.protein, ...data.macros.protein },
+                { label: t.home.carbs, ...data.macros.carbs },
+                { label: t.home.fats, ...data.macros.fats },
+              ].map((macro) => (
+                <div key={macro.label} className="flex items-center gap-4">
+                  <span className="w-20 text-sm text-foreground-muted">
+                    {macro.label}
+                  </span>
+                  <div className="flex-1 h-2 bg-background-tertiary rounded-full overflow-hidden">
+                    <div
+                      className={`h-full ${macroColors[macro.status]} rounded-full transition-all duration-1000 ease-out`}
+                      style={{ width: `${macro.percentage}%` }}
+                    />
+                  </div>
+                  <span className="w-12 text-sm font-medium text-foreground text-right text-number">
+                    {macro.percentage}%
+                  </span>
+                </div>
+              ))}
+            </div>
+          </GlassCard>
+        </SlideUp>
+
+        {/* Stats Row */}
+        <SlideUp delay={300}>
+          <div className="grid grid-cols-3 gap-3">
+            {/* Consistency Score */}
+            <GlassCard className="text-center py-5">
+              <div className="text-3xl mb-1">📈</div>
+              <p className={`text-2xl font-bold text-number ${consistencyColors[data.consistencyLevel]}`}>
+                <AnimatedNumber value={data.consistencyScore} />
+              </p>
+              <p className="text-xs text-foreground-muted">{t.home.consistency}</p>
+            </GlassCard>
+
+            {/* Training Sessions (Weekly) */}
+            <GlassCard className="text-center py-5">
+              <div className="text-3xl mb-1">💪</div>
+              <p className="text-2xl font-bold text-number text-foreground">
+                <AnimatedNumber value={data.weeklyTrainingSessions} />
+              </p>
+              <p className="text-xs text-foreground-muted">{t.home.sessions}</p>
+            </GlassCard>
+
+            {/* Water */}
+            <GlassCard className="text-center py-5">
+              <div className="text-3xl mb-1">💧</div>
+              <p className="text-2xl font-bold text-number text-foreground">
+                <AnimatedNumber value={data.waterGlasses} />
+              </p>
+              <p className="text-xs text-foreground-muted">{t.home.glasses}</p>
+            </GlassCard>
+          </div>
+        </SlideUp>
+
+        {/* AI Summary or Placeholder */}
+        <SlideUp delay={400}>
+          <GlassCard
+            hover
+            className="cursor-pointer"
+            onClick={() => router.push("/chat")}
+          >
+            <div className="flex items-start gap-4">
+              <AIAvatar size="md" state="active" />
+              <div className="flex-1 min-w-0">
+                <p className="text-label mb-1">{t.home.aiInsight}</p>
+                <p className="text-foreground text-sm leading-relaxed">
+                  {data.aiSummary || t.home.noAiSummary}
+                </p>
+              </div>
+              <svg className="w-5 h-5 text-foreground-muted flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </GlassCard>
+        </SlideUp>
+
+        {/* Quick Actions - 2x3 Grid */}
+        <SlideUp delay={500}>
+          <div className="grid grid-cols-3 gap-3">
+            {/* Row 1 */}
+            <button
+              onClick={() => router.push("/progress")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">📈</span>
+              <span className="text-sm text-foreground-muted">{t.home.progress}</span>
+            </button>
+            <button
+              onClick={() => router.push("/checkin")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">📊</span>
+              <span className="text-sm text-foreground-muted">{t.home.checkIn}</span>
+            </button>
+            <button
+              onClick={() => router.push("/history")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">📅</span>
+              <span className="text-sm text-foreground-muted">{t.home.history}</span>
+            </button>
+            {/* Row 2 */}
+            <button
+              onClick={() => router.push("/subscription")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">💳</span>
+              <span className="text-sm text-foreground-muted">{t.home.membership}</span>
+            </button>
+            <button
+              onClick={() => router.push("/supplements")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">💊</span>
+              <span className="text-sm text-foreground-muted">{t.home.supplements}</span>
+            </button>
+            <button
+              onClick={() => router.push("/goal")}
+              className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
+            >
+              <span className="text-2xl block mb-2">🎯</span>
+              <span className="text-sm text-foreground-muted">{t.home.changeGoal}</span>
+            </button>
+          </div>
+        </SlideUp>
+      </main>
+
+      {/* Primary Action Button - Fixed at bottom */}
+      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/95 to-transparent">
+        <FadeIn delay={600}>
+          <Button
+            className="w-full btn-press glow-accent"
+            size="lg"
+            onClick={() => router.push("/log")}
+          >
+            {t.home.logSomething}
+          </Button>
+        </FadeIn>
+      </div>
+    </div>
+  );
+}

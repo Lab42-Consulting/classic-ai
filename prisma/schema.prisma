@@ -1,0 +1,161 @@
+generator client {
+  provider = "prisma-client-js"
+}
+
+datasource db {
+  provider = "postgresql"
+  url      = env("DATABASE_URL")
+}
+
+model Gym {
+  id        String   @id @default(cuid())
+  name      String
+  logo      String?
+  settings  Json     @default("{}")
+  members   Member[]
+  staff     Staff[]
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@map("gyms")
+}
+
+model Member {
+  id                  String          @id @default(cuid())
+  memberId            String
+  pin                 String
+  qrCode              String?         @unique
+  name                String
+  height              Float?
+  weight              Float?
+  gender              String?
+  goal                String
+  status              String          @default("active")
+  locale              String          @default("sr") // sr | en
+  // Subscription fields
+  trialStartDate      DateTime        @default(now())
+  trialEndDate        DateTime?
+  subscriptionStatus  String          @default("trial") // trial | active | expired | cancelled
+  subscriptionEndDate DateTime?
+  gymId               String
+  gym                 Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  dailyLogs           DailyLog[]
+  weeklyCheckins      WeeklyCheckin[]
+  aiSummaries         AISummary[]
+  chatMessages        ChatMessage[]
+  createdAt           DateTime        @default(now())
+  updatedAt           DateTime        @updatedAt
+
+  @@unique([memberId, gymId])
+  @@index([gymId])
+  @@index([status])
+  @@index([subscriptionStatus])
+  @@map("members")
+}
+
+model Staff {
+  id        String      @id @default(cuid())
+  staffId   String
+  pin       String
+  name      String
+  role      String
+  locale    String      @default("sr") // sr | en
+  gymId     String
+  gym       Gym         @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  notes     StaffNote[]
+  createdAt DateTime    @default(now())
+  updatedAt DateTime    @updatedAt
+
+  @@unique([staffId, gymId])
+  @@index([gymId])
+  @@map("staff")
+}
+
+model DailyLog {
+  id                String   @id @default(cuid())
+  memberId          String
+  member            Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  date              DateTime @default(now())
+  type              String
+  mealSize          String?
+  mealName          String?
+  estimatedCalories Int?
+  estimatedProtein  Int?
+  estimatedCarbs    Int?
+  estimatedFats     Int?
+  createdAt         DateTime @default(now())
+
+  @@index([memberId])
+  @@index([date])
+  @@index([memberId, date])
+  @@map("daily_logs")
+}
+
+model WeeklyCheckin {
+  id         String   @id @default(cuid())
+  memberId   String
+  member     Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  weight     Float
+  feeling    Int
+  photoUrl   String?
+  weekNumber Int
+  year       Int
+  createdAt  DateTime @default(now())
+
+  @@unique([memberId, weekNumber, year])
+  @@index([memberId])
+  @@map("weekly_checkins")
+}
+
+model AISummary {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  type      String
+  content   String
+  date      DateTime
+  createdAt DateTime @default(now())
+
+  @@index([memberId])
+  @@index([memberId, date])
+  @@map("ai_summaries")
+}
+
+model StaffNote {
+  id        String   @id @default(cuid())
+  staffId   String
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  memberId  String
+  content   String
+  flags     String[]
+  createdAt DateTime @default(now())
+
+  @@index([staffId])
+  @@index([memberId])
+  @@map("staff_notes")
+}
+
+model ChatMessage {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  role      String
+  content   String
+  createdAt DateTime @default(now())
+
+  @@index([memberId])
+  @@index([memberId, createdAt])
+  @@map("chat_messages")
+}
+
+model Session {
+  id        String   @id @default(cuid())
+  userId    String
+  userType  String
+  expiresAt DateTime
+  createdAt DateTime @default(now())
+
+  @@index([userId])
+  @@index([expiresAt])
+  @@map("sessions")
+}

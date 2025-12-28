@@ -23,6 +23,7 @@ export async function GET() {
         status: true,
         subscriptionStatus: true,
         locale: true,
+        hasSeenOnboarding: true,
         createdAt: true,
       },
     });
@@ -44,13 +45,16 @@ export async function GET() {
 export async function PATCH(request: NextRequest) {
   try {
     const session = await getSession();
+    console.log("PATCH /api/member/profile - session:", session ? { userId: session.userId, userType: session.userType } : null);
 
     if (!session || session.userType !== "member") {
+      console.log("PATCH /api/member/profile - Unauthorized: no valid member session");
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
     const body = await request.json();
-    const { goal, weight, height, locale } = body;
+    console.log("PATCH /api/member/profile - body:", body);
+    const { goal, weight, height, locale, hasSeenOnboarding } = body;
 
     // Validate goal if provided
     if (goal && !["fat_loss", "muscle_gain", "recomposition"].includes(goal)) {
@@ -74,12 +78,17 @@ export async function PATCH(request: NextRequest) {
       weight?: number;
       height?: number;
       locale?: string;
+      hasSeenOnboarding?: boolean;
     } = {};
 
     if (goal) updateData.goal = goal;
     if (weight !== undefined) updateData.weight = parseFloat(weight);
     if (height !== undefined) updateData.height = parseFloat(height);
     if (locale) updateData.locale = locale;
+    if (typeof hasSeenOnboarding === "boolean") updateData.hasSeenOnboarding = hasSeenOnboarding;
+
+    console.log("PATCH /api/member/profile - updateData:", updateData);
+    console.log("PATCH /api/member/profile - updating member:", session.userId);
 
     const member = await prisma.member.update({
       where: { id: session.userId },
@@ -90,12 +99,15 @@ export async function PATCH(request: NextRequest) {
         weight: true,
         height: true,
         locale: true,
+        hasSeenOnboarding: true,
       },
     });
 
+    console.log("PATCH /api/member/profile - success:", member);
     return NextResponse.json({ success: true, member });
   } catch (error) {
     console.error("Update profile error:", error);
+    console.error("Error details:", error instanceof Error ? error.message : String(error));
     return NextResponse.json(
       { error: "Failed to update profile" },
       { status: 500 }

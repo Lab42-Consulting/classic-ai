@@ -63,6 +63,16 @@ export const translations = {
       lightDay: "Sutra budi lakši sa obrocima",
       extraTraining: "Umanji unos ili dodaj trening",
       discussWithAi: "Posavetuj se sa AI trenerom",
+      // Contextual prompts
+      lowWater: "Hidratacija je ispod cilja",
+      lowWaterDesc: "Pij još vode da ostaneš fokusiran i energičan",
+      drinkMoreWater: "Saznaj zašto je hidratacija bitna",
+      lowProtein: "Proteini su niski",
+      lowProteinDesc: "Nedostatak proteina usporava oporavak mišića",
+      getProteinAdvice: "Kako da povećam unos proteina?",
+      noTrainingYet: "Danas nisi trenirao",
+      noTrainingDesc: "Trening pomaže napretku ka tvom cilju",
+      askAboutTraining: "Da li treba da treniram danas?",
     },
 
     // Log page
@@ -263,6 +273,16 @@ export const translations = {
       lightDay: "Have lighter meals tomorrow",
       extraTraining: "Reduce intake or add training",
       discussWithAi: "Ask AI trainer for advice",
+      // Contextual prompts
+      lowWater: "Hydration is below target",
+      lowWaterDesc: "Drink more water to stay focused and energized",
+      drinkMoreWater: "Learn why hydration matters",
+      lowProtein: "Protein is low",
+      lowProteinDesc: "Low protein slows down muscle recovery",
+      getProteinAdvice: "How can I increase my protein intake?",
+      noTrainingYet: "No training today",
+      noTrainingDesc: "Training helps you reach your goals",
+      askAboutTraining: "Should I train today?",
     },
 
     // Log page
@@ -460,6 +480,16 @@ export type TranslationKeys = {
     lightDay: string;
     extraTraining: string;
     discussWithAi: string;
+    // Contextual prompts
+    lowWater: string;
+    lowWaterDesc: string;
+    drinkMoreWater: string;
+    lowProtein: string;
+    lowProteinDesc: string;
+    getProteinAdvice: string;
+    noTrainingYet: string;
+    noTrainingDesc: string;
+    askAboutTraining: string;
   };
   log: {
     title: string;

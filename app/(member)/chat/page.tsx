@@ -1,6 +1,6 @@
 "use client";
 
-import { useState, useRef, useEffect, Suspense } from "react";
+import { useState, useRef, useEffect, Suspense, useCallback } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
 import { Button, GlassCard, FadeIn, SlideUp, AIAvatar, TypingAnimation } from "@/components/ui";
 import { getTranslations } from "@/lib/i18n";
@@ -20,7 +20,7 @@ function ChatContent() {
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(null);
-  const [initialPromptSent, setInitialPromptSent] = useState(false);
+  const initialPromptSentRef = useRef(false);
   const messagesEndRef = useRef<HTMLDivElement>(null);
 
   const scrollToBottom = () => {
@@ -31,31 +31,17 @@ function ChatContent() {
     scrollToBottom();
   }, [messages, typingMessageIndex]);
 
-  // Auto-send initial prompt if provided via search params
-  useEffect(() => {
-    const prompt = searchParams.get("prompt");
-    if (prompt && !initialPromptSent && messages.length === 0) {
-      setInitialPromptSent(true);
-      // Small delay to ensure component is mounted
-      const timer = setTimeout(() => {
-        sendMessage(decodeURIComponent(prompt));
-      }, 300);
-      return () => clearTimeout(timer);
-    }
-  }, [searchParams, initialPromptSent, messages.length]);
-
-  const sendMessage = async (content: string) => {
-    if (!content.trim() || loading) return;
+  const sendMessage = useCallback(async (content: string, currentMessages: Message[] = []) => {
+    if (!content.trim()) return;
 
     const userMessage: Message = { role: "user", content: content.trim() };
-    const updatedMessages = [...messages, userMessage];
-    setMessages(updatedMessages);
+    setMessages([...currentMessages, userMessage]);
     setInput("");
     setLoading(true);
 
     try {
       // Send conversation history (without isNew flag) for context
-      const history = messages.map(({ role, content }) => ({ role, content }));
+      const history = currentMessages.map(({ role, content }) => ({ role, content }));
 
       const response = await fetch("/api/ai/chat", {
         method: "POST",
@@ -76,7 +62,7 @@ function ChatContent() {
         };
         setMessages((prev) => [...prev, assistantMessage]);
         // Set typing animation for the new message
-        setTypingMessageIndex(messages.length + 1);
+        setTypingMessageIndex(currentMessages.length + 1);
       } else {
         setMessages((prev) => [
           ...prev,
@@ -97,7 +83,20 @@ function ChatContent() {
     } finally {
       setLoading(false);
     }
-  };
+  }, []);
+
+  // Auto-send initial prompt if provided via search params
+  useEffect(() => {
+    const prompt = searchParams.get("prompt");
+    if (prompt && !initialPromptSentRef.current) {
+      initialPromptSentRef.current = true;
+      // Small delay to ensure component is mounted
+      const timer = setTimeout(() => {
+        sendMessage(prompt, []);
+      }, 300);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, sendMessage]);
 
   const handleTypingComplete = (index: number) => {
     if (typingMessageIndex === index) {
@@ -111,7 +110,8 @@ function ChatContent() {
 
   const handleSubmit = (e: React.FormEvent) => {
     e.preventDefault();
-    sendMessage(input);
+    if (loading) return;
+    sendMessage(input, messages);
   };
 
   const suggestedPrompts = t.chat.suggestedPrompts;
@@ -169,7 +169,7 @@ function ChatContent() {
                     key={prompt}
                     hover
                     className="cursor-pointer btn-press"
-                    onClick={() => sendMessage(prompt)}
+                    onClick={() => sendMessage(prompt, messages)}
                   >
                     <div className="flex items-center gap-3">
                       <div className="w-8 h-8 rounded-full bg-white/5 flex items-center justify-center flex-shrink-0">

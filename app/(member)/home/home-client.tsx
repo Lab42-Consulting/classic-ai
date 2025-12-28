@@ -19,6 +19,8 @@ interface HomeData {
   caloriesRemaining: number;
   targetCalories: number;
   consumedCalories: number;
+  consumedProtein: number;
+  targetProtein: number;
   macros: {
     protein: { percentage: number; status: StatusType };
     carbs: { percentage: number; status: StatusType };
@@ -97,6 +99,21 @@ export function HomeClient({ data }: HomeClientProps) {
   };
 
   const recoveryAdvice = getRecoveryAdvice();
+
+  // Check for contextual advice conditions
+  const currentHour = new Date().getHours();
+  const isAfternoon = currentHour >= 14;
+  const isEvening = currentHour >= 18;
+
+  // Low water (show after 2pm if less than 4 glasses)
+  const showLowWaterAdvice = isAfternoon && data.waterGlasses < 4;
+
+  // Low protein (show after 6pm if protein is less than 50% of target)
+  const proteinProgress = data.targetProtein > 0 ? (data.consumedProtein / data.targetProtein) * 100 : 0;
+  const showLowProteinAdvice = isEvening && proteinProgress < 50 && !isOverCalories;
+
+  // No training (show in afternoon if hasn't trained and has low training this week)
+  const showNoTrainingAdvice = isAfternoon && !data.trainingCountToday && data.weeklyTrainingSessions < 2;
 
   // Get initials from name
   const getInitials = (name: string) => {
@@ -298,6 +315,100 @@ export function HomeClient({ data }: HomeClientProps) {
             </GlassCard>
           </div>
         </SlideUp>
+
+        {/* Contextual Advice Cards */}
+        {(showLowWaterAdvice || showLowProteinAdvice || showNoTrainingAdvice) && (
+          <SlideUp delay={350}>
+            <div className="space-y-3">
+              {/* Low Water Advice */}
+              {showLowWaterAdvice && (
+                <GlassCard className="border-warning/20">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">💧</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-warning">
+                        {t.home.lowWater}
+                      </p>
+                      <p className="text-sm text-foreground-muted mt-1">
+                        {t.home.lowWaterDesc}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const prompt = `Popio sam samo ${data.waterGlasses} čaša vode do sada danas. Zašto je hidratacija bitna za moj napredak i kako mogu da pijem više vode?`;
+                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
+                    }}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors"
+                  >
+                    <span className="text-lg">💬</span>
+                    <span className="text-sm font-medium text-warning">
+                      {t.home.drinkMoreWater}
+                    </span>
+                  </button>
+                </GlassCard>
+              )}
+
+              {/* Low Protein Advice */}
+              {showLowProteinAdvice && (
+                <GlassCard className="border-warning/20">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">🥩</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-warning">
+                        {t.home.lowProtein}
+                      </p>
+                      <p className="text-sm text-foreground-muted mt-1">
+                        {t.home.lowProteinDesc}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const prompt = `Uneo sam samo ${data.consumedProtein}g proteina od ${data.targetProtein}g cilja (${Math.round(proteinProgress)}%). Kako mogu lako da povećam unos proteina u ostatku dana ili sutra?`;
+                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
+                    }}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors"
+                  >
+                    <span className="text-lg">💬</span>
+                    <span className="text-sm font-medium text-warning">
+                      {t.home.getProteinAdvice}
+                    </span>
+                  </button>
+                </GlassCard>
+              )}
+
+              {/* No Training Advice */}
+              {showNoTrainingAdvice && (
+                <GlassCard className="border-accent/20">
+                  <div className="flex items-start gap-3">
+                    <span className="text-2xl">💪</span>
+                    <div className="flex-1">
+                      <p className="text-sm font-medium text-accent">
+                        {t.home.noTrainingYet}
+                      </p>
+                      <p className="text-sm text-foreground-muted mt-1">
+                        {t.home.noTrainingDesc}
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      const prompt = `Danas nisam trenirao, a ove nedelje sam imao samo ${data.weeklyTrainingSessions} treninga. Da li treba da treniram danas ili da se odmorim?`;
+                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
+                    }}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-accent/10 hover:bg-accent/20 rounded-lg transition-colors"
+                  >
+                    <span className="text-lg">💬</span>
+                    <span className="text-sm font-medium text-accent">
+                      {t.home.askAboutTraining}
+                    </span>
+                  </button>
+                </GlassCard>
+              )}
+            </div>
+          </SlideUp>
+        )}
 
         {/* AI Summary or Placeholder */}
         <SlideUp delay={400}>

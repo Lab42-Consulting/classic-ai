@@ -8,14 +8,16 @@ datasource db {
 }
 
 model Gym {
-  id        String   @id @default(cuid())
-  name      String
-  logo      String?
-  settings  Json     @default("{}")
-  members   Member[]
-  staff     Staff[]
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id              String            @id @default(cuid())
+  name            String
+  logo            String?
+  settings        Json              @default("{}")
+  aiMonthlyBudget Float?            // Monthly AI budget cap in USD (null = unlimited)
+  members         Member[]
+  staff           Staff[]
+  aiUsageMonthly  AIUsageMonthly[]
+  createdAt       DateTime          @default(now())
+  updatedAt       DateTime          @updatedAt
 
   @@map("gyms")
 }
@@ -32,6 +34,7 @@ model Member {
   goal                String
   status              String          @default("active")
   locale              String          @default("sr") // sr | en
+  hasSeenOnboarding   Boolean         @default(false) // Track if user has seen the "Why This Works" explainer
   // Subscription fields
   trialStartDate      DateTime        @default(now())
   trialEndDate        DateTime?
@@ -158,4 +161,53 @@ model Session {
   @@index([userId])
   @@index([expiresAt])
   @@map("sessions")
+}
+
+// AI Response Cache - persisted cache for common questions
+model AIResponseCache {
+  id           String   @id @default(cuid())
+  cacheKey     String   @unique // normalized query pattern
+  query        String   // original query that created this cache
+  response     String   // cached AI response
+  hits         Int      @default(1)
+  lastUsedAt   DateTime @default(now())
+  createdAt    DateTime @default(now())
+
+  @@index([cacheKey])
+  @@index([lastUsedAt])
+  @@map("ai_response_cache")
+}
+
+// AI Usage Tracking - for rate limiting per member per day
+model AIUsageDaily {
+  id        String   @id @default(cuid())
+  memberId  String
+  date      DateTime @db.Date // just the date, no time
+  count     Int      @default(0)
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([memberId, date])
+  @@index([memberId])
+  @@index([date])
+  @@map("ai_usage_daily")
+}
+
+// AI Cost Tracking - monthly usage per gym for budget caps
+model AIUsageMonthly {
+  id              String   @id @default(cuid())
+  gymId           String
+  gym             Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  year            Int
+  month           Int      // 1-12
+  totalRequests   Int      @default(0)
+  totalTokensIn   Int      @default(0)
+  totalTokensOut  Int      @default(0)
+  estimatedCostUsd Float   @default(0)
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  @@unique([gymId, year, month])
+  @@index([gymId])
+  @@map("ai_usage_monthly")
 }

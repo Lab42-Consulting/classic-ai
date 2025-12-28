@@ -1,5 +1,7 @@
 import { PrismaClient } from "@prisma/client";
 import bcrypt from "bcryptjs";
+import { seedCacheIfEmpty } from "../lib/ai/cache";
+import { generateGenericResponse } from "../lib/ai";
 
 const prisma = new PrismaClient();
 
@@ -64,11 +66,13 @@ async function main() {
     where: { id: "gym-classic-001" },
     update: {
       logo: "/logo/classic-logo-color.webp",
+      aiMonthlyBudget: 10, // $10/month AI budget cap
     },
     create: {
       id: "gym-classic-001",
       name: "Classic Gym Bulevar",
       logo: "/logo/classic-logo-color.webp",
+      aiMonthlyBudget: 10, // $10/month AI budget cap
       settings: {
         primaryMetric: "calories",
         branding: {
@@ -77,7 +81,7 @@ async function main() {
       },
     },
   });
-  console.log(`✅ Gym created: ${gym.name}`);
+  console.log(`✅ Gym created: ${gym.name} (AI budget: $${gym.aiMonthlyBudget}/month)`);
 
   // Create Admin Staff
   const adminPin = await hashPin("1234");
@@ -171,6 +175,7 @@ async function main() {
       },
       update: {
         weight: currentWeight,
+        hasSeenOnboarding: true, // Skip onboarding for test members
       },
       create: {
         memberId: memberData.memberId,
@@ -181,6 +186,7 @@ async function main() {
         gender: memberData.gender,
         goal: memberData.goal,
         gymId: gym.id,
+        hasSeenOnboarding: true, // Skip onboarding for test members
         createdAt: memberSince,
       },
     });
@@ -295,6 +301,19 @@ async function main() {
     console.log(
       `   ↳ Weight: ${startW}kg → ${endW}kg (${diff > 0 ? "+" : ""}${diff}kg)`
     );
+  }
+
+  // Seed AI response cache with suggested prompts
+  console.log("\n🤖 Seeding AI response cache...");
+  if (process.env.ANTHROPIC_API_KEY) {
+    const seededCount = await seedCacheIfEmpty(generateGenericResponse);
+    if (seededCount > 0) {
+      console.log(`✅ Seeded ${seededCount} AI responses for suggested prompts`);
+    } else {
+      console.log(`✅ AI cache already populated (no new entries needed)`);
+    }
+  } else {
+    console.log(`⚠️  Skipped AI cache seeding (ANTHROPIC_API_KEY not set)`);
   }
 
   console.log("\n✨ Seed completed!\n");

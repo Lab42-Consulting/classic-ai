@@ -161,6 +161,11 @@ export default async function HomePage() {
 
   const { member, todayLogs, last7DaysLogs, latestSummary } = data;
 
+  // Redirect new users to onboarding explainer
+  if (!member.hasSeenOnboarding) {
+    redirect("/why-this-works");
+  }
+
   const targets = calculateDailyTargets(
     member.weight || 70,
     member.goal as Goal
@@ -220,6 +225,9 @@ export default async function HomePage() {
     caloriesRemaining: Math.max(0, targets.calories - consumed.calories),
     targetCalories: targets.calories,
     consumedCalories: consumed.calories,
+    // Protein data for contextual prompts
+    consumedProtein: consumed.protein,
+    targetProtein: targets.protein,
     macros: {
       protein: {
         percentage: macroPercentages.protein,

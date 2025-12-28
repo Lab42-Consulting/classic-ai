@@ -3,6 +3,10 @@ import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { calculateDailyTargets, calculateStreak, Goal } from "@/lib/calculations";
 
+// Valid subscription status transitions
+const VALID_SUBSCRIPTION_STATUSES = ["trial", "active", "expired", "cancelled"] as const;
+type SubscriptionStatus = (typeof VALID_SUBSCRIPTION_STATUSES)[number];
+
 export async function GET(
   request: NextRequest,
   { params }: { params: Promise<{ id: string }> }
@@ -75,6 +79,9 @@ export async function GET(
         weight: member.weight,
         height: member.height,
         status: member.status,
+        subscriptionStatus: member.subscriptionStatus,
+        trialEndDate: member.trialEndDate,
+        subscriptionEndDate: member.subscriptionEndDate,
         createdAt: member.createdAt,
       },
       targets,
@@ -88,6 +95,115 @@ export async function GET(
     console.error("Get member error:", error);
     return NextResponse.json(
       { error: "Failed to get member" },
+      { status: 500 }
+    );
+  }
+}
+
+// PATCH /api/members/[id] - Update member (subscription status, etc.)
+export async function PATCH(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+
+    if (!session || session.userType !== "staff") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+
+    // Validate member exists and belongs to staff's gym
+    const member = await prisma.member.findUnique({
+      where: { id, gymId: session.gymId },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // Build update object based on allowed fields
+    const updateData: {
+      subscriptionStatus?: SubscriptionStatus;
+      subscriptionEndDate?: Date | null;
+      goal?: string;
+      weight?: number;
+      height?: number;
+      status?: string;
+    } = {};
+
+    // Handle subscription status change
+    if (body.subscriptionStatus) {
+      if (!VALID_SUBSCRIPTION_STATUSES.includes(body.subscriptionStatus)) {
+        return NextResponse.json(
+          { error: "Invalid subscription status" },
+          { status: 400 }
+        );
+      }
+      updateData.subscriptionStatus = body.subscriptionStatus;
+
+      // Set subscription end date when activating (default 30 days from now)
+      if (body.subscriptionStatus === "active" && !member.subscriptionEndDate) {
+        const endDate = new Date();
+        endDate.setDate(endDate.getDate() + 30);
+        updateData.subscriptionEndDate = endDate;
+      }
+
+      // Allow custom subscription end date
+      if (body.subscriptionEndDate) {
+        updateData.subscriptionEndDate = new Date(body.subscriptionEndDate);
+      }
+    }
+
+    // Handle other allowed field updates
+    if (body.goal && ["fat_loss", "muscle_gain", "recomposition"].includes(body.goal)) {
+      updateData.goal = body.goal;
+    }
+
+    if (typeof body.weight === "number" && body.weight > 0) {
+      updateData.weight = body.weight;
+    }
+
+    if (typeof body.height === "number" && body.height > 0) {
+      updateData.height = body.height;
+    }
+
+    if (body.status && ["active", "inactive"].includes(body.status)) {
+      updateData.status = body.status;
+    }
+
+    if (Object.keys(updateData).length === 0) {
+      return NextResponse.json(
+        { error: "No valid fields to update" },
+        { status: 400 }
+      );
+    }
+
+    const updatedMember = await prisma.member.update({
+      where: { id },
+      data: updateData,
+    });
+
+    return NextResponse.json({
+      success: true,
+      member: {
+        id: updatedMember.id,
+        memberId: updatedMember.memberId,
+        name: updatedMember.name,
+        subscriptionStatus: updatedMember.subscriptionStatus,
+        subscriptionEndDate: updatedMember.subscriptionEndDate,
+        goal: updatedMember.goal,
+        weight: updatedMember.weight,
+        height: updatedMember.height,
+        status: updatedMember.status,
+      },
+    });
+  } catch (error) {
+    console.error("Update member error:", error);
+    return NextResponse.json(
+      { error: "Failed to update member" },
       { status: 500 }
     );
   }

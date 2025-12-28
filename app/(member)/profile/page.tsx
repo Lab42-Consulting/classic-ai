@@ -254,6 +254,18 @@ export default function ProfilePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+            <button
+              onClick={() => router.push("/why-this-works")}
+              className="w-full glass rounded-2xl p-4 flex items-center gap-4 card-hover btn-press"
+            >
+              <span className="text-2xl">💡</span>
+              <span className="flex-1 text-left text-foreground">
+                {locale === "en" ? "Why this works" : "Zašto ovo funkcioniše"}
+              </span>
+              <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </SlideUp>
 

@@ -363,10 +363,10 @@ function WeightChart({ checkins }: { checkins: CheckinData[] }) {
         ))}
       </svg>
 
-      {/* Weight labels */}
+      {/* Weight labels - show first (oldest) and last (current) actual values */}
       <div className="flex justify-between text-xs text-foreground-muted mt-2">
-        <span>{Math.round(minWeight)} kg</span>
-        <span>{Math.round(maxWeight)} kg</span>
+        <span>{checkins[0].weight} kg</span>
+        <span>{checkins[checkins.length - 1].weight} kg</span>
       </div>
     </div>
   );

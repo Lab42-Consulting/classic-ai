@@ -169,9 +169,35 @@ export default function CoachDashboard() {
           </div>
         </SlideUp>
 
+        {/* Admin Actions */}
+        {!data.isCoach && (
+          <SlideUp delay={150}>
+            <GlassCard
+              hover
+              className="cursor-pointer"
+              onClick={() => router.push("/coaches")}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                    <span className="text-lg">👥</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Upravljanje osobljem</p>
+                    <p className="text-sm text-foreground-muted">Pregledaj i dodaj trenere</p>
+                  </div>
+                </div>
+                <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </GlassCard>
+          </SlideUp>
+        )}
+
         {/* Needs Attention Alert */}
         {data.stats.needsAttention > 0 && (
-          <SlideUp delay={150}>
+          <SlideUp delay={200}>
             <GlassCard className="border-warning/20 bg-warning/5">
               <div className="flex items-center gap-3">
                 <span className="text-2xl">⚠️</span>
@@ -189,7 +215,7 @@ export default function CoachDashboard() {
         )}
 
         {/* Filter Buttons */}
-        <SlideUp delay={200}>
+        <SlideUp delay={250}>
           <div className="flex gap-2 overflow-x-auto pb-2">
             {(["all", "off_track", "slipping", "on_track"] as const).map((f) => (
               <button
@@ -210,7 +236,7 @@ export default function CoachDashboard() {
         </SlideUp>
 
         {/* Members List */}
-        <SlideUp delay={250}>
+        <SlideUp delay={300}>
           {filteredMembers.length === 0 ? (
             <Card className="text-center py-12">
               <p className="text-foreground-muted">
@@ -220,7 +246,7 @@ export default function CoachDashboard() {
           ) : (
             <div className="space-y-3">
               {filteredMembers.map((member, index) => (
-                <SlideUp key={member.id} delay={300 + index * 50}>
+                <SlideUp key={member.id} delay={350 + index * 50}>
                   <GlassCard
                     hover
                     className={`cursor-pointer ${member.alerts.length > 0 ? "border-warning/30" : ""}`}

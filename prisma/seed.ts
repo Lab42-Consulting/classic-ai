@@ -154,7 +154,7 @@ async function main() {
       startWeight: 95,
       gender: "male",
       goal: "fat_loss",
-      assignToCoach: true,
+      assignToCoach: false, // Not assigned - test coach request flow
     },
     {
       memberId: "ĆEPA",
@@ -164,10 +164,10 @@ async function main() {
       startWeight: 82,
       gender: "male",
       goal: "muscle_gain",
-      assignToCoach: true,
+      assignToCoach: false, // Not assigned - test coach request flow
     },
     {
-      memberId: "NOVI",
+      memberId: "TEST",
       pin: "3333",
       name: "Marko Petrović",
       height: 175,
@@ -359,22 +359,10 @@ async function main() {
       assignedCount++;
     }
   }
-  console.log(`✅ Assigned ${assignedCount} members to ${coach.name}`);
-  console.log(`   ↳ ${allMembers.length - assignedCount} member(s) left unassigned for testing`);
-
-  // Add a sample nudge for STRUJA (who missed last week)
-  const strujaMember = allMembers.find(m => m.name.includes("Miloš"));
-  if (strujaMember) {
-    await prisma.coachNudge.create({
-      data: {
-        staffId: coach.id,
-        memberId: strujaMember.id,
-        message: "Vidim da si propustio nedeljni pregled. Javi ako treba pomoć - tu sam! 💪",
-        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
-      },
-    });
-    console.log(`✅ Added sample nudge for STRUJA`);
+  if (assignedCount > 0) {
+    console.log(`✅ Assigned ${assignedCount} members to ${coach.name}`);
   }
+  console.log(`ℹ️  ${allMembers.length} member(s) unassigned - test coach request flow`);
 
   // Seed AI response cache with suggested prompts
   console.log("\n🤖 Seeding AI response cache...");
@@ -399,16 +387,17 @@ async function main() {
   console.log("  │ Staff ID    │ PIN    │");
   console.log("  ├─────────────┼────────┤");
   console.log("  │ S-ADMIN     │ 1234   │");
-  console.log("  │ S-COACH     │ 5678   │");
+  console.log("  │ MANJA       │ 5678   │");
+  console.log("  │ GATI        │ 1357   │");
   console.log("  └─────────────┴────────┘");
   console.log("");
   console.log("  MEMBER LOGIN (/login):");
   console.log("  ┌─────────────┬────────┬────────────────┬────────────┐");
   console.log("  │ Member ID   │ PIN    │ Goal           │ Coach      │");
   console.log("  ├─────────────┼────────┼────────────────┼────────────┤");
-  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │ ✓ Assigned │");
-  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │ ✓ Assigned │");
-  console.log("  │ NOVI        │ 3333   │ Recomposition  │ ✗ None     │");
+  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │ ✗ None     │");
+  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │ ✗ None     │");
+  console.log("  │ TEST        │ 3333   │ Recomposition  │ ✗ None     │");
   console.log("  └─────────────┴────────┴────────────────┴────────────┘");
   console.log("");
   console.log("  📊 Each member has 12 weeks of check-in history");

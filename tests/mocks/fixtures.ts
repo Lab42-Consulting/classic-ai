@@ -247,6 +247,30 @@ export const mockCoachAssignmentWithExactMacros = {
 }
 
 // =============================================================================
+// COACH REQUEST FIXTURES (Pending requests awaiting member approval)
+// =============================================================================
+
+export const mockCoachRequest = {
+  id: 'request-001',
+  staffId: mockStaffCoach.id,
+  memberId: mockMember.id,
+  customGoal: null,
+  customCalories: 1800,
+  customProtein: 150,
+  customCarbs: null,
+  customFats: null,
+  notes: 'Focus on fat loss with high protein',
+  requireExactMacros: false,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockCoachRequestWithStaffAndMember = {
+  ...mockCoachRequest,
+  staff: { name: mockStaffCoach.name },
+  member: mockMember,
+}
+
+// =============================================================================
 // COACH NUDGE FIXTURES
 // =============================================================================
 

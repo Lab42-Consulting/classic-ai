@@ -45,6 +45,14 @@ vi.mock('@/lib/db', () => ({
       update: vi.fn(),
       delete: vi.fn(),
     },
+    coachRequest: {
+      findUnique: vi.fn(),
+      findFirst: vi.fn(),
+      findMany: vi.fn(),
+      create: vi.fn(),
+      update: vi.fn(),
+      delete: vi.fn(),
+    },
     coachNudge: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),

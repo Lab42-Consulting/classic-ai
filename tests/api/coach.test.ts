@@ -9,17 +9,16 @@ import {
   mockStaffSession,
   mockMemberSession,
   mockCoachAssignment,
-  mockCoachNudge,
-  mockCoachKnowledgeNutrition,
-  mockGym,
+  mockCoachRequest,
+  mockCoachRequestWithStaffAndMember,
   createMockRequest,
 } from '../mocks/fixtures'
 
 describe('Coach API', () => {
   // =========================================================================
-  // POST /api/coach/assign - Coach Assignment
+  // POST /api/coach/assign - Coach Request (pending approval)
   // =========================================================================
-  describe('POST /api/coach/assign - Coach Assignment', () => {
+  describe('POST /api/coach/assign - Coach Request', () => {
     beforeEach(() => {
       vi.mocked(getSession).mockResolvedValue(mockStaffSession)
     })
@@ -57,7 +56,7 @@ describe('Coach API', () => {
         const data = await response.json()
 
         expect(response.status).toBe(403)
-        expect(data.error).toBe('Only coaches can assign members')
+        expect(data.error).toBe('Only coaches can request member assignments')
       })
 
       it('should return 404 if staff not found', async () => {
@@ -101,6 +100,7 @@ describe('Coach API', () => {
         const memberWithCoach = {
           ...mockMember,
           coachAssignment: mockCoachAssignment,
+          coachRequest: null,
         }
         vi.mocked(prisma.member.findFirst).mockResolvedValue(memberWithCoach as never)
 
@@ -111,23 +111,36 @@ describe('Coach API', () => {
         expect(response.status).toBe(400)
         expect(data.error).toBe('Member already has a coach assigned')
       })
+
+      it('should return 400 if member already has a pending request', async () => {
+        const memberWithRequest = {
+          ...mockMember,
+          coachAssignment: null,
+          coachRequest: mockCoachRequest,
+        }
+        vi.mocked(prisma.member.findFirst).mockResolvedValue(memberWithRequest as never)
+
+        const request = createMockRequest({ memberId: mockMember.id })
+        const response = await assignPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(data.error).toBe('Member already has a pending coach request')
+      })
     })
 
-    describe('Successful Assignment', () => {
+    describe('Successful Request', () => {
       beforeEach(() => {
         vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffCoach as never)
         vi.mocked(prisma.member.findFirst).mockResolvedValue({
           ...mockMember,
           coachAssignment: null,
+          coachRequest: null,
         } as never)
       })
 
-      it('should assign coach to member with minimal data', async () => {
-        const createdAssignment = {
-          ...mockCoachAssignment,
-          member: mockMember,
-        }
-        vi.mocked(prisma.coachAssignment.create).mockResolvedValue(createdAssignment as never)
+      it('should create coach request with minimal data', async () => {
+        vi.mocked(prisma.coachRequest.create).mockResolvedValue(mockCoachRequestWithStaffAndMember as never)
 
         const request = createMockRequest({ memberId: mockMember.id })
         const response = await assignPost(request as never)
@@ -135,18 +148,18 @@ describe('Coach API', () => {
 
         expect(response.status).toBe(200)
         expect(data.success).toBe(true)
-        expect(data.assignment).toBeDefined()
-        expect(data.assignment.memberId).toBe(mockMember.id)
+        expect(data.requestSent).toBe(true)
+        expect(data.request).toBeDefined()
+        expect(data.request.memberId).toBe(mockMember.id)
       })
 
-      it('should assign with custom calorie and protein targets', async () => {
-        const createdAssignment = {
-          ...mockCoachAssignment,
+      it('should create request with custom calorie and protein targets', async () => {
+        const createdRequest = {
+          ...mockCoachRequestWithStaffAndMember,
           customCalories: 1800,
           customProtein: 150,
-          member: mockMember,
         }
-        vi.mocked(prisma.coachAssignment.create).mockResolvedValue(createdAssignment as never)
+        vi.mocked(prisma.coachRequest.create).mockResolvedValue(createdRequest as never)
 
         const request = createMockRequest({
           memberId: mockMember.id,
@@ -157,13 +170,13 @@ describe('Coach API', () => {
         const data = await response.json()
 
         expect(response.status).toBe(200)
-        expect(data.assignment.customCalories).toBe(1800)
-        expect(data.assignment.customProtein).toBe(150)
+        expect(data.request.customCalories).toBe(1800)
+        expect(data.request.customProtein).toBe(150)
       })
 
-      it('should assign with all custom targets and exact macros', async () => {
-        const createdAssignment = {
-          ...mockCoachAssignment,
+      it('should create request with all custom targets and exact macros', async () => {
+        const createdRequest = {
+          ...mockCoachRequestWithStaffAndMember,
           customGoal: 'fat_loss',
           customCalories: 1800,
           customProtein: 160,
@@ -171,10 +184,8 @@ describe('Coach API', () => {
           customFats: 60,
           requireExactMacros: true,
           notes: 'Strict tracking required',
-          member: mockMember,
         }
-        vi.mocked(prisma.coachAssignment.create).mockResolvedValue(createdAssignment as never)
-        vi.mocked(prisma.member.update).mockResolvedValue({} as never)
+        vi.mocked(prisma.coachRequest.create).mockResolvedValue(createdRequest as never)
 
         const request = createMockRequest({
           memberId: mockMember.id,
@@ -190,30 +201,30 @@ describe('Coach API', () => {
         const data = await response.json()
 
         expect(response.status).toBe(200)
-        expect(data.assignment.requireExactMacros).toBe(true)
-        expect(data.assignment.customGoal).toBe('fat_loss')
-        expect(data.assignment.notes).toBe('Strict tracking required')
+        expect(data.requestSent).toBe(true)
+        expect(data.request.requireExactMacros).toBe(true)
+        expect(data.request.customGoal).toBe('fat_loss')
+        expect(data.request.notes).toBe('Strict tracking required')
       })
 
-      it('should update member goal when customGoal is set', async () => {
-        const createdAssignment = {
-          ...mockCoachAssignment,
+      it('should include customGoal in request (not update member directly)', async () => {
+        const createdRequest = {
+          ...mockCoachRequestWithStaffAndMember,
           customGoal: 'muscle_gain',
-          member: mockMember,
         }
-        vi.mocked(prisma.coachAssignment.create).mockResolvedValue(createdAssignment as never)
-        vi.mocked(prisma.member.update).mockResolvedValue({} as never)
+        vi.mocked(prisma.coachRequest.create).mockResolvedValue(createdRequest as never)
 
         const request = createMockRequest({
           memberId: mockMember.id,
           customGoal: 'muscle_gain',
         })
-        await assignPost(request as never)
+        const response = await assignPost(request as never)
+        const data = await response.json()
 
-        expect(prisma.member.update).toHaveBeenCalledWith({
-          where: { id: mockMember.id },
-          data: { goal: 'muscle_gain' },
-        })
+        // Request should be created, member goal NOT updated yet (happens on accept)
+        expect(response.status).toBe(200)
+        expect(data.request.customGoal).toBe('muscle_gain')
+        expect(prisma.member.update).not.toHaveBeenCalled()
       })
     })
   })

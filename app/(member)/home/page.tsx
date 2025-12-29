@@ -72,11 +72,22 @@ async function getMemberData(memberId: string) {
     take: 3,
   });
 
+  // Get pending coach request (if any)
+  const pendingCoachRequest = await prisma.coachRequest.findUnique({
+    where: { memberId },
+    include: {
+      staff: {
+        select: { name: true },
+      },
+    },
+  });
+
   return {
     member,
     todayLogs,
     last7DaysLogs,
     unseenNudges,
+    pendingCoachRequest,
   };
 }
 
@@ -165,7 +176,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
@@ -268,6 +279,19 @@ export default async function HomePage() {
       coachName: nudge.staff.name,
       createdAt: nudge.createdAt.toISOString(),
     })),
+    // Pending coach request
+    pendingCoachRequest: pendingCoachRequest
+      ? {
+          id: pendingCoachRequest.id,
+          coachName: pendingCoachRequest.staff.name,
+          customGoal: pendingCoachRequest.customGoal,
+          customCalories: pendingCoachRequest.customCalories,
+          customProtein: pendingCoachRequest.customProtein,
+          customCarbs: pendingCoachRequest.customCarbs,
+          customFats: pendingCoachRequest.customFats,
+          createdAt: pendingCoachRequest.createdAt.toISOString(),
+        }
+      : null,
   };
 
   return <HomeClient data={homeData} />;

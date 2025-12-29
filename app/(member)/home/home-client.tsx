@@ -23,6 +23,17 @@ interface NudgeData {
   createdAt: string;
 }
 
+interface CoachRequestData {
+  id: string;
+  coachName: string;
+  customGoal: string | null;
+  customCalories: number | null;
+  customProtein: number | null;
+  customCarbs: number | null;
+  customFats: number | null;
+  createdAt: string;
+}
+
 interface HomeData {
   memberName: string;
   status: StatusType;
@@ -43,6 +54,7 @@ interface HomeData {
   // Weekly data (for contextual advice only)
   weeklyTrainingSessions: number;
   nudges: NudgeData[];
+  pendingCoachRequest: CoachRequestData | null;
 }
 
 interface HomeClientProps {
@@ -67,6 +79,9 @@ const macroColors: Record<StatusType, string> = {
 export function HomeClient({ data }: HomeClientProps) {
   const router = useRouter();
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
+  const [coachRequest, setCoachRequest] = useState<CoachRequestData | null>(data.pendingCoachRequest);
+  const [showConfirmModal, setShowConfirmModal] = useState(false);
+  const [isProcessingRequest, setIsProcessingRequest] = useState(false);
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
 
@@ -84,6 +99,47 @@ export function HomeClient({ data }: HomeClientProps) {
       });
     } catch {
       // Silently fail - nudge is already dismissed locally
+    }
+  };
+
+  // Handle accepting coach request
+  const handleAcceptRequest = async () => {
+    setIsProcessingRequest(true);
+    try {
+      const response = await fetch("/api/member/coach-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "accept" }),
+      });
+      if (response.ok) {
+        setCoachRequest(null);
+        setShowConfirmModal(false);
+        // Refresh the page to get updated data
+        router.refresh();
+      }
+    } catch {
+      // Handle error silently
+    } finally {
+      setIsProcessingRequest(false);
+    }
+  };
+
+  // Handle declining coach request
+  const handleDeclineRequest = async () => {
+    setIsProcessingRequest(true);
+    try {
+      const response = await fetch("/api/member/coach-request", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ action: "decline" }),
+      });
+      if (response.ok) {
+        setCoachRequest(null);
+      }
+    } catch {
+      // Handle error silently
+    } finally {
+      setIsProcessingRequest(false);
     }
   };
 
@@ -185,6 +241,120 @@ export function HomeClient({ data }: HomeClientProps) {
           </div>
         </FadeIn>
       </header>
+
+      {/* Coach Request Banner - Most prominent, above everything */}
+      {coachRequest && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={25}>
+            <div className="relative bg-gradient-to-r from-warning/20 to-warning/5 border border-warning/30 rounded-2xl p-5">
+              {/* Warning icon */}
+              <div className="flex items-start gap-4">
+                <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">👨‍🏫</span>
+                </div>
+
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-warning mb-1">
+                    Zahtev za trenera
+                  </h3>
+                  <p className="text-sm text-foreground mb-3">
+                    <span className="font-medium text-warning">{coachRequest.coachName}</span> želi da postane tvoj trener.
+                  </p>
+
+                  {/* Warning about reset */}
+                  <div className="bg-error/10 border border-error/20 rounded-xl p-3 mb-4">
+                    <div className="flex items-start gap-2">
+                      <span className="text-base">⚠️</span>
+                      <p className="text-sm text-foreground-muted">
+                        Ako prihvatiš, <span className="text-error font-medium">tvoj napredak će biti resetovan</span> i ciljevi će biti postavljeni prema planu trenera.
+                      </p>
+                    </div>
+                  </div>
+
+                  {/* Coach's proposed targets (if any) */}
+                  {(coachRequest.customCalories || coachRequest.customGoal) && (
+                    <div className="bg-white/5 rounded-xl p-3 mb-4">
+                      <p className="text-xs text-foreground-muted mb-2">Trenerov plan:</p>
+                      <div className="flex flex-wrap gap-2">
+                        {coachRequest.customGoal && (
+                          <span className="text-xs bg-accent/20 text-accent px-2 py-1 rounded-full">
+                            {coachRequest.customGoal === "fat_loss" ? "Gubitak masti" :
+                             coachRequest.customGoal === "muscle_gain" ? "Rast mišića" : "Rekompozicija"}
+                          </span>
+                        )}
+                        {coachRequest.customCalories && (
+                          <span className="text-xs bg-foreground/10 text-foreground px-2 py-1 rounded-full">
+                            {coachRequest.customCalories} kcal
+                          </span>
+                        )}
+                        {coachRequest.customProtein && (
+                          <span className="text-xs bg-success/20 text-success px-2 py-1 rounded-full">
+                            {coachRequest.customProtein}g proteina
+                          </span>
+                        )}
+                      </div>
+                    </div>
+                  )}
+
+                  {/* Action buttons */}
+                  <div className="flex gap-3">
+                    <button
+                      onClick={handleDeclineRequest}
+                      disabled={isProcessingRequest}
+                      className="flex-1 py-2.5 px-4 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium text-foreground transition-colors disabled:opacity-50"
+                    >
+                      Odbij
+                    </button>
+                    <button
+                      onClick={() => setShowConfirmModal(true)}
+                      disabled={isProcessingRequest}
+                      className="flex-1 py-2.5 px-4 bg-warning hover:bg-warning/90 rounded-xl text-sm font-medium text-black transition-colors disabled:opacity-50"
+                    >
+                      Prihvati
+                    </button>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </SlideUp>
+        </div>
+      )}
+
+      {/* Confirmation Modal */}
+      {showConfirmModal && coachRequest && (
+        <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80">
+          <div className="bg-background-secondary border border-border rounded-2xl p-6 max-w-sm w-full">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 mx-auto mb-4 rounded-full bg-error/20 flex items-center justify-center">
+                <span className="text-3xl">⚠️</span>
+              </div>
+              <h3 className="text-xl font-semibold text-foreground mb-2">
+                Potvrdi prihvatanje
+              </h3>
+              <p className="text-sm text-foreground-muted">
+                Prihvatanjem zahteva, <span className="text-error font-medium">svi tvoji dnevni logovi će biti obrisani</span> i počećeš ispočetka sa trenerovim planom.
+              </p>
+            </div>
+
+            <div className="space-y-3">
+              <button
+                onClick={handleAcceptRequest}
+                disabled={isProcessingRequest}
+                className="w-full py-3 px-4 bg-warning hover:bg-warning/90 rounded-xl text-sm font-semibold text-black transition-colors disabled:opacity-50"
+              >
+                {isProcessingRequest ? "Obrađujem..." : "Da, prihvatam"}
+              </button>
+              <button
+                onClick={() => setShowConfirmModal(false)}
+                disabled={isProcessingRequest}
+                className="w-full py-3 px-4 bg-white/10 hover:bg-white/20 rounded-xl text-sm font-medium text-foreground transition-colors disabled:opacity-50"
+              >
+                Odustani
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* Coach Nudges - Prominent at top */}
       {visibleNudges.length > 0 && (

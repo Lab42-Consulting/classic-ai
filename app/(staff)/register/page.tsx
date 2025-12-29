@@ -219,23 +219,34 @@ export default function RegisterMemberPage() {
       <div className="min-h-screen bg-background px-6 pt-12 pb-24">
         <header className="flex items-center justify-between mb-8">
           <div className="w-10" />
-          <h1 className="text-xl font-bold text-foreground">Član dodeljen</h1>
+          <h1 className="text-xl font-bold text-foreground">Zahtev poslat</h1>
           <div className="w-10" />
         </header>
 
         <div className="space-y-6">
           <Card className="text-center py-6">
-            <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+            <div className="w-16 h-16 bg-warning rounded-full flex items-center justify-center mx-auto mb-4">
+              <svg className="w-8 h-8 text-black" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
               </svg>
             </div>
             <h2 className="text-xl font-semibold text-foreground mb-2">
-              {selectedMember?.name} je sada tvoj klijent!
+              Zahtev poslat članu {selectedMember?.name}
             </h2>
             <p className="text-foreground-muted">
-              Plan je postavljen i možeš početi sa praćenjem
+              Čeka se odobrenje. Član mora prihvatiti zahtev pre nego što postane tvoj klijent.
             </p>
+          </Card>
+
+          <Card className="bg-warning/5 border-warning/20">
+            <div className="flex items-start gap-3">
+              <span className="text-xl">ℹ️</span>
+              <div>
+                <p className="text-sm text-foreground">
+                  Kada član prihvati zahtev, njegov napredak će biti resetovan i ciljevi postavljeni prema tvom planu.
+                </p>
+              </div>
+            </div>
           </Card>
 
           <div className="space-y-3">

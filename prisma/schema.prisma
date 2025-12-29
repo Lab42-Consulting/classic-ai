@@ -47,6 +47,7 @@ model Member {
   aiSummaries         AISummary[]
   chatMessages        ChatMessage[]
   coachAssignment     CoachAssignment?  // One member can only have one coach
+  coachRequest        CoachRequest?     // Pending coach request (only 1 at a time)
   receivedNudges      CoachNudge[]
   coachKnowledge      CoachKnowledge[]  // Per-member AI knowledge from coach
   createdAt           DateTime          @default(now())
@@ -70,6 +71,7 @@ model Staff {
   gym               Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   notes             StaffNote[]
   assignedMembers   CoachAssignment[]
+  coachRequests     CoachRequest[]    // Pending coach requests sent by this coach
   nudges            CoachNudge[]
   coachKnowledge    CoachKnowledge[]
   createdAt         DateTime          @default(now())
@@ -281,4 +283,30 @@ model CoachKnowledge {
   @@index([staffId])
   @@index([memberId])
   @@map("coach_knowledge")
+}
+
+// Pending coach request - member must accept/decline before assignment takes effect
+// Only 1 pending request per member at a time
+model CoachRequest {
+  id             String   @id @default(cuid())
+  staffId        String
+  memberId       String   @unique // Only 1 pending request per member
+
+  // Coach-proposed settings (same as CoachAssignment)
+  customGoal     String?  // Coach can override member's goal
+  customCalories Int?     // Coach-set daily calorie target
+  customProtein  Int?     // Coach-set daily protein target (grams)
+  customCarbs    Int?     // Coach-set daily carbs target (grams)
+  customFats     Int?     // Coach-set daily fats target (grams)
+  notes          String?  // Initial notes
+  requireExactMacros Boolean @default(false)
+
+  createdAt      DateTime @default(now())
+
+  staff          Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([memberId])
+  @@map("coach_requests")
 }

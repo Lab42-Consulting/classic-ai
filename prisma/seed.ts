@@ -108,20 +108,41 @@ async function main() {
   const coach = await prisma.staff.upsert({
     where: {
       staffId_gymId: {
-        staffId: "S-COACH",
+        staffId: "MANJA",
         gymId: gym.id,
       }
     },
     update: {},
     create: {
-      staffId: "S-COACH",
+      staffId: "MANJA",
       pin: coachPin,
-      name: "Coach Mike",
+      name: "Coach Manja",
       role: "coach",
       gymId: gym.id,
     },
   });
   console.log(`✅ Coach created: ${coach.staffId} (PIN: 5678)`);
+
+  
+  // Create Coach Staff
+  const coachGatiPin = await hashPin("1357");
+  const coachGati = await prisma.staff.upsert({
+    where: {
+      staffId_gymId: {
+        staffId: "GATI",
+        gymId: gym.id,
+      }
+    },
+    update: {},
+    create: {
+      staffId: "GATI",
+      pin: coachGatiPin,
+      name: "Branko Gatarić",
+      role: "coach",
+      gymId: gym.id,
+    },
+  });
+  console.log(`✅ Coach created: ${coachGati.staffId} (PIN: 1357)`);
 
   // Create Sample Members
   const members = [

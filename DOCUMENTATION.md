@@ -11,7 +11,13 @@ A digital accountability and guidance system for gym members and staff.
 3. [Database Setup](#database-setup)
 4. [Running the Application](#running-the-application)
 5. [Staff Guide](#staff-guide)
+   - [Coach Assignment](#coach-assignment)
+   - [Require Exact Macros](#require-exact-macros-feature)
+   - [Coach Nudges](#coach-nudges)
 6. [Member Guide](#member-guide)
+   - [Home Screen](#home-screen)
+   - [Progress Page](#progress-page)
+   - [Meal Logging Modes](#log-a-meal)
 7. [API Reference](#api-reference)
 8. [Configuration](#configuration)
 
@@ -158,6 +164,42 @@ Click on any member in the list to see:
 - Weight progress from weekly check-ins
 - AI-generated summaries
 
+### Coach Assignment
+
+Staff members can assign themselves as a coach to gym members for personalized tracking:
+
+1. During **registration** or in **member details**, choose "Assign as Coach"
+2. Select a member from the unassigned members list
+3. Configure optional custom targets:
+   - **Custom Goal**: Override the member's selected goal
+   - **Custom Calories**: Set a specific daily calorie target
+   - **Custom Protein/Carbs/Fats**: Set specific macro targets (grams)
+   - **Notes**: Add initial coaching notes
+4. Toggle **"Require Exact Macros"** if you want the member to enter P/C/F for every meal
+5. Click "Dodeli člana" to complete the assignment
+
+**Important:** One member can only have one coach. If macros are entered, calories are auto-calculated using the formula: `Calories = (P × 4) + (C × 4) + (F × 9)`
+
+### Require Exact Macros Feature
+
+When enabled for a member:
+
+- The member **must** enter Protein, Carbs, and Fats for every meal
+- Calories are automatically calculated from the macros
+- The member cannot use preset meal sizes (Small/Medium/Large)
+- This is useful for members who need strict macro tracking
+
+### Coach Nudges
+
+Send accountability messages to your assigned members:
+
+1. Go to the member's detail page
+2. Find the "Send Nudge" option
+3. Enter a motivational or accountability message
+4. Click Send
+
+The member will see the nudge as a banner on their home screen. Once they tap it, it's marked as seen.
+
 ---
 
 ## Member Guide
@@ -170,15 +212,14 @@ Click on any member in the list to see:
 
 ### Home Screen
 
-Your home screen shows:
+Your home screen shows **daily metrics only** for a focused, simplified view:
 
 | Section | Description |
 |---------|-------------|
-| Daily Status | Green (on track), Yellow (needs attention), Red (off track) |
-| Calories Remaining | How many calories left for the day |
-| Macro Balance | Protein, Carbs, Fats percentages with status indicators |
-| Consistency Score | 0-100 score based on training, logging, and adherence |
-| Activity | Weekly training sessions and daily water intake |
+| Training Status | ✓ (completed) or — (not yet trained today) |
+| Water Intake | Shows as X/8 format (e.g., "3/8" glasses) |
+| Meals Logged | Count of meals logged today |
+| Coach Nudge | Banner at top if your coach sent you a message (tap to dismiss) |
 
 **Quick Actions Grid (2x3):**
 
@@ -193,14 +234,38 @@ Your home screen shows:
 
 **Profile Access:** Tap your avatar (initials) at the top to access your profile and logout.
 
+### Progress Page
+
+For detailed tracking, visit the **Progress page** (`/progress`):
+
+| Section | Description |
+|---------|-------------|
+| Calorie Ring | Circular progress showing calories consumed vs target |
+| Macro Balance | Three progress bars for Protein, Carbs, Fats with color indicators |
+| Consistency Score | 0-100 score based on training, logging, and adherence |
+
+**Consistency Score Components:**
+
+| Component | Max Points |
+|-----------|------------|
+| Training sessions | 30 points |
+| Logging consistency | 20 points |
+| Calorie adherence | 25 points |
+| Protein adherence | 15 points |
+| Water consistency | 10 points |
+
 ### Logging Actions
 
 Tap **"Log Something"** to access logging options:
 
 #### Log a Meal
 
+There are three ways to log a meal, depending on your settings:
+
+**Standard Mode (Preset Sizes):**
+
 1. Tap **"I ate"**
-2. Select meal size: Small, Medium, or Large
+2. Select meal size: Small, Medium, Large, or Tačno (Custom)
 3. **View the macro preview** - shows estimated calories, protein, carbs, and fats
 4. Optionally add what you ate
 5. Tap **"Log meal"**
@@ -213,7 +278,28 @@ Tap **"Log Something"** to access logging options:
 | Recomposition | ~350 cal | ~600 cal | ~900 cal |
 | Muscle Gain | ~400 cal | ~700 cal | ~1000 cal |
 
-**Macro breakdown preview:** When you select a meal size, the app shows:
+**Custom Mode:**
+
+1. Select **"Tačno" (Custom)** from the meal size options
+2. Enter your exact **Calories** (required)
+3. Optionally enter **Protein** in grams
+4. Add meal name if desired
+5. Tap **"Log meal"**
+
+**Exact Macros Mode (Coach-Required):**
+
+If your coach has enabled "Require Exact Macros" for you:
+
+1. Tap **"I ate"**
+2. You'll see three input fields: **Proteini (g)**, **UH (g)** (Carbs), **Masti (g)** (Fats)
+3. Enter all three values (required)
+4. Watch the **auto-calculated calories** appear: `= P×4 + C×4 + F×9`
+5. Add meal name if desired
+6. Tap **"Log meal"**
+
+**Note:** In exact macros mode, you cannot use preset meal sizes. This mode is for members who need strict macro tracking.
+
+**Macro breakdown preview:** When you select a preset meal size, the app shows:
 - Estimated calories (kcal)
 - Protein (g) - shown in green
 - Carbs (g) - shown in yellow
@@ -392,6 +478,37 @@ Access your profile and account settings:
 | Endpoint | Method | Description |
 |----------|--------|-------------|
 | `/api/ai/chat` | POST | Send message to AI coach |
+
+### Coach Assignment (Staff only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/assignments` | POST | Assign coach to member with custom targets |
+| `/api/coach/assignments/:id` | PATCH | Update coach assignment settings |
+| `/api/coach/unassigned-members` | GET | List members without a coach |
+
+**POST `/api/coach/assignments` body:**
+
+```json
+{
+  "memberId": "member-cuid",
+  "customGoal": "fat_loss",       // Optional
+  "customCalories": 1800,         // Optional
+  "customProtein": 150,           // Optional
+  "customCarbs": 180,             // Optional
+  "customFats": 60,               // Optional
+  "notes": "Initial notes",       // Optional
+  "requireExactMacros": true      // Optional, default false
+}
+```
+
+### Coach Nudges
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/nudges` | POST | Send nudge to assigned member (Staff) |
+| `/api/member/nudges` | GET | Get unread nudges (Member) |
+| `/api/member/nudges/:id/seen` | PATCH | Mark nudge as seen (Member) |
 
 ---
 

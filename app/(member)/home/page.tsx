@@ -7,8 +7,6 @@ import {
   calculateDailyStatus,
   calculateMacroPercentages,
   calculateMacroStatus,
-  calculateConsistencyScore,
-  getConsistencyLevel,
   Goal,
 } from "@/lib/calculations";
 
@@ -24,6 +22,7 @@ async function getMemberData(memberId: string) {
     where: { id: memberId },
     include: {
       gym: true,
+      coachAssignment: true, // Include coach-set custom targets
     },
   });
 
@@ -66,11 +65,27 @@ async function getMemberData(memberId: string) {
     orderBy: { createdAt: "desc" },
   });
 
+  // Get unseen nudges from coach
+  const unseenNudges = await prisma.coachNudge.findMany({
+    where: {
+      memberId,
+      seenAt: null,
+    },
+    include: {
+      staff: {
+        select: { name: true },
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 3,
+  });
+
   return {
     member,
     todayLogs,
     last7DaysLogs,
     latestSummary,
+    unseenNudges,
   };
 }
 
@@ -159,17 +174,26 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, latestSummary } = data;
+  const { member, todayLogs, last7DaysLogs, latestSummary, unseenNudges } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
     redirect("/why-this-works");
   }
 
-  const targets = calculateDailyTargets(
+  // Use coach-set custom targets if available, otherwise auto-calculate
+  const autoTargets = calculateDailyTargets(
     member.weight || 70,
     member.goal as Goal
   );
+
+  const coachTargets = member.coachAssignment;
+  const targets = {
+    calories: coachTargets?.customCalories || autoTargets.calories,
+    protein: coachTargets?.customProtein || autoTargets.protein,
+    carbs: coachTargets?.customCarbs || autoTargets.carbs,
+    fats: coachTargets?.customFats || autoTargets.fats,
+  };
 
   const consumed = {
     calories: todayLogs.reduce(
@@ -184,11 +208,12 @@ export default async function HomePage() {
     fats: todayLogs.reduce((sum, log) => sum + (log.estimatedFats || 0), 0),
   };
 
-  // Today's training count
+  // Today's activity counts
   const trainingCountToday = todayLogs.filter(
     (log) => log.type === "training"
   ).length;
   const waterGlasses = todayLogs.filter((log) => log.type === "water").length;
+  const mealsToday = todayLogs.filter((log) => log.type === "meal").length;
 
   const status = calculateDailyStatus({
     consumedCalories: consumed.calories,
@@ -203,15 +228,12 @@ export default async function HomePage() {
     waterGlasses,
   });
 
-  // Calculate weekly stats for consistency score
+  // Calculate weekly stats (for contextual advice)
   const weeklyStats = calculateWeeklyStats(
     last7DaysLogs,
     targets.calories,
     targets.protein
   );
-
-  const consistencyScore = calculateConsistencyScore(weeklyStats);
-  const consistencyLevel = getConsistencyLevel(consistencyScore);
 
   const macroPercentages = calculateMacroPercentages(
     consumed.protein,
@@ -242,15 +264,20 @@ export default async function HomePage() {
         status: calculateMacroStatus(consumed.fats, targets.fats),
       },
     },
-    // New: Consistency score instead of simple streak
-    consistencyScore,
-    consistencyLevel,
-    // Weekly training count (last 7 days)
-    weeklyTrainingSessions: weeklyStats.trainingSessions,
-    // Today's training count
+    // Today's activity (all daily metrics for stats row)
     trainingCountToday,
     waterGlasses,
+    mealsToday,
+    // Weekly data (for contextual advice, not displayed in stats row)
+    weeklyTrainingSessions: weeklyStats.trainingSessions,
     aiSummary: latestSummary?.content || null,
+    // Coach nudges
+    nudges: unseenNudges.map((nudge) => ({
+      id: nudge.id,
+      message: nudge.message,
+      coachName: nudge.staff.name,
+      createdAt: nudge.createdAt.toISOString(),
+    })),
   };
 
   return <HomeClient data={homeData} />;

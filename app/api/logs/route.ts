@@ -12,7 +12,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, mealSize, mealName, customCalories, customProtein } = body;
+    const { type, mealSize, mealName, customCalories, customProtein, customCarbs, customFats } = body;
 
     if (!type || !["meal", "training", "water"].includes(type)) {
       return NextResponse.json(
@@ -44,14 +44,32 @@ export async function POST(request: NextRequest) {
     };
 
     if (type === "meal") {
-      if (!mealSize || !["small", "medium", "large", "custom"].includes(mealSize)) {
+      if (!mealSize || !["small", "medium", "large", "custom", "exact"].includes(mealSize)) {
         return NextResponse.json(
           { error: "Meal size is required" },
           { status: 400 }
         );
       }
 
-      if (mealSize === "custom") {
+      if (mealSize === "exact") {
+        // Exact macros mode - coach requires P/C/F input
+        if (!customProtein || !customCarbs || !customFats) {
+          return NextResponse.json(
+            { error: "Protein, carbs, and fats are required for exact macro logging" },
+            { status: 400 }
+          );
+        }
+
+        logData = {
+          ...logData,
+          mealSize,
+          mealName: mealName || undefined,
+          estimatedCalories: customCalories,
+          estimatedProtein: customProtein,
+          estimatedCarbs: customCarbs,
+          estimatedFats: customFats,
+        };
+      } else if (mealSize === "custom") {
         // Custom meal with user-provided calories
         if (!customCalories || typeof customCalories !== "number" || customCalories <= 0) {
           return NextResponse.json(

@@ -1,6 +1,12 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
+import {
+  calculateDailyTargets,
+  calculateConsistencyScore,
+  getConsistencyLevel,
+  Goal,
+} from "@/lib/calculations";
 
 export async function GET() {
   try {
@@ -12,16 +18,87 @@ export async function GET() {
 
     const member = await prisma.member.findUnique({
       where: { id: session.userId },
-      select: {
-        weight: true,
-        goal: true,
-        createdAt: true,
+      include: {
+        coachAssignment: true,
       },
     });
 
     if (!member) {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
+
+    // Get last 7 days of logs for consistency calculation
+    const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
+    const last7DaysLogs = await prisma.dailyLog.findMany({
+      where: {
+        memberId: session.userId,
+        date: { gte: sevenDaysAgo },
+      },
+      select: {
+        date: true,
+        type: true,
+        estimatedCalories: true,
+        estimatedProtein: true,
+      },
+    });
+
+    // Calculate targets (use coach targets if available)
+    const autoTargets = calculateDailyTargets(
+      member.weight || 70,
+      member.goal as Goal
+    );
+    const coachTargets = member.coachAssignment;
+    const targets = {
+      calories: coachTargets?.customCalories || autoTargets.calories,
+      protein: coachTargets?.customProtein || autoTargets.protein,
+    };
+
+    // Calculate weekly stats for consistency
+    const logsByDate = new Map<string, typeof last7DaysLogs>();
+    for (const log of last7DaysLogs) {
+      const dateKey = new Date(log.date).toISOString().split("T")[0];
+      if (!logsByDate.has(dateKey)) {
+        logsByDate.set(dateKey, []);
+      }
+      logsByDate.get(dateKey)!.push(log);
+    }
+
+    let trainingSessions = 0;
+    let daysWithMeals = 0;
+    let totalCalorieAdherence = 0;
+    let totalProteinAdherence = 0;
+    let daysWithCalories = 0;
+    let waterConsistentDays = 0;
+
+    for (const [, dayLogs] of logsByDate) {
+      trainingSessions += dayLogs.filter((l) => l.type === "training").length;
+      if (dayLogs.some((l) => l.type === "meal")) daysWithMeals++;
+
+      const dayCalories = dayLogs.reduce((sum, l) => sum + (l.estimatedCalories || 0), 0);
+      if (dayCalories > 0) {
+        totalCalorieAdherence += (dayCalories / targets.calories) * 100;
+        daysWithCalories++;
+      }
+
+      const dayProtein = dayLogs.reduce((sum, l) => sum + (l.estimatedProtein || 0), 0);
+      if (dayProtein > 0) {
+        totalProteinAdherence += (dayProtein / targets.protein) * 100;
+      }
+
+      const waterCount = dayLogs.filter((l) => l.type === "water").length;
+      if (waterCount >= 4) waterConsistentDays++;
+    }
+
+    const weeklyStats = {
+      trainingSessions,
+      daysWithMeals,
+      avgCalorieAdherence: daysWithCalories > 0 ? totalCalorieAdherence / daysWithCalories : 0,
+      avgProteinAdherence: daysWithCalories > 0 ? totalProteinAdherence / daysWithCalories : 0,
+      waterConsistency: waterConsistentDays,
+    };
+
+    const consistencyScore = calculateConsistencyScore(weeklyStats);
+    const consistencyLevel = getConsistencyLevel(consistencyScore);
 
     // Get all weekly check-ins, ordered by date
     const checkins = await prisma.weeklyCheckin.findMany({
@@ -83,6 +160,23 @@ export async function GET() {
         totalCheckins: checkins.length,
         isProgressPositive,
         memberSince: member.createdAt,
+      },
+      // Weekly consistency data
+      consistency: {
+        score: consistencyScore,
+        level: consistencyLevel,
+        breakdown: {
+          training: Math.min(30, weeklyStats.trainingSessions * 10),
+          logging: Math.min(20, Math.floor(weeklyStats.daysWithMeals / 7 * 20)),
+          calories: Math.max(0, Math.round(25 - Math.abs(100 - weeklyStats.avgCalorieAdherence) * 0.5)),
+          protein: Math.min(15, Math.round(weeklyStats.avgProteinAdherence * 0.15)),
+          water: Math.min(10, Math.floor(weeklyStats.waterConsistency / 7 * 10)),
+        },
+        weeklyStats: {
+          trainingSessions: weeklyStats.trainingSessions,
+          daysWithMeals: weeklyStats.daysWithMeals,
+          waterConsistentDays: weeklyStats.waterConsistency,
+        },
       },
       goal: member.goal,
       hasCheckedInThisWeek,

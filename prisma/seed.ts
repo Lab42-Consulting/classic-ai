@@ -133,6 +133,7 @@ async function main() {
       startWeight: 95,
       gender: "male",
       goal: "fat_loss",
+      assignToCoach: true,
     },
     {
       memberId: "ĆEPA",
@@ -142,6 +143,17 @@ async function main() {
       startWeight: 82,
       gender: "male",
       goal: "muscle_gain",
+      assignToCoach: true,
+    },
+    {
+      memberId: "NOVI",
+      pin: "3333",
+      name: "Marko Petrović",
+      height: 175,
+      startWeight: 78,
+      gender: "male",
+      goal: "recomposition",
+      assignToCoach: false, // Unassigned - for testing coach assignment flow
     },
   ];
 
@@ -303,6 +315,46 @@ async function main() {
     );
   }
 
+  // Create coach assignments - assign only some members to the coach
+  console.log("\n👨‍🏫 Creating coach assignments...");
+  const membersToAssign = members.filter(m => m.assignToCoach);
+  const allMembers = await prisma.member.findMany({
+    where: { gymId: gym.id },
+    select: { id: true, name: true, memberId: true },
+  });
+
+  let assignedCount = 0;
+  for (const memberData of membersToAssign) {
+    const member = allMembers.find(m => m.memberId === memberData.memberId);
+    if (member) {
+      await prisma.coachAssignment.upsert({
+        where: { memberId: member.id },
+        update: {},
+        create: {
+          staffId: coach.id,
+          memberId: member.id,
+        },
+      });
+      assignedCount++;
+    }
+  }
+  console.log(`✅ Assigned ${assignedCount} members to ${coach.name}`);
+  console.log(`   ↳ ${allMembers.length - assignedCount} member(s) left unassigned for testing`);
+
+  // Add a sample nudge for STRUJA (who missed last week)
+  const strujaMember = allMembers.find(m => m.name.includes("Miloš"));
+  if (strujaMember) {
+    await prisma.coachNudge.create({
+      data: {
+        staffId: coach.id,
+        memberId: strujaMember.id,
+        message: "Vidim da si propustio nedeljni pregled. Javi ako treba pomoć - tu sam! 💪",
+        createdAt: new Date(Date.now() - 2 * 24 * 60 * 60 * 1000), // 2 days ago
+      },
+    });
+    console.log(`✅ Added sample nudge for STRUJA`);
+  }
+
   // Seed AI response cache with suggested prompts
   console.log("\n🤖 Seeding AI response cache...");
   if (process.env.ANTHROPIC_API_KEY) {
@@ -330,12 +382,13 @@ async function main() {
   console.log("  └─────────────┴────────┘");
   console.log("");
   console.log("  MEMBER LOGIN (/login):");
-  console.log("  ┌─────────────┬────────┬────────────────┐");
-  console.log("  │ Member ID   │ PIN    │ Goal           │");
-  console.log("  ├─────────────┼────────┼────────────────┤");
-  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │");
-  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │");
-  console.log("  └─────────────┴────────┴────────────────┘");
+  console.log("  ┌─────────────┬────────┬────────────────┬────────────┐");
+  console.log("  │ Member ID   │ PIN    │ Goal           │ Coach      │");
+  console.log("  ├─────────────┼────────┼────────────────┼────────────┤");
+  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │ ✓ Assigned │");
+  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │ ✓ Assigned │");
+  console.log("  │ NOVI        │ 3333   │ Recomposition  │ ✗ None     │");
+  console.log("  └─────────────┴────────┴────────────────┴────────────┘");
   console.log("");
   console.log("  📊 Each member has 12 weeks of check-in history");
   console.log("  ⏳ Current week check-in NOT done (for testing)");

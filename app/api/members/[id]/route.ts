@@ -100,6 +100,65 @@ export async function GET(
   }
 }
 
+// POST /api/members/[id] - Add staff note
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ id: string }> }
+) {
+  try {
+    const session = await getSession();
+
+    if (!session || session.userType !== "staff") {
+      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { id } = await params;
+    const body = await request.json();
+
+    // Validate member exists and belongs to staff's gym
+    const member = await prisma.member.findUnique({
+      where: { id, gymId: session.gymId },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // Accept either "note" or "content" field
+    const noteContent = body.note || body.content;
+    if (!noteContent || typeof noteContent !== "string" || noteContent.trim().length === 0) {
+      return NextResponse.json({ error: "Note content is required" }, { status: 400 });
+    }
+
+    const note = await prisma.staffNote.create({
+      data: {
+        staffId: session.userId,
+        memberId: id,
+        content: noteContent.trim(),
+      },
+      include: {
+        staff: { select: { name: true } },
+      },
+    });
+
+    return NextResponse.json({
+      success: true,
+      note: {
+        id: note.id,
+        content: note.content,
+        staffName: note.staff.name,
+        createdAt: note.createdAt,
+      },
+    });
+  } catch (error) {
+    console.error("Add note error:", error);
+    return NextResponse.json(
+      { error: "Failed to add note" },
+      { status: 500 }
+    );
+  }
+}
+
 // PATCH /api/members/[id] - Update member (subscription status, etc.)
 export async function PATCH(
   request: NextRequest,

@@ -21,21 +21,33 @@ export default function LogPage() {
   const [loading, setLoading] = useState(false);
   const [success, setSuccess] = useState(false);
   const [userGoal, setUserGoal] = useState<Goal>("fat_loss");
+  const [requireExactMacros, setRequireExactMacros] = useState(false);
+  const [customCarbs, setCustomCarbs] = useState("");
+  const [customFats, setCustomFats] = useState("");
 
   useEffect(() => {
-    fetchUserGoal();
+    fetchUserProfile();
   }, []);
 
-  const fetchUserGoal = async () => {
+  const fetchUserProfile = async () => {
     try {
       const response = await fetch("/api/member/profile");
       if (response.ok) {
         const data = await response.json();
         setUserGoal(data.goal || "fat_loss");
+        setRequireExactMacros(data.requireExactMacros || false);
       }
     } catch {
-      // Use default goal
+      // Use default values
     }
+  };
+
+  // Auto-calculate calories from macros
+  const calculateCaloriesFromMacros = () => {
+    const p = parseInt(customProtein) || 0;
+    const c = parseInt(customCarbs) || 0;
+    const f = parseInt(customFats) || 0;
+    return p * 4 + c * 4 + f * 9;
   };
 
   const getMacrosForSize = (size: MealSize) => {
@@ -44,8 +56,15 @@ export default function LogPage() {
 
   const handleLog = async () => {
     if (!selectedType) return;
-    if (selectedType === "meal" && !mealSize) return;
-    if (selectedType === "meal" && mealSize === "custom" && !customCalories) return;
+
+    // Validation for exact macros mode
+    if (selectedType === "meal" && requireExactMacros) {
+      if (!customProtein || !customCarbs || !customFats) return;
+    } else if (selectedType === "meal" && !mealSize) {
+      return;
+    } else if (selectedType === "meal" && mealSize === "custom" && !customCalories) {
+      return;
+    }
 
     setLoading(true);
 
@@ -56,17 +75,31 @@ export default function LogPage() {
         mealName?: string;
         customCalories?: number;
         customProtein?: number;
+        customCarbs?: number;
+        customFats?: number;
       } = {
         type: selectedType,
-        mealSize: selectedType === "meal" && mealSize ? mealSize : undefined,
         mealName: selectedType === "meal" && mealName ? mealName : undefined,
       };
 
-      // Add custom values if using custom size
-      if (selectedType === "meal" && mealSize === "custom") {
-        payload.customCalories = parseInt(customCalories, 10);
-        if (customProtein) {
+      if (selectedType === "meal") {
+        if (requireExactMacros) {
+          // Exact macros mode: calculate calories from P/C/F
           payload.customProtein = parseInt(customProtein, 10);
+          payload.customCarbs = parseInt(customCarbs, 10);
+          payload.customFats = parseInt(customFats, 10);
+          payload.customCalories = calculateCaloriesFromMacros();
+          payload.mealSize = "exact";
+        } else if (mealSize === "custom") {
+          // Custom mode: use entered values
+          payload.mealSize = mealSize;
+          payload.customCalories = parseInt(customCalories, 10);
+          if (customProtein) {
+            payload.customProtein = parseInt(customProtein, 10);
+          }
+        } else {
+          // Standard size mode
+          payload.mealSize = mealSize || undefined;
         }
       }
 
@@ -223,99 +256,154 @@ export default function LogPage() {
           setMealName("");
           setCustomCalories("");
           setCustomProtein("");
+          setCustomCarbs("");
+          setCustomFats("");
         }}
         title={t.log.logMeal}
         variant="bottom-sheet"
       >
         <div className="space-y-6">
-          <div>
-            <p className="text-label mb-4">{t.log.howBigMeal}</p>
-            <div className="grid grid-cols-4 gap-2">
-              {([
-                { size: "small" as const, emoji: "🥗", label: t.log.small },
-                { size: "medium" as const, emoji: "🍛", label: t.log.medium },
-                { size: "large" as const, emoji: "🍱", label: t.log.large },
-                { size: "custom" as const, emoji: "✏️", label: "Tačno" },
-              ]).map(({ size, emoji, label }) => {
-                const isCustom = size === "custom";
-                const macros = isCustom ? null : getMacrosForSize(size as Exclude<MealSize, "custom">);
-                return (
-                  <button
-                    key={size}
-                    onClick={() => setMealSize(size)}
-                    className={`
-                      py-4 px-1 rounded-2xl border-2 transition-all btn-press
-                      ${
-                        mealSize === size
-                          ? "border-accent bg-accent/10 glow-accent"
-                          : "border-white/10 glass hover:border-white/20"
-                      }
-                    `}
-                  >
-                    <span className="block text-2xl mb-1">{emoji}</span>
-                    <span className="text-xs font-semibold text-foreground">
-                      {label}
-                    </span>
-                    {macros && (
-                      <span className="block text-xs text-foreground-muted mt-1">
-                        ~{macros.calories}
-                      </span>
-                    )}
-                  </button>
-                );
-              })}
-            </div>
-          </div>
-
-          {/* Custom Calorie Input */}
-          {mealSize === "custom" && (
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
-              <p className="text-xs text-foreground-muted">Unesi tačne vrednosti:</p>
-              <div className="grid grid-cols-2 gap-3">
-                <Input
-                  label="Kalorije *"
-                  type="number"
-                  placeholder="npr. 450"
-                  value={customCalories}
-                  onChange={(e) => setCustomCalories(e.target.value)}
-                />
-                <Input
-                  label="Proteini (g)"
-                  type="number"
-                  placeholder="npr. 30"
-                  value={customProtein}
-                  onChange={(e) => setCustomProtein(e.target.value)}
-                />
+          {requireExactMacros ? (
+            /* Exact Macros Mode - Coach requires P/C/F input */
+            <>
+              <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
+                <p className="text-sm text-foreground-muted">
+                  Tvoj trener zahteva unos tačnih makrosa za svaki obrok.
+                </p>
               </div>
-            </div>
-          )}
 
-          {/* Macro Breakdown Preview - only for preset sizes */}
-          {mealSize && mealSize !== "custom" && (
-            <div className="p-4 rounded-xl bg-white/5 border border-white/10">
-              <p className="text-xs text-foreground-muted mb-3">Procena za ovaj obrok:</p>
-              <div className="grid grid-cols-4 gap-2 text-center">
-                <div>
-                  <p className="text-lg font-bold text-foreground">{getMacrosForSize(mealSize).calories}</p>
-                  <p className="text-xs text-foreground-muted">kcal</p>
+              <div className="space-y-4">
+                <div className="grid grid-cols-3 gap-3">
+                  <Input
+                    label="Proteini (g) *"
+                    type="number"
+                    placeholder="30"
+                    value={customProtein}
+                    onChange={(e) => setCustomProtein(e.target.value)}
+                  />
+                  <Input
+                    label="UH (g) *"
+                    type="number"
+                    placeholder="50"
+                    value={customCarbs}
+                    onChange={(e) => setCustomCarbs(e.target.value)}
+                  />
+                  <Input
+                    label="Masti (g) *"
+                    type="number"
+                    placeholder="15"
+                    value={customFats}
+                    onChange={(e) => setCustomFats(e.target.value)}
+                  />
                 </div>
-                <div>
-                  <p className="text-lg font-bold text-success">{getMacrosForSize(mealSize).protein}g</p>
-                  <p className="text-xs text-foreground-muted">proteini</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-warning">{getMacrosForSize(mealSize).carbs}g</p>
-                  <p className="text-xs text-foreground-muted">ugljeni</p>
-                </div>
-                <div>
-                  <p className="text-lg font-bold text-accent">{getMacrosForSize(mealSize).fats}g</p>
-                  <p className="text-xs text-foreground-muted">masti</p>
+
+                {/* Auto-calculated calories preview */}
+                {(customProtein || customCarbs || customFats) && (
+                  <div className="p-4 rounded-xl bg-white/5 border border-white/10 text-center">
+                    <p className="text-xs text-foreground-muted mb-2">Izračunate kalorije:</p>
+                    <p className="text-2xl font-bold text-foreground">
+                      {calculateCaloriesFromMacros()} <span className="text-sm font-normal text-foreground-muted">kcal</span>
+                    </p>
+                    <p className="text-xs text-foreground-muted mt-2">
+                      = {customProtein || 0}g P × 4 + {customCarbs || 0}g UH × 4 + {customFats || 0}g M × 9
+                    </p>
+                  </div>
+                )}
+              </div>
+            </>
+          ) : (
+            /* Standard Mode - Meal size selection */
+            <>
+              <div>
+                <p className="text-label mb-4">{t.log.howBigMeal}</p>
+                <div className="grid grid-cols-4 gap-2">
+                  {([
+                    { size: "small" as const, emoji: "🥗", label: t.log.small },
+                    { size: "medium" as const, emoji: "🍛", label: t.log.medium },
+                    { size: "large" as const, emoji: "🍱", label: t.log.large },
+                    { size: "custom" as const, emoji: "✏️", label: "Tačno" },
+                  ]).map(({ size, emoji, label }) => {
+                    const isCustom = size === "custom";
+                    const macros = isCustom ? null : getMacrosForSize(size as Exclude<MealSize, "custom">);
+                    return (
+                      <button
+                        key={size}
+                        onClick={() => setMealSize(size)}
+                        className={`
+                          py-4 px-1 rounded-2xl border-2 transition-all btn-press
+                          ${
+                            mealSize === size
+                              ? "border-accent bg-accent/10 glow-accent"
+                              : "border-white/10 glass hover:border-white/20"
+                          }
+                        `}
+                      >
+                        <span className="block text-2xl mb-1">{emoji}</span>
+                        <span className="text-xs font-semibold text-foreground">
+                          {label}
+                        </span>
+                        {macros && (
+                          <span className="block text-xs text-foreground-muted mt-1">
+                            ~{macros.calories}
+                          </span>
+                        )}
+                      </button>
+                    );
+                  })}
                 </div>
               </div>
-              <p className="text-xs text-foreground-muted mt-3 text-center">
-                Bazirano na veličini obroka i tvom cilju
-              </p>
-            </div>
+
+              {/* Custom Calorie Input */}
+              {mealSize === "custom" && (
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10 space-y-4">
+                  <p className="text-xs text-foreground-muted">Unesi tačne vrednosti:</p>
+                  <div className="grid grid-cols-2 gap-3">
+                    <Input
+                      label="Kalorije *"
+                      type="number"
+                      placeholder="npr. 450"
+                      value={customCalories}
+                      onChange={(e) => setCustomCalories(e.target.value)}
+                    />
+                    <Input
+                      label="Proteini (g)"
+                      type="number"
+                      placeholder="npr. 30"
+                      value={customProtein}
+                      onChange={(e) => setCustomProtein(e.target.value)}
+                    />
+                  </div>
+                </div>
+              )}
+
+              {/* Macro Breakdown Preview - only for preset sizes */}
+              {mealSize && mealSize !== "custom" && (
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <p className="text-xs text-foreground-muted mb-3">Procena za ovaj obrok:</p>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-foreground">{getMacrosForSize(mealSize).calories}</p>
+                      <p className="text-xs text-foreground-muted">kcal</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-success">{getMacrosForSize(mealSize).protein}g</p>
+                      <p className="text-xs text-foreground-muted">proteini</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-warning">{getMacrosForSize(mealSize).carbs}g</p>
+                      <p className="text-xs text-foreground-muted">ugljeni</p>
+                    </div>
+                    <div>
+                      <p className="text-lg font-bold text-accent">{getMacrosForSize(mealSize).fats}g</p>
+                      <p className="text-xs text-foreground-muted">masti</p>
+                    </div>
+                  </div>
+                  <p className="text-xs text-foreground-muted mt-3 text-center">
+                    Bazirano na veličini obroka i tvom cilju
+                  </p>
+                </div>
+              )}
+            </>
           )}
 
           <Input
@@ -329,7 +417,11 @@ export default function LogPage() {
             className="w-full btn-press glow-accent"
             size="lg"
             onClick={handleLog}
-            disabled={!mealSize || (mealSize === "custom" && !customCalories) || loading}
+            disabled={
+              requireExactMacros
+                ? !customProtein || !customCarbs || !customFats || loading
+                : !mealSize || (mealSize === "custom" && !customCalories) || loading
+            }
             loading={loading}
           >
             {t.log.logMeal}

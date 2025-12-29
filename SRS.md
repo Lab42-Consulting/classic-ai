@@ -2,8 +2,16 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.0
+**Version:** 1.1
 **Last Updated:** December 2024
+
+**Changelog v1.1:**
+- Added Coach Assignment System with custom targets
+- Added Coach Nudges (accountability messages)
+- Added requireExactMacros feature for strict macro tracking
+- Added custom and exact meal logging modes
+- Updated Home Dashboard to show daily metrics only
+- Moved Consistency Score to Progress page
 
 ---
 
@@ -74,10 +82,11 @@ The system provides:
 │  │ - login     │  │ - home      │  │ - dashboard         │  │
 │  │ - staff-login│ │ - log       │  │ - members           │  │
 │  │             │  │ - chat      │  │ - register          │  │
-│  │             │  │ - checkin   │  │                     │  │
+│  │             │  │ - checkin   │  │ - members/[id]      │  │
 │  │             │  │ - history   │  │                     │  │
 │  │             │  │ - profile   │  │                     │  │
 │  │             │  │ - goal      │  │                     │  │
+│  │             │  │ - progress  │  │                     │  │
 │  │             │  │ - subscription│ │                    │  │
 │  │             │  │ - supplements│ │                     │  │
 │  └─────────────┘  └─────────────┘  └─────────────────────┘  │
@@ -85,8 +94,9 @@ The system provides:
 │                      API Routes (/api)                       │
 │  - auth/login, auth/logout, auth/staff-login                │
 │  - logs, checkins                                           │
-│  - member/profile, member/subscription                      │
+│  - member/profile, member/subscription, member/nudges       │
 │  - members, members/[id]                                    │
+│  - coach/assignments, coach/nudges                          │
 │  - ai/chat                                                  │
 ├─────────────────────────────────────────────────────────────┤
 │                    Prisma ORM Layer                          │
@@ -124,20 +134,36 @@ The system provides:
 ### 3.2 Daily Logging
 
 #### FR-LOG-001: Meal Logging
-- **Input:** Meal size (small/medium/large), optional meal name
+- **Input:** Meal size (small/medium/large/custom/exact), optional meal name, optional macros
 - **Process:**
-  1. Fetch user's current goal
-  2. Calculate estimated macros based on goal and size
-  3. Store log with timestamp
+  1. Fetch user's current goal and coach settings
+  2. If `requireExactMacros` is enabled by coach, require P/C/F input
+  3. Calculate estimated or exact macros based on mode
+  4. Store log with timestamp
 - **Output:** Success confirmation, redirect to home
 
-**Meal Size Estimation by Goal:**
+**Meal Size Modes:**
+
+| Mode | Description | Required Input |
+|------|-------------|----------------|
+| Small/Medium/Large | Preset sizes with automatic macro estimation | Size selection |
+| Custom | User enters exact calories, optional protein | Calories (required), Protein (optional) |
+| Exact | Coach-required mode with full macro tracking | Protein, Carbs, Fats (all required) |
+
+**Meal Size Estimation by Goal (Preset Sizes):**
 
 | Goal | Small | Medium | Large |
 |------|-------|--------|-------|
 | Fat Loss | 300 kcal | 500 kcal | 750 kcal |
 | Recomposition | 350 kcal | 600 kcal | 900 kcal |
 | Muscle Gain | 400 kcal | 700 kcal | 1000 kcal |
+
+#### FR-LOG-001a: Exact Macros Mode
+- **Trigger:** Coach enables `requireExactMacros` for member
+- **Input:** Protein (g), Carbs (g), Fats (g)
+- **Auto-calculation:** Calories = (P × 4) + (C × 4) + (F × 9)
+- **Display:** Real-time calorie preview as macros are entered
+- **Validation:** All three macro fields required
 
 #### FR-LOG-002: Training Logging
 - **Input:** Single tap
@@ -160,32 +186,20 @@ The system provides:
 
 ### 3.3 Home Dashboard
 
-#### FR-HOME-001: Daily Status Display
-- **Calculation:** Based on calorie adherence, protein intake, time of day
-- **States:**
-  - `on_track`: Meeting targets appropriately
-  - `needs_attention`: Minor deviation
-  - `off_track`: Significant deviation
+The home dashboard displays **daily metrics only** for a focused, simplified view.
 
-#### FR-HOME-002: Calorie Ring
-- **Display:** Circular progress indicator
-- **Under target:** Show remaining calories
-- **Over target:** Show surplus in red with recovery suggestions
+#### FR-HOME-001: Daily Metrics Display
+- **Training Status:** ✓ (completed) or — (not yet)
+- **Water Intake:** X/8 format (e.g., "3/8" glasses)
+- **Meals Logged:** Count of meals for the day
+- **Note:** Detailed calorie/macro tracking moved to Progress page
 
-#### FR-HOME-003: Macro Balance
-- **Display:** Three progress bars (Protein, Carbs, Fats)
-- **Colors:** Green (on track), Yellow (attention), Red (off track)
+#### FR-HOME-002: Coach Nudge Banner
+- **Trigger:** Unread nudge from assigned coach
+- **Display:** Coach message at top of dashboard
+- **Action:** Tap to dismiss (marks as seen)
 
-#### FR-HOME-004: Consistency Score
-- **Range:** 0-100
-- **Components:**
-  - Training sessions (0-30 points)
-  - Logging consistency (0-20 points)
-  - Calorie adherence (0-25 points)
-  - Protein adherence (0-15 points)
-  - Water consistency (0-10 points)
-
-#### FR-HOME-005: Quick Actions Grid
+#### FR-HOME-003: Quick Actions Grid
 - **Layout:** 2x3 grid
 - **Buttons:**
   1. AI Chat
@@ -195,7 +209,27 @@ The system provides:
   5. Supplements
   6. Goal
 
-### 3.4 Goal Management
+### 3.4 Progress Page
+
+#### FR-PROGRESS-001: Calorie Ring
+- **Display:** Circular progress indicator
+- **Under target:** Show remaining calories
+- **Over target:** Show surplus in red with recovery suggestions
+
+#### FR-PROGRESS-002: Macro Balance
+- **Display:** Three progress bars (Protein, Carbs, Fats)
+- **Colors:** Green (on track), Yellow (attention), Red (off track)
+
+#### FR-PROGRESS-003: Consistency Score
+- **Range:** 0-100
+- **Components:**
+  - Training sessions (0-30 points)
+  - Logging consistency (0-20 points)
+  - Calorie adherence (0-25 points)
+  - Protein adherence (0-15 points)
+  - Water consistency (0-10 points)
+
+### 3.5 Goal Management
 
 #### FR-GOAL-001: View Goals
 - **Display:** Three goal cards with:
@@ -220,7 +254,7 @@ The system provides:
 | Recomposition | 35% / 40% / 25% | Maintenance |
 | Muscle Gain | 30% / 45% / 25% | Surplus |
 
-### 3.5 Subscription/Trial System
+### 3.6 Subscription/Trial System
 
 #### FR-SUB-001: Trial Period
 - **Duration:** 7 days from registration
@@ -241,7 +275,7 @@ The system provides:
   - End date (active only)
   - Warning/action prompt when expiring
 
-### 3.6 Supplements
+### 3.7 Supplements
 
 #### FR-SUPP-001: Goal-Based Recommendations
 - **Categories:**
@@ -259,7 +293,7 @@ The system provides:
 #### FR-SUPP-003: Goal Link
 - **Feature:** Quick link to change goal from supplements page
 
-### 3.7 History
+### 3.8 History
 
 #### FR-HIST-001: 30-Day Calendar
 - **Display:** Grid calendar with color-coded days
@@ -283,7 +317,7 @@ The system provides:
   - Days logged
   - Average calories
 
-### 3.8 Profile
+### 3.9 Profile
 
 #### FR-PROF-001: Profile Display
 - **Information:**
@@ -301,7 +335,7 @@ The system provides:
 - **Button:** "Odjavi se"
 - **Action:** Clear session, redirect to login
 
-### 3.9 Weekly Check-In
+### 3.10 Weekly Check-In
 
 #### FR-CHECK-001: Check-In Form
 - **Fields:**
@@ -313,7 +347,7 @@ The system provides:
 - **Rule:** One check-in per week
 - **Display:** Status message if already completed
 
-### 3.10 AI Chat
+### 3.11 AI Chat
 
 #### FR-AI-001: Chat Interface
 - **Features:**
@@ -334,7 +368,7 @@ The system provides:
 - Focus on education and motivation
 - Reference gym staff for personalized plans
 
-### 3.11 Staff Dashboard
+### 3.12 Staff Dashboard
 
 #### FR-STAFF-001: Member Overview
 - **List:** All gym members
@@ -355,6 +389,44 @@ The system provides:
   - QR code
 - **Required fields:** Name, Goal
 - **Optional fields:** Height, Weight, Gender
+
+### 3.13 Coach Features
+
+#### FR-COACH-001: Coach Assignment
+- **Purpose:** Assign staff member as coach to a gym member
+- **Location:** Member registration and member details pages
+- **Data Captured:**
+  - Staff ID (auto-set to current logged-in coach)
+  - Member ID
+  - Assignment timestamp
+- **Constraint:** One member can only have one coach
+
+#### FR-COACH-002: Custom Targets
+- **Purpose:** Coach can override member's automatic target calculations
+- **Fields:**
+  - Custom Goal (override member's selected goal)
+  - Custom Calories (daily target)
+  - Custom Protein (grams)
+  - Custom Carbs (grams)
+  - Custom Fats (grams)
+  - Notes (initial coaching notes)
+- **Behavior:** When set, custom targets take precedence over calculated values
+
+#### FR-COACH-003: Require Exact Macros
+- **Purpose:** Coach can enforce strict macro tracking for a member
+- **Trigger:** Toggle `requireExactMacros` in coach assignment
+- **Effect:** Member must enter Protein, Carbs, and Fats for every meal
+- **Calories:** Auto-calculated from macros (P×4 + C×4 + F×9)
+- **UI Change:** Meal size selection replaced with macro input fields
+
+#### FR-COACH-004: Coach Nudges
+- **Purpose:** One-way accountability messages from coach to member
+- **Features:**
+  - Coach can send text messages to assigned members
+  - Messages appear as banner on member's home dashboard
+  - Member can tap to dismiss (marks as seen)
+  - Track when message was seen (`seenAt` timestamp)
+- **Note:** Not a two-way chat, just accountability signals
 
 ---
 
@@ -460,6 +532,47 @@ model WeeklyCheckin {
 }
 ```
 
+### 5.4 CoachAssignment Model
+
+```prisma
+model CoachAssignment {
+  id             String   @id @default(cuid())
+  staffId        String
+  memberId       String   @unique // One member can only have one coach
+  assignedAt     DateTime @default(now())
+
+  // Coach-set targets (overrides automatic calculations)
+  customGoal     String?  // Coach can override member's goal
+  customCalories Int?     // Coach-set daily calorie target
+  customProtein  Int?     // Coach-set daily protein target (grams)
+  customCarbs    Int?     // Coach-set daily carbs target (grams)
+  customFats     Int?     // Coach-set daily fats target (grams)
+  notes          String?  // Initial notes when assigning
+
+  // Tracking settings
+  requireExactMacros Boolean @default(false) // If true, member must enter exact P/C/F for each meal
+
+  staff          Staff    @relation(...)
+  member         Member   @relation(...)
+}
+```
+
+### 5.5 CoachNudge Model
+
+```prisma
+model CoachNudge {
+  id        String    @id @default(cuid())
+  staffId   String
+  memberId  String
+  message   String
+  createdAt DateTime  @default(now())
+  seenAt    DateTime? // Null until member sees it
+
+  staff     Staff     @relation(...)
+  member    Member    @relation(...)
+}
+```
+
 ---
 
 ## 6. User Interface Specifications
@@ -532,11 +645,31 @@ All pages follow mobile-first design with:
 
 #### POST /api/logs
 ```json
-// Request (meal)
+// Request (meal - preset size)
 {
   "type": "meal",
   "mealSize": "medium",
   "mealName": "Piletina sa risom"
+}
+
+// Request (meal - custom calories)
+{
+  "type": "meal",
+  "mealSize": "custom",
+  "customCalories": 450,
+  "customProtein": 30,
+  "mealName": "Salata sa piletinom"
+}
+
+// Request (meal - exact macros, coach-required)
+{
+  "type": "meal",
+  "mealSize": "exact",
+  "customProtein": 35,
+  "customCarbs": 45,
+  "customFats": 15,
+  "customCalories": 455,  // Auto-calculated: 35*4 + 45*4 + 15*9
+  "mealName": "Piletina, riza, povrce"
 }
 
 // Request (training)
@@ -580,7 +713,15 @@ All pages follow mobile-first design with:
   "memberId": "ABC123",
   "goal": "fat_loss",
   "weight": 85,
-  "height": 180
+  "height": 180,
+  "requireExactMacros": false,  // From coach assignment
+  "coachAssignment": {          // Optional, present if assigned
+    "customGoal": null,
+    "customCalories": 1800,
+    "customProtein": 150,
+    "customCarbs": null,
+    "customFats": null
+  }
 }
 ```
 
@@ -604,6 +745,76 @@ All pages follow mobile-first design with:
   "trialEndDate": "2025-01-01T00:00:00Z",
   "subscriptionEndDate": null
 }
+```
+
+### 7.5 Coach Assignment (Staff Only)
+
+#### POST /api/coach/assignments
+```json
+// Request - Assign coach to member
+{
+  "memberId": "member-cuid",
+  "customGoal": "fat_loss",       // Optional
+  "customCalories": 1800,         // Optional
+  "customProtein": 150,           // Optional
+  "customCarbs": 180,             // Optional
+  "customFats": 60,               // Optional
+  "notes": "Fokus na deficit",    // Optional
+  "requireExactMacros": true      // Optional, default false
+}
+
+// Response (200)
+{ "success": true, "assignment": { ... } }
+```
+
+#### PATCH /api/coach/assignments/:id
+```json
+// Request - Update coach assignment
+{
+  "customCalories": 1900,
+  "requireExactMacros": false
+}
+
+// Response (200)
+{ "success": true, "assignment": { ... } }
+```
+
+### 7.6 Coach Nudges (Staff Only)
+
+#### POST /api/coach/nudges
+```json
+// Request - Send nudge to member
+{
+  "memberId": "member-cuid",
+  "message": "Odlično napredujete! Nastavite tako! 💪"
+}
+
+// Response (200)
+{ "success": true, "nudge": { ... } }
+```
+
+#### GET /api/member/nudges (Member)
+```json
+// Response (200) - Get unread nudges
+{
+  "nudges": [
+    {
+      "id": "nudge-cuid",
+      "message": "Odlično napredujete!",
+      "createdAt": "2024-12-28T10:00:00Z",
+      "coachName": "Marko Trener"
+    }
+  ]
+}
+```
+
+#### PATCH /api/member/nudges/:id/seen
+```json
+// Request - Mark nudge as seen
+// No body required
+
+// Response (200)
+{ "success": true }
 ```
 
 ---
@@ -740,29 +951,32 @@ interface Translations {
     /history/page.tsx
     /profile/page.tsx
     /goal/page.tsx
+    /progress/page.tsx          # Calorie ring, macros, consistency score
     /subscription/page.tsx
     /supplements/page.tsx
   /(staff)
     /dashboard/page.tsx
     /members/page.tsx
     /members/[id]/page.tsx
-    /register/page.tsx
+    /register/page.tsx          # Includes coach assignment with custom targets
   /api
     /auth/login, logout, staff-login
-    /logs/route.ts
+    /logs/route.ts              # Supports exact macros mode
     /checkins/route.ts
-    /member/profile, subscription
+    /member/profile, subscription, nudges
     /members/route.ts, [id]/route.ts
+    /coach/assignments/route.ts # Coach assignment management
+    /coach/nudges/route.ts      # Coach nudge sending
     /ai/chat/route.ts
 /components
-  /ui/index.ts (GlassCard, Button, Modal, ProgressRing, etc.)
+  /ui/index.ts (GlassCard, Button, Modal, ProgressRing, Input, etc.)
 /lib
   /auth.ts
   /db.ts
   /i18n.ts
   /calculations/index.ts
 /prisma
-  /schema.prisma
+  /schema.prisma               # Includes CoachAssignment, CoachNudge models
   /seed.ts
 ```
 

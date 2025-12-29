@@ -41,6 +41,7 @@ export const translations = {
       training: "trening",
       sessions: "treninga",
       glasses: "čaša",
+      meals: "obroka",
       noAiSummary: "Nastavi da unosiš podatke da dobiješ AI savete",
       aiInsight: "AI Savet",
       askAi: "Pitaj AI",
@@ -251,6 +252,7 @@ export const translations = {
       training: "training",
       sessions: "sessions",
       glasses: "glasses",
+      meals: "meals",
       noAiSummary: "Keep logging to get AI insights",
       aiInsight: "AI Insight",
       askAi: "Ask AI",
@@ -458,6 +460,7 @@ export type TranslationKeys = {
     training: string;
     sessions: string;
     glasses: string;
+    meals: string;
     noAiSummary: string;
     aiInsight: string;
     askAi: string;

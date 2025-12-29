@@ -39,3 +39,6 @@ export type { TypingAnimationProps } from "./typing-animation";
 
 export { AIAvatar, AIAvatarBolt, AIAvatarCoach, AIAvatarEmoji } from "./ai-avatar";
 export type { AIAvatarProps } from "./ai-avatar";
+
+export { AgentAvatar, agentMeta } from "./agent-avatar";
+export type { AgentAvatarProps, AgentType } from "./agent-avatar";

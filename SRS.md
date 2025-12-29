@@ -2,8 +2,16 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.1
+**Version:** 1.2
 **Last Updated:** December 2024
+
+**Changelog v1.2:**
+- Added Specialized AI Agents (Nutrition, Supplements, Training)
+- Added per-member Coach Knowledge for AI customization
+- Weekly check-ins now only available on Sunday
+- Week calculations use Monday-Sunday (not rolling 7 days)
+- Context-aware training alerts (show from Thursday if behind pace)
+- AI agents use Serbian language (ekavica dialect)
 
 **Changelog v1.1:**
 - Added Coach Assignment System with custom targets
@@ -96,8 +104,8 @@ The system provides:
 │  - logs, checkins                                           │
 │  - member/profile, member/subscription, member/nudges       │
 │  - members, members/[id]                                    │
-│  - coach/assignments, coach/nudges                          │
-│  - ai/chat                                                  │
+│  - coach/assignments, coach/nudges, coach/knowledge         │
+│  - ai/agents/[type]/chat (nutrition, supplements, training) │
 ├─────────────────────────────────────────────────────────────┤
 │                    Prisma ORM Layer                          │
 ├─────────────────────────────────────────────────────────────┤
@@ -343,30 +351,67 @@ The home dashboard displays **daily metrics only** for a focused, simplified vie
   - Feeling scale (1-4, emoji selection)
   - Progress photo (optional)
 
-#### FR-CHECK-002: Check-In Limit
-- **Rule:** One check-in per week
-- **Display:** Status message if already completed
+#### FR-CHECK-002: Check-In Availability
+- **Rule:** Check-ins only available on Sunday (end of week)
+- **Minimum Interval:** 7 days between check-ins
+- **Validation:**
+  - If not Sunday: Show days until Sunday
+  - If already done this week: Show "already completed" message
+  - If less than 7 days since last check-in: Show days remaining
 
-### 3.11 AI Chat
+#### FR-CHECK-003: Check-In Status Response
+- **Fields returned:**
+  - `canCheckIn`: Boolean
+  - `reason`: "sunday_only" | "already_done" | "too_soon"
+  - `isSunday`: Boolean
+  - `daysUntilNextCheckin`: Number
+  - `missedWeeks`: Number (accountability tracking)
 
-#### FR-AI-001: Chat Interface
-- **Features:**
-  - Suggested prompts
-  - Free-text input
-  - Conversation history
+### 3.11 Specialized AI Agents
 
-#### FR-AI-002: AI Context
+The system uses three specialized AI agents instead of a single general chat:
+
+#### FR-AI-001: Agent Types
+
+| Agent | Domain | Icon |
+|-------|--------|------|
+| Nutrition (Ishrana) | Calories, macros, meal timing, food choices | Cherries (emerald) |
+| Supplements (Suplementi) | Protein, creatine, vitamins, dosages | Pills (violet) |
+| Training (Trening) | Workout types, exercise technique, recovery | Dumbbell (orange) |
+
+#### FR-AI-002: Agent Chat Interface
+- **Selection:** Agent picker on main chat page
+- **Per-agent history:** Conversations are stored separately per agent
+- **Suggested prompts:** Domain-specific starter questions
+- **Character limit:** 500 characters per message
+
+#### FR-AI-003: AI Context
 - **Includes:**
-  - User's current stats
-  - Recent logs
-  - Goal and progress
-  - Knowledge base content
+  - User's current stats (weight, goal)
+  - Today's consumed macros vs targets
+  - Training status (today and weekly)
+  - Water intake
+  - Consistency score
+  - Coach knowledge (if configured)
 
-#### FR-AI-003: AI Guardrails
+#### FR-AI-004: AI Language
+- **Primary:** Serbian (ekavica dialect)
+- **Rules:**
+  - Use "e" instead of "ije": "lepo" not "lijepo", "mleko" not "mlijeko"
+  - Serbian terminology: "nedelja" not "tjedan", "hleb" not "kruh"
+  - Cyrillic only if user writes in Cyrillic
+
+#### FR-AI-005: AI Guardrails
+- Each agent stays within its domain
+- Redirects off-topic questions to appropriate agent
 - No medical advice
-- No specific meal plans
-- Focus on education and motivation
-- Reference gym staff for personalized plans
+- No specific meal/training plans
+- Reference gym staff for personalized guidance
+
+#### FR-AI-006: Rate Limiting
+- **Trial members:** 5 messages/day
+- **Active members:** 20 messages/day
+- **Gym budget cap:** Optional monthly AI cost limit
 
 ### 3.12 Staff Dashboard
 
@@ -427,6 +472,24 @@ The home dashboard displays **daily metrics only** for a focused, simplified vie
   - Member can tap to dismiss (marks as seen)
   - Track when message was seen (`seenAt` timestamp)
 - **Note:** Not a two-way chat, just accountability signals
+
+#### FR-COACH-005: Per-Member AI Knowledge
+- **Purpose:** Coach can customize AI agent behavior for specific members
+- **Location:** Member detail page → "AI Podešavanja" section
+- **Features:**
+  - Separate knowledge entries for each agent (Nutrition, Supplements, Training)
+  - Coach writes guidelines that get injected into AI prompts
+  - Status indicator dot shows which agents have configured knowledge:
+    - Emerald dot: Nutrition configured
+    - Violet dot: Supplements configured
+    - Orange dot: Training configured
+    - Gray dot: Not configured
+  - Max 2000 characters per agent
+  - Success feedback when saving
+- **Examples:**
+  - Nutrition: "This member is lactose intolerant, suggest dairy alternatives"
+  - Training: "Focus on upper body, avoid squats due to knee injury"
+  - Supplements: "Already taking multivitamins, focus on protein and creatine"
 
 ---
 
@@ -570,6 +633,41 @@ model CoachNudge {
 
   staff     Staff     @relation(...)
   member    Member    @relation(...)
+}
+```
+
+### 5.6 CoachKnowledge Model
+
+```prisma
+model CoachKnowledge {
+  id        String   @id @default(cuid())
+  staffId   String
+  memberId  String   // Knowledge is specific to each member
+  agentType String   // "nutrition" | "supplements" | "training"
+  content   String   @db.Text // Coach's custom knowledge/instructions (max 2000 chars)
+
+  staff     Staff    @relation(...)
+  member    Member   @relation(...)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([staffId, memberId, agentType])
+}
+```
+
+### 5.7 ChatMessage Model (Updated)
+
+```prisma
+model ChatMessage {
+  id        String   @id @default(cuid())
+  memberId  String
+  role      String   // "user" | "assistant"
+  content   String
+  agentType String?  // "nutrition" | "supplements" | "training" | null (legacy)
+  createdAt DateTime @default(now())
+
+  member    Member   @relation(...)
 }
 ```
 
@@ -946,7 +1044,8 @@ interface Translations {
   /(member)
     /home/page.tsx, home-client.tsx
     /log/page.tsx
-    /chat/page.tsx
+    /chat/page.tsx              # Agent selection
+    /chat/[agent]/page.tsx      # Per-agent chat (nutrition, supplements, training)
     /checkin/page.tsx
     /history/page.tsx
     /profile/page.tsx
@@ -965,9 +1064,10 @@ interface Translations {
     /checkins/route.ts
     /member/profile, subscription, nudges
     /members/route.ts, [id]/route.ts
-    /coach/assignments/route.ts # Coach assignment management
-    /coach/nudges/route.ts      # Coach nudge sending
-    /ai/chat/route.ts
+    /coach/assignments/route.ts   # Coach assignment management
+    /coach/nudges/route.ts        # Coach nudge sending
+    /coach/knowledge/route.ts     # Per-member AI knowledge
+    /ai/agents/[type]/chat/route.ts  # Specialized AI agents
 /components
   /ui/index.ts (GlassCard, Button, Modal, ProgressRing, Input, etc.)
 /lib

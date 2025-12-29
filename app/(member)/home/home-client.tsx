@@ -9,8 +9,10 @@ import {
   AnimatedNumber,
   SlideUp,
   FadeIn,
-  AIAvatar,
+  AgentAvatar,
+  agentMeta,
 } from "@/components/ui";
+import { AgentType } from "@/components/ui/agent-avatar";
 import { StatusType } from "@/components/ui/status-indicator";
 import { getGreeting, getTranslations } from "@/lib/i18n";
 
@@ -40,7 +42,6 @@ interface HomeData {
   mealsToday: number;
   // Weekly data (for contextual advice only)
   weeklyTrainingSessions: number;
-  aiSummary: string | null;
   nudges: NudgeData[];
 }
 
@@ -322,15 +323,12 @@ export function HomeClient({ data }: HomeClientProps) {
                   </div>
                   {/* Discuss with AI button */}
                   <button
-                    onClick={() => {
-                      const prompt = `Prešao sam dnevni kalorijski cilj za ${caloriesOver} kalorija (ukupno ${data.consumedCalories} od ${data.targetCalories}). ${recoveryAdvice?.text || ""} Šta mi preporučuješ?`;
-                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
-                    }}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-accent/10 hover:bg-accent/20 rounded-lg transition-colors"
+                    onClick={() => router.push("/chat/nutrition")}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
-                    <span className="text-lg">💬</span>
-                    <span className="text-sm font-medium text-accent">
-                      {t.home.discussWithAi}
+                    <AgentAvatar agent="nutrition" size="sm" state="idle" />
+                    <span className="text-sm font-medium text-emerald-500">
+                      Pitaj Agenta
                     </span>
                   </button>
                 </div>
@@ -420,15 +418,12 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      const prompt = `Popio sam samo ${data.waterGlasses} čaša vode do sada danas. Zašto je hidratacija bitna za moj napredak i kako mogu da pijem više vode?`;
-                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
-                    }}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors"
+                    onClick={() => router.push("/chat/nutrition")}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
-                    <span className="text-lg">💬</span>
-                    <span className="text-sm font-medium text-warning">
-                      {t.home.drinkMoreWater}
+                    <AgentAvatar agent="nutrition" size="sm" state="idle" />
+                    <span className="text-sm font-medium text-emerald-500">
+                      Pitaj Agenta
                     </span>
                   </button>
                 </GlassCard>
@@ -449,15 +444,12 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      const prompt = `Uneo sam samo ${data.consumedProtein}g proteina od ${data.targetProtein}g cilja (${Math.round(proteinProgress)}%). Kako mogu lako da povećam unos proteina u ostatku dana ili sutra?`;
-                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
-                    }}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-warning/10 hover:bg-warning/20 rounded-lg transition-colors"
+                    onClick={() => router.push("/chat/nutrition")}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
-                    <span className="text-lg">💬</span>
-                    <span className="text-sm font-medium text-warning">
-                      {t.home.getProteinAdvice}
+                    <AgentAvatar agent="nutrition" size="sm" state="idle" />
+                    <span className="text-sm font-medium text-emerald-500">
+                      Pitaj Agenta
                     </span>
                   </button>
                 </GlassCard>
@@ -478,15 +470,12 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => {
-                      const prompt = `Danas nisam trenirao, a ove nedelje sam imao samo ${data.weeklyTrainingSessions} treninga. Da li treba da treniram danas ili da se odmorim?`;
-                      router.push(`/chat?prompt=${encodeURIComponent(prompt)}`);
-                    }}
-                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-accent/10 hover:bg-accent/20 rounded-lg transition-colors"
+                    onClick={() => router.push("/chat/training")}
+                    className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg transition-colors"
                   >
-                    <span className="text-lg">💬</span>
-                    <span className="text-sm font-medium text-accent">
-                      {t.home.askAboutTraining}
+                    <AgentAvatar agent="training" size="sm" state="idle" />
+                    <span className="text-sm font-medium text-orange-500">
+                      Pitaj Agenta
                     </span>
                   </button>
                 </GlassCard>
@@ -495,26 +484,34 @@ export function HomeClient({ data }: HomeClientProps) {
           </SlideUp>
         )}
 
-        {/* AI Summary or Placeholder */}
+        {/* AI Agents Section */}
         <SlideUp delay={400}>
-          <GlassCard
-            hover
-            className="cursor-pointer"
-            onClick={() => router.push("/chat")}
-          >
-            <div className="flex items-start gap-4">
-              <AIAvatar size="md" state="active" />
-              <div className="flex-1 min-w-0">
-                <p className="text-label mb-1">{t.home.aiInsight}</p>
-                <p className="text-foreground text-sm leading-relaxed">
-                  {data.aiSummary || t.home.noAiSummary}
-                </p>
-              </div>
-              <svg className="w-5 h-5 text-foreground-muted flex-shrink-0 mt-1" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </div>
-          </GlassCard>
+          <div className="space-y-3">
+            <h3 className="text-label px-1">AI Asistenti</h3>
+
+            {(["nutrition", "supplements", "training"] as AgentType[]).map((agent) => {
+              const meta = agentMeta[agent];
+              return (
+                <GlassCard
+                  key={agent}
+                  hover
+                  className={`cursor-pointer ${meta.borderClass} border`}
+                  onClick={() => router.push(`/chat/${agent}`)}
+                >
+                  <div className="flex items-center gap-3">
+                    <AgentAvatar agent={agent} size="md" state="idle" />
+                    <div className="flex-1 min-w-0">
+                      <p className="text-foreground font-medium">{meta.name}</p>
+                      <p className="text-foreground-muted text-xs mt-0.5">{meta.description}</p>
+                    </div>
+                    <svg className={`w-5 h-5 ${meta.textClass} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </GlassCard>
+              );
+            })}
+          </div>
         </SlideUp>
 
         {/* Quick Actions - 2x3 Grid */}

@@ -14,10 +14,13 @@ A digital accountability and guidance system for gym members and staff.
    - [Coach Assignment](#coach-assignment)
    - [Require Exact Macros](#require-exact-macros-feature)
    - [Coach Nudges](#coach-nudges)
+   - [Per-Member AI Knowledge](#per-member-ai-knowledge)
 6. [Member Guide](#member-guide)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
    - [Meal Logging Modes](#log-a-meal)
+   - [AI Agents](#ai-agents)
+   - [Weekly Check-In](#weekly-check-in)
 7. [API Reference](#api-reference)
 8. [Configuration](#configuration)
 
@@ -200,6 +203,49 @@ Send accountability messages to your assigned members:
 
 The member will see the nudge as a banner on their home screen. Once they tap it, it's marked as seen.
 
+### Per-Member AI Knowledge
+
+Customize how AI agents respond to specific members:
+
+1. Go to the member's detail page
+2. Scroll to **"AI Podešavanja"** section
+3. You'll see three agent cards:
+   - **Ishrana (Nutrition)** - emerald/green theme
+   - **Suplementi (Supplements)** - violet/purple theme
+   - **Trening (Training)** - orange theme
+4. Click any agent card to open the knowledge editor
+5. Enter your guidelines for this member (max 2000 characters)
+6. Click **"Sačuvaj"** to save
+
+**Status Indicators:**
+- Colored dot (emerald/violet/orange) = Guidelines configured
+- Gray dot = No guidelines set
+
+**Example Guidelines:**
+
+**Nutrition:**
+```
+- Preporučene namirnice: piletina, riba, jaja, povrće
+- Izbegavati: mlečne proizvode (laktoza intolerancija)
+- Broj obroka: 4-5 dnevno
+- Fokus: povećati protein unos
+```
+
+**Training:**
+```
+- Program: Upper/Lower split, 4x nedeljno
+- Izbegavati: čučnjeve (problem sa kolenom)
+- Fokus: hipertrofija gornjih partija
+- Intenzitet: RPE 7-8
+```
+
+**Supplements:**
+```
+- Već koristi: multivitamin
+- Preporučiti: whey protein posle treninga, kreatin 5g dnevno
+- Izbegavati: pre-workout (osetljivost na kofein)
+```
+
 ---
 
 ## Member Guide
@@ -317,27 +363,57 @@ Tap **"Drank water"** - adds one glass. Tap multiple times for more.
 
 ### Weekly Check-In
 
-Once per week, complete a check-in:
+Complete your weekly check-in **on Sunday**:
 
 1. Go to `/checkin`
-2. Enter your current weight
-3. Select how you're feeling (emoji scale)
-4. Submit
+2. If it's not Sunday, you'll see how many days until you can check in
+3. On Sunday:
+   - Enter your current weight (kg)
+   - Select how you're feeling (emoji scale: 😞 😐 🙂 😄)
+   - Submit
 
-This helps track your progress over time.
+**Rules:**
+- Check-ins are only available on **Sunday** (end of week)
+- Minimum **7 days** must pass between check-ins
+- One check-in per week maximum
 
-### AI Chat
+**Status Messages:**
+- "Nedeljni pregled je dostupan samo nedeljom" - Wait for Sunday
+- "Već si završio pregled ove nedelje" - Already completed this week
+- "Moraš sačekati još X dana" - Too soon since last check-in
 
-Get personalized guidance:
+This helps track your weight progress over time.
+
+### AI Agents
+
+Get specialized guidance from three AI agents:
 
 1. Go to `/chat`
-2. Choose a suggested question or type your own
-3. Get AI-powered advice based on your data
+2. Choose an agent:
+   - **Ishrana (Nutrition)** 🍒 - Calories, macros, meal timing, food choices
+   - **Suplementi (Supplements)** 💊 - Protein, creatine, vitamins, dosages
+   - **Trening (Training)** 🏋️ - Workout types, exercise technique, recovery
+3. Each agent has domain-specific suggested questions
+4. Type your question (max 500 characters)
+5. Get AI-powered advice based on your data
 
-**Example questions:**
-- "Why is my progress slow?"
-- "What should I focus on this week?"
-- "Is my macro balance okay?"
+**Example questions by agent:**
+
+| Agent | Example Questions |
+|-------|-------------------|
+| Nutrition | "Šta da jedem pre treninga?", "Kako da povećam protein?" |
+| Supplements | "Kada da pijem protein?", "Da li mi treba kreatin?" |
+| Training | "Koliko puta nedeljno da treniram?", "Kako da poboljšam tehniku?" |
+
+**Features:**
+- Conversations are saved per agent (separate history)
+- AI speaks Serbian (ekavica dialect)
+- If you ask off-topic, the AI redirects you to the right agent
+- Coach guidelines (if set) are automatically included
+
+**Rate Limits:**
+- Trial members: 5 messages/day
+- Active members: 20 messages/day
 
 **Note:** The AI provides general guidance only, not medical advice.
 
@@ -473,11 +549,30 @@ Access your profile and account settings:
 | `/api/members` | GET | List all members |
 | `/api/members/[id]` | GET | Get member details |
 
-### AI
+### AI Agents
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/ai/chat` | POST | Send message to AI coach |
+| `/api/ai/agents/nutrition/chat` | POST | Chat with nutrition agent |
+| `/api/ai/agents/supplements/chat` | POST | Chat with supplements agent |
+| `/api/ai/agents/training/chat` | POST | Chat with training agent |
+
+**POST body:**
+```json
+{
+  "message": "Šta da jedem pre treninga?",
+  "history": []  // Optional: previous messages for context
+}
+```
+
+**Response:**
+```json
+{
+  "response": "Pre treninga preporučujem...",
+  "remaining": 19,  // Messages remaining today
+  "limit": 20       // Daily limit
+}
+```
 
 ### Coach Assignment (Staff only)
 
@@ -509,6 +604,31 @@ Access your profile and account settings:
 | `/api/coach/nudges` | POST | Send nudge to assigned member (Staff) |
 | `/api/member/nudges` | GET | Get unread nudges (Member) |
 | `/api/member/nudges/:id/seen` | PATCH | Mark nudge as seen (Member) |
+
+### Coach Knowledge (Staff only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/knowledge?memberId=xxx` | GET | Get AI knowledge for a member |
+| `/api/coach/knowledge` | POST | Save AI knowledge for a member |
+
+**GET response:**
+```json
+{
+  "nutrition": "Smernice za ishranu...",
+  "supplements": null,
+  "training": "Fokus na gornjem delu tela..."
+}
+```
+
+**POST body:**
+```json
+{
+  "memberId": "member-cuid",
+  "agentType": "nutrition",
+  "content": "Preporučene namirnice: piletina, riba..."
+}
+```
 
 ---
 

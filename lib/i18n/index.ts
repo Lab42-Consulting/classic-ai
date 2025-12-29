@@ -214,6 +214,49 @@ export const translations = {
         recomposition: "Rekompozicija",
       },
     },
+
+    // AI Agents
+    agents: {
+      title: "AI Asistenti",
+      selectAgent: "Izaberi oblast za razgovor",
+      disclaimer: "AI asistenti daju opšte savete. Za zdravstvene odluke konsultuj stručnjake.",
+      nutrition: {
+        name: "Ishrana",
+        subtitle: "Nutricionista AI",
+        description: "Kalorije, obroci, makronutrijenti, preporuke za hranu",
+        askButton: "Pitaj Agenta",
+        suggestedPrompts: [
+          "Koliko kalorija treba da unosim dnevno?",
+          "Šta da jedem posle treninga?",
+          "Kako da povećam unos proteina?",
+          "Da li su mi makrosi u balansu?",
+        ],
+      },
+      supplements: {
+        name: "Suplementi",
+        subtitle: "Stručnjak za suplemente",
+        description: "Dodaci ishrani, doziranje, vreme uzimanja",
+        askButton: "Pitaj Agenta",
+        suggestedPrompts: [
+          "Da li mi treba protein shake?",
+          "Kada i kako da uzimam kreatin?",
+          "Koji suplementi su bitni za moj cilj?",
+          "Da li su pre-workout suplementi bezbedni?",
+        ],
+      },
+      training: {
+        name: "Trening",
+        subtitle: "Trener AI",
+        description: "Vežbe, tehnika, program, oporavak",
+        askButton: "Pitaj Agenta",
+        suggestedPrompts: [
+          "Koliko često treba da treniram?",
+          "Kako pravilno da radim čučanj?",
+          "Da li treba da treniram danas ili da se odmorim?",
+          "Kako da poboljšam bench press?",
+        ],
+      },
+    },
   },
 
   en: {
@@ -425,6 +468,49 @@ export const translations = {
         recomposition: "Recomposition",
       },
     },
+
+    // AI Agents
+    agents: {
+      title: "AI Assistants",
+      selectAgent: "Choose a topic to discuss",
+      disclaimer: "AI assistants provide general advice. Consult professionals for health decisions.",
+      nutrition: {
+        name: "Nutrition",
+        subtitle: "Nutrition AI",
+        description: "Calories, meals, macros, food recommendations",
+        askButton: "Ask Agent",
+        suggestedPrompts: [
+          "How many calories should I eat daily?",
+          "What should I eat after training?",
+          "How can I increase my protein intake?",
+          "Is my macro balance okay?",
+        ],
+      },
+      supplements: {
+        name: "Supplements",
+        subtitle: "Supplements Expert",
+        description: "Dietary supplements, dosing, timing",
+        askButton: "Ask Agent",
+        suggestedPrompts: [
+          "Do I need a protein shake?",
+          "When and how should I take creatine?",
+          "What supplements are important for my goal?",
+          "Are pre-workout supplements safe?",
+        ],
+      },
+      training: {
+        name: "Training",
+        subtitle: "Training AI",
+        description: "Exercises, technique, program, recovery",
+        askButton: "Ask Agent",
+        suggestedPrompts: [
+          "How often should I train?",
+          "How to do a proper squat?",
+          "Should I train today or rest?",
+          "How can I improve my bench press?",
+        ],
+      },
+    },
   },
 } as const;
 
@@ -606,6 +692,32 @@ export type TranslationKeys = {
       fat_loss: string;
       muscle_gain: string;
       recomposition: string;
+    };
+  };
+  agents: {
+    title: string;
+    selectAgent: string;
+    disclaimer: string;
+    nutrition: {
+      name: string;
+      subtitle: string;
+      description: string;
+      askButton: string;
+      suggestedPrompts: readonly string[];
+    };
+    supplements: {
+      name: string;
+      subtitle: string;
+      description: string;
+      askButton: string;
+      suggestedPrompts: readonly string[];
+    };
+    training: {
+      name: string;
+      subtitle: string;
+      description: string;
+      askButton: string;
+      suggestedPrompts: readonly string[];
     };
   };
 };

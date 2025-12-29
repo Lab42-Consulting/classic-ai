@@ -13,6 +13,20 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Weekly check-in is only available on Sunday (end of week)
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday
+    if (dayOfWeek !== 0) {
+      const daysUntilSunday = 7 - dayOfWeek;
+      return NextResponse.json(
+        {
+          error: `Nedeljni pregled je dostupan samo nedeljom. Sačekaj još ${daysUntilSunday} ${daysUntilSunday === 1 ? "dan" : "dana"}.`,
+          daysUntilSunday,
+        },
+        { status: 400 }
+      );
+    }
+
     const body = await request.json();
     const { weight, feeling } = body;
 
@@ -136,9 +150,22 @@ export async function GET() {
     // Calculate days until next check-in is allowed
     let daysUntilNextCheckin = 0;
     let canCheckIn = true;
+    let reason = "";
 
-    if (currentWeekCheckin) {
+    // Check-ins only allowed on Sunday
+    const today = new Date();
+    const dayOfWeek = today.getDay(); // 0 = Sunday
+    const isSunday = dayOfWeek === 0;
+    const daysUntilSunday = isSunday ? 0 : 7 - dayOfWeek;
+
+    if (!isSunday) {
       canCheckIn = false;
+      daysUntilNextCheckin = daysUntilSunday;
+      reason = "sunday_only";
+    } else if (currentWeekCheckin) {
+      canCheckIn = false;
+      daysUntilNextCheckin = 7; // Next Sunday
+      reason = "already_done";
     } else if (lastCheckin) {
       const daysSinceLastCheckin = Math.floor(
         (Date.now() - lastCheckin.createdAt.getTime()) / (1000 * 60 * 60 * 24)
@@ -146,6 +173,7 @@ export async function GET() {
       if (daysSinceLastCheckin < MINIMUM_DAYS_BETWEEN_CHECKINS) {
         daysUntilNextCheckin = MINIMUM_DAYS_BETWEEN_CHECKINS - daysSinceLastCheckin;
         canCheckIn = false;
+        reason = "too_soon";
       }
     }
 
@@ -156,6 +184,8 @@ export async function GET() {
       hasCheckedInThisWeek: !!currentWeekCheckin,
       canCheckIn,
       daysUntilNextCheckin,
+      reason,
+      isSunday,
       currentWeek: week,
       currentYear: year,
       lastCheckinDate: lastCheckin?.createdAt || null,

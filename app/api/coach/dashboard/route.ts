@@ -76,8 +76,11 @@ export async function GET() {
     const today = new Date(now);
     today.setHours(0, 0, 0, 0);
 
-    const sevenDaysAgo = new Date(now);
-    sevenDaysAgo.setDate(sevenDaysAgo.getDate() - 7);
+    // Get Monday of current week (week starts on Monday)
+    const dayOfWeek = now.getDay(); // 0 = Sunday, 1 = Monday, etc.
+    const daysSinceMonday = dayOfWeek === 0 ? 6 : dayOfWeek - 1; // Sunday = 6 days since Monday
+    const mondayOfThisWeek = new Date(today);
+    mondayOfThisWeek.setDate(today.getDate() - daysSinceMonday);
 
     const thirtyDaysAgo = new Date(now);
     thirtyDaysAgo.setDate(thirtyDaysAgo.getDate() - 30);
@@ -94,14 +97,17 @@ export async function GET() {
 
     const currentWeek = getWeekNumber(now);
 
+    // Calculate how many days have passed this week (1 = Monday, 7 = Sunday)
+    const daysPassedThisWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+
     // Process each member
     const membersWithStats: MemberStats[] = await Promise.all(
       members.map(async (member) => {
-        // Get logs from last 7 days
-        const last7DaysLogs = await prisma.dailyLog.findMany({
+        // Get logs from this week (Monday to today)
+        const thisWeekLogs = await prisma.dailyLog.findMany({
           where: {
             memberId: member.id,
-            date: { gte: sevenDaysAgo },
+            date: { gte: mondayOfThisWeek },
           },
           select: {
             date: true,
@@ -112,13 +118,13 @@ export async function GET() {
           orderBy: { date: "desc" },
         });
 
-        // Get last 30 days logs for streak calculation
+        // Get last 30 days logs for streak calculation and activity tracking
         const last30DaysLogs = await prisma.dailyLog.findMany({
           where: {
             memberId: member.id,
             date: { gte: thirtyDaysAgo },
           },
-          select: { date: true },
+          select: { date: true, type: true },
           orderBy: { date: "desc" },
         });
 
@@ -139,8 +145,8 @@ export async function GET() {
         const targets = calculateDailyTargets(member.weight || 70, member.goal as Goal);
 
         // Group logs by date for analysis
-        const logsByDate = new Map<string, typeof last7DaysLogs>();
-        for (const log of last7DaysLogs) {
+        const logsByDate = new Map<string, typeof thisWeekLogs>();
+        for (const log of thisWeekLogs) {
           const dateKey = new Date(log.date).toISOString().split("T")[0];
           if (!logsByDate.has(dateKey)) {
             logsByDate.set(dateKey, []);
@@ -243,14 +249,18 @@ export async function GET() {
         if (daysSinceActivity >= 5) {
           alerts.push(`Nema aktivnosti ${daysSinceActivity} dana`);
         }
-        if (!hasCurrentWeekCheckin && now.getDay() >= 4) { // Thursday or later
+        if (!hasCurrentWeekCheckin && now.getDay() === 0) { // Sunday only
           alerts.push("Nedeljni pregled nije urađen");
         }
         if (proteinAdherence > 0 && proteinAdherence < 70) {
           alerts.push("Protein ispod cilja");
         }
-        if (weeklyTrainingSessions < 2 && daysWithMeals >= 3) {
-          alerts.push("Malo treninga ove nedelje");
+        // Training alert: Only show if behind expected pace
+        // Expected: ~3 sessions/week, so by Thursday (day 4) should have ~2
+        // Mon=1, Tue=2, Wed=3, Thu=4, Fri=5, Sat=6, Sun=7
+        const expectedTrainingSessions = Math.floor((daysPassedThisWeek / 7) * 3); // Expect 3/week
+        if (daysPassedThisWeek >= 4 && weeklyTrainingSessions < expectedTrainingSessions && daysWithMeals >= 2) {
+          alerts.push(`Samo ${weeklyTrainingSessions} trening${weeklyTrainingSessions === 1 ? "" : "a"} ove nedelje`);
         }
 
         return {

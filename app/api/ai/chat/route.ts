@@ -25,10 +25,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get member with subscription status and gym
+    // Get member with subscription status, gym, and coach assignment
     const member = await prisma.member.findUnique({
       where: { id: session.userId },
-      include: { gym: true },
+      include: { gym: true, coachAssignment: true },
     });
 
     if (!member) {
@@ -151,10 +151,18 @@ export async function POST(request: NextRequest) {
       }),
     ]);
 
-    const targets = calculateDailyTargets(
+    // Use coach-set custom targets if available, otherwise auto-calculate
+    const autoTargets = calculateDailyTargets(
       member.weight || 70,
       member.goal as Goal
     );
+    const coachTargets = member.coachAssignment;
+    const targets = {
+      calories: coachTargets?.customCalories || autoTargets.calories,
+      protein: coachTargets?.customProtein || autoTargets.protein,
+      carbs: coachTargets?.customCarbs || autoTargets.carbs,
+      fats: coachTargets?.customFats || autoTargets.fats,
+    };
 
     const consumed = {
       calories: todayLogs.reduce((sum, log) => sum + (log.estimatedCalories || 0), 0),

@@ -23,31 +23,33 @@ model Gym {
 }
 
 model Member {
-  id                  String          @id @default(cuid())
+  id                  String            @id @default(cuid())
   memberId            String
   pin                 String
-  qrCode              String?         @unique
+  qrCode              String?           @unique
   name                String
   height              Float?
   weight              Float?
   gender              String?
   goal                String
-  status              String          @default("active")
-  locale              String          @default("sr") // sr | en
-  hasSeenOnboarding   Boolean         @default(false) // Track if user has seen the "Why This Works" explainer
+  status              String            @default("active")
+  locale              String            @default("sr") // sr | en
+  hasSeenOnboarding   Boolean           @default(false) // Track if user has seen the "Why This Works" explainer
   // Subscription fields
-  trialStartDate      DateTime        @default(now())
+  trialStartDate      DateTime          @default(now())
   trialEndDate        DateTime?
-  subscriptionStatus  String          @default("trial") // trial | active | expired | cancelled
+  subscriptionStatus  String            @default("trial") // trial | active | expired | cancelled
   subscriptionEndDate DateTime?
   gymId               String
-  gym                 Gym             @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   dailyLogs           DailyLog[]
   weeklyCheckins      WeeklyCheckin[]
   aiSummaries         AISummary[]
   chatMessages        ChatMessage[]
-  createdAt           DateTime        @default(now())
-  updatedAt           DateTime        @updatedAt
+  coachAssignment     CoachAssignment?  // One member can only have one coach
+  receivedNudges      CoachNudge[]
+  createdAt           DateTime          @default(now())
+  updatedAt           DateTime          @updatedAt
 
   @@unique([memberId, gymId])
   @@index([gymId])
@@ -57,17 +59,19 @@ model Member {
 }
 
 model Staff {
-  id        String      @id @default(cuid())
-  staffId   String
-  pin       String
-  name      String
-  role      String
-  locale    String      @default("sr") // sr | en
-  gymId     String
-  gym       Gym         @relation(fields: [gymId], references: [id], onDelete: Cascade)
-  notes     StaffNote[]
-  createdAt DateTime    @default(now())
-  updatedAt DateTime    @updatedAt
+  id                String            @id @default(cuid())
+  staffId           String
+  pin               String
+  name              String
+  role              String            // "ADMIN" | "COACH"
+  locale            String            @default("sr") // sr | en
+  gymId             String
+  gym               Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  notes             StaffNote[]
+  assignedMembers   CoachAssignment[]
+  nudges            CoachNudge[]
+  createdAt         DateTime          @default(now())
+  updatedAt         DateTime          @updatedAt
 
   @@unique([staffId, gymId])
   @@index([gymId])
@@ -210,4 +214,47 @@ model AIUsageMonthly {
   @@unique([gymId, year, month])
   @@index([gymId])
   @@map("ai_usage_monthly")
+}
+
+// Coach ↔ Member assignment (which coach is responsible for which member)
+// One member can only have one coach, but a coach can have many members
+model CoachAssignment {
+  id             String   @id @default(cuid())
+  staffId        String
+  memberId       String   @unique // One member can only have one coach
+  assignedAt     DateTime @default(now())
+  // Coach-set targets (overrides automatic calculations)
+  customGoal     String?  // Coach can override member's goal
+  customCalories Int?     // Coach-set daily calorie target
+  customProtein  Int?     // Coach-set daily protein target (grams)
+  customCarbs    Int?     // Coach-set daily carbs target (grams)
+  customFats     Int?     // Coach-set daily fats target (grams)
+  notes          String?  // Initial notes when assigning
+  // Tracking settings
+  requireExactMacros Boolean @default(false) // If true, member must enter exact P/C/F for each meal
+
+  staff          Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member         Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([memberId])
+  @@map("coach_assignments")
+}
+
+// One-way nudges from coach to member (not chat - just accountability signals)
+model CoachNudge {
+  id        String    @id @default(cuid())
+  staffId   String
+  memberId  String
+  message   String
+  createdAt DateTime  @default(now())
+  seenAt    DateTime?
+
+  staff     Staff     @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member    Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([memberId, seenAt])
+  @@map("coach_nudges")
 }

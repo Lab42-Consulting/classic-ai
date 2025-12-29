@@ -15,6 +15,23 @@ interface CheckinData {
   createdAt: string;
 }
 
+interface ConsistencyData {
+  score: number;
+  level: "on_track" | "needs_attention" | "off_track";
+  breakdown: {
+    training: number;
+    logging: number;
+    calories: number;
+    protein: number;
+    water: number;
+  };
+  weeklyStats: {
+    trainingSessions: number;
+    daysWithMeals: number;
+    waterConsistentDays: number;
+  };
+}
+
 interface ProgressData {
   checkins: CheckinData[];
   stats: {
@@ -27,6 +44,7 @@ interface ProgressData {
     isProgressPositive: boolean;
     memberSince: string;
   };
+  consistency: ConsistencyData;
   goal: string;
   hasCheckedInThisWeek: boolean;
 }
@@ -37,6 +55,18 @@ const goalLabels: Record<string, string> = {
   fat_loss: "Gubitak masnoće",
   muscle_gain: "Rast mišića",
   recomposition: "Rekompozicija",
+};
+
+const consistencyColors: Record<string, string> = {
+  on_track: "text-success",
+  needs_attention: "text-warning",
+  off_track: "text-error",
+};
+
+const consistencyBgColors: Record<string, string> = {
+  on_track: "bg-success/10",
+  needs_attention: "bg-warning/10",
+  off_track: "bg-error/10",
 };
 
 export default function ProgressPage() {
@@ -169,8 +199,61 @@ export default function ProgressPage() {
               </GlassCard>
             </SlideUp>
 
-            {/* Weight Chart */}
+            {/* Consistency Score Card */}
             <SlideUp delay={200}>
+              <GlassCard>
+                <div className="flex items-center justify-between mb-4">
+                  <h3 className="text-label">Nedeljni skor doslednosti</h3>
+                  <div className={`px-3 py-1 rounded-full ${consistencyBgColors[data.consistency.level]}`}>
+                    <span className={`text-2xl font-bold text-number ${consistencyColors[data.consistency.level]}`}>
+                      {data.consistency.score}
+                    </span>
+                    <span className="text-sm text-foreground-muted">/100</span>
+                  </div>
+                </div>
+
+                {/* Score Breakdown */}
+                <div className="space-y-3">
+                  <ConsistencyBar
+                    label="Treninzi"
+                    value={data.consistency.breakdown.training}
+                    max={30}
+                    detail={`${data.consistency.weeklyStats.trainingSessions}x ove nedelje`}
+                  />
+                  <ConsistencyBar
+                    label="Logovanje"
+                    value={data.consistency.breakdown.logging}
+                    max={20}
+                    detail={`${data.consistency.weeklyStats.daysWithMeals}/7 dana`}
+                  />
+                  <ConsistencyBar
+                    label="Kalorije"
+                    value={data.consistency.breakdown.calories}
+                    max={25}
+                    detail="blizina cilja"
+                  />
+                  <ConsistencyBar
+                    label="Proteini"
+                    value={data.consistency.breakdown.protein}
+                    max={15}
+                    detail="% cilja"
+                  />
+                  <ConsistencyBar
+                    label="Voda"
+                    value={data.consistency.breakdown.water}
+                    max={10}
+                    detail={`${data.consistency.weeklyStats.waterConsistentDays}/7 dana 4+ čaše`}
+                  />
+                </div>
+
+                <p className="text-xs text-foreground-muted mt-4 text-center">
+                  Bazirano na poslednjih 7 dana aktivnosti
+                </p>
+              </GlassCard>
+            </SlideUp>
+
+            {/* Weight Chart */}
+            <SlideUp delay={300}>
               <GlassCard>
                 <h3 className="text-label mb-4">Težina tokom vremena</h3>
                 <WeightChart checkins={data.checkins} />
@@ -178,7 +261,7 @@ export default function ProgressPage() {
             </SlideUp>
 
             {/* Weekly Average */}
-            <SlideUp delay={300}>
+            <SlideUp delay={400}>
               <GlassCard>
                 <div className="flex items-center justify-between">
                   <div>
@@ -204,7 +287,7 @@ export default function ProgressPage() {
             </SlideUp>
 
             {/* Recent Check-ins */}
-            <SlideUp delay={400}>
+            <SlideUp delay={500}>
               <GlassCard>
                 <h3 className="text-label mb-4">Poslednji pregledi</h3>
                 <div className="space-y-3">
@@ -235,7 +318,7 @@ export default function ProgressPage() {
             </SlideUp>
 
             {/* Motivation Card */}
-            <SlideUp delay={500}>
+            <SlideUp delay={600}>
               <GlassCard className="bg-gradient-to-br from-accent/10 to-accent/5">
                 <div className="flex items-start gap-4">
                   <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center flex-shrink-0">
@@ -407,4 +490,36 @@ function getMotivationalMessage(data: ProgressData): string {
   }
 
   return `${stats.totalCheckins} pregleda završeno. Samo nastavi!`;
+}
+
+function ConsistencyBar({
+  label,
+  value,
+  max,
+  detail,
+}: {
+  label: string;
+  value: number;
+  max: number;
+  detail: string;
+}) {
+  const percentage = Math.min(100, (value / max) * 100);
+
+  return (
+    <div className="flex items-center gap-3">
+      <span className="w-20 text-sm text-foreground-muted">{label}</span>
+      <div className="flex-1 h-2 bg-background-tertiary rounded-full overflow-hidden">
+        <div
+          className="h-full bg-accent rounded-full transition-all duration-500"
+          style={{ width: `${percentage}%` }}
+        />
+      </div>
+      <span className="w-8 text-sm font-medium text-foreground text-right text-number">
+        {value}
+      </span>
+      <span className="w-24 text-xs text-foreground-muted text-right truncate">
+        {detail}
+      </span>
+    </div>
+  );
 }

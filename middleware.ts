@@ -20,10 +20,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
-  // Allow static files and API routes (except auth-required ones)
+  // Allow static files and all API routes (they handle their own auth)
   if (
     pathname.startsWith("/_next") ||
     pathname.startsWith("/favicon") ||
+    pathname.startsWith("/api/") ||
     pathname.includes(".")
   ) {
     return NextResponse.next();

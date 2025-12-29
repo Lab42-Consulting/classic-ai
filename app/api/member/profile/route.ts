@@ -25,6 +25,11 @@ export async function GET() {
         locale: true,
         hasSeenOnboarding: true,
         createdAt: true,
+        coachAssignment: {
+          select: {
+            requireExactMacros: true,
+          },
+        },
       },
     });
 
@@ -32,7 +37,12 @@ export async function GET() {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    return NextResponse.json(member);
+    // Flatten coach assignment settings
+    return NextResponse.json({
+      ...member,
+      requireExactMacros: member.coachAssignment?.requireExactMacros || false,
+      coachAssignment: undefined,
+    });
   } catch (error) {
     console.error("Get profile error:", error);
     return NextResponse.json(

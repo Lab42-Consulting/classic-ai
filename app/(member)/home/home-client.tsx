@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -12,6 +13,13 @@ import {
 } from "@/components/ui";
 import { StatusType } from "@/components/ui/status-indicator";
 import { getGreeting, getTranslations } from "@/lib/i18n";
+
+interface NudgeData {
+  id: string;
+  message: string;
+  coachName: string;
+  createdAt: string;
+}
 
 interface HomeData {
   memberName: string;
@@ -26,12 +34,14 @@ interface HomeData {
     carbs: { percentage: number; status: StatusType };
     fats: { percentage: number; status: StatusType };
   };
-  consistencyScore: number;
-  consistencyLevel: StatusType;
-  weeklyTrainingSessions: number;
+  // Today's activity (all daily metrics)
   trainingCountToday: number;
   waterGlasses: number;
+  mealsToday: number;
+  // Weekly data (for contextual advice only)
+  weeklyTrainingSessions: number;
   aiSummary: string | null;
+  nudges: NudgeData[];
 }
 
 interface HomeClientProps {
@@ -52,16 +62,42 @@ const macroColors: Record<StatusType, string> = {
   off_track: "bg-error",
 };
 
-const consistencyColors: Record<StatusType, string> = {
-  on_track: "text-success",
-  needs_attention: "text-warning",
-  off_track: "text-error",
-};
 
 export function HomeClient({ data }: HomeClientProps) {
   const router = useRouter();
+  const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
+
+  // Filter out dismissed nudges
+  const visibleNudges = data.nudges.filter((n) => !dismissedNudges.has(n.id));
+
+  // Mark nudge as seen and dismiss it
+  const handleDismissNudge = async (nudgeId: string) => {
+    setDismissedNudges((prev) => new Set([...prev, nudgeId]));
+    try {
+      await fetch("/api/member/nudges", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ nudgeIds: [nudgeId] }),
+      });
+    } catch {
+      // Silently fail - nudge is already dismissed locally
+    }
+  };
+
+  // Format relative time for nudges
+  const formatTimeAgo = (dateStr: string) => {
+    const date = new Date(dateStr);
+    const now = new Date();
+    const diffMs = now.getTime() - date.getTime();
+    const diffHours = Math.floor(diffMs / (1000 * 60 * 60));
+    const diffDays = Math.floor(diffHours / 24);
+
+    if (diffDays > 0) return `pre ${diffDays} ${diffDays === 1 ? "dan" : "dana"}`;
+    if (diffHours > 0) return `pre ${diffHours}h`;
+    return "upravo";
+  };
 
   // Calculate calorie status
   const isOverCalories = data.consumedCalories > data.targetCalories;
@@ -148,6 +184,54 @@ export function HomeClient({ data }: HomeClientProps) {
           </div>
         </FadeIn>
       </header>
+
+      {/* Coach Nudges - Prominent at top */}
+      {visibleNudges.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={50}>
+            <div className="space-y-3">
+              {visibleNudges.map((nudge) => (
+                <div
+                  key={nudge.id}
+                  className="relative bg-gradient-to-r from-accent/15 to-accent/5 border border-accent/20 rounded-2xl p-4"
+                >
+                  {/* Dismiss button */}
+                  <button
+                    onClick={() => handleDismissNudge(nudge.id)}
+                    className="absolute top-3 right-3 w-6 h-6 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                    aria-label="Odbaci poruku"
+                  >
+                    <svg className="w-3 h-3 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                    </svg>
+                  </button>
+
+                  <div className="flex items-start gap-3 pr-6">
+                    {/* Coach avatar */}
+                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg">👨‍🏫</span>
+                    </div>
+
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2 mb-1">
+                        <span className="text-sm font-medium text-accent">
+                          {nudge.coachName}
+                        </span>
+                        <span className="text-xs text-foreground-muted">
+                          {formatTimeAgo(nudge.createdAt)}
+                        </span>
+                      </div>
+                      <p className="text-sm text-foreground leading-relaxed">
+                        {nudge.message}
+                      </p>
+                    </div>
+                  </div>
+                </div>
+              ))}
+            </div>
+          </SlideUp>
+        </div>
+      )}
 
       {/* Main Content */}
       <main className="px-6 space-y-5">
@@ -284,34 +368,35 @@ export function HomeClient({ data }: HomeClientProps) {
           </GlassCard>
         </SlideUp>
 
-        {/* Stats Row */}
+        {/* Today's Stats Row */}
         <SlideUp delay={300}>
           <div className="grid grid-cols-3 gap-3">
-            {/* Consistency Score */}
-            <GlassCard className="text-center py-5">
-              <div className="text-3xl mb-1">📈</div>
-              <p className={`text-2xl font-bold text-number ${consistencyColors[data.consistencyLevel]}`}>
-                <AnimatedNumber value={data.consistencyScore} />
-              </p>
-              <p className="text-xs text-foreground-muted">{t.home.consistency}</p>
-            </GlassCard>
-
-            {/* Training Sessions (Weekly) */}
+            {/* Training Today */}
             <GlassCard className="text-center py-5">
               <div className="text-3xl mb-1">💪</div>
               <p className="text-2xl font-bold text-number text-foreground">
-                <AnimatedNumber value={data.weeklyTrainingSessions} />
+                {data.trainingCountToday > 0 ? "✓" : "—"}
               </p>
-              <p className="text-xs text-foreground-muted">{t.home.sessions}</p>
+              <p className="text-xs text-foreground-muted">{t.home.training}</p>
             </GlassCard>
 
-            {/* Water */}
+            {/* Water Today */}
             <GlassCard className="text-center py-5">
               <div className="text-3xl mb-1">💧</div>
               <p className="text-2xl font-bold text-number text-foreground">
                 <AnimatedNumber value={data.waterGlasses} />
+                <span className="text-base text-foreground-muted font-normal">/8</span>
               </p>
               <p className="text-xs text-foreground-muted">{t.home.glasses}</p>
+            </GlassCard>
+
+            {/* Meals Today */}
+            <GlassCard className="text-center py-5">
+              <div className="text-3xl mb-1">🍽️</div>
+              <p className="text-2xl font-bold text-number text-foreground">
+                <AnimatedNumber value={data.mealsToday} />
+              </p>
+              <p className="text-xs text-foreground-muted">{t.home.meals}</p>
             </GlassCard>
           </div>
         </SlideUp>

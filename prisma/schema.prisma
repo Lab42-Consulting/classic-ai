@@ -48,6 +48,7 @@ model Member {
   chatMessages        ChatMessage[]
   coachAssignment     CoachAssignment?  // One member can only have one coach
   receivedNudges      CoachNudge[]
+  coachKnowledge      CoachKnowledge[]  // Per-member AI knowledge from coach
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -70,6 +71,7 @@ model Staff {
   notes             StaffNote[]
   assignedMembers   CoachAssignment[]
   nudges            CoachNudge[]
+  coachKnowledge    CoachKnowledge[]
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -148,10 +150,12 @@ model ChatMessage {
   member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
   role      String
   content   String
+  agentType String?  // "nutrition" | "supplements" | "training" | null (legacy/general)
   createdAt DateTime @default(now())
 
   @@index([memberId])
   @@index([memberId, createdAt])
+  @@index([memberId, agentType, createdAt])
   @@map("chat_messages")
 }
 
@@ -257,4 +261,24 @@ model CoachNudge {
   @@index([memberId])
   @@index([memberId, seenAt])
   @@map("coach_nudges")
+}
+
+// Coach-specific knowledge that gets injected into AI agent prompts (per member)
+model CoachKnowledge {
+  id        String   @id @default(cuid())
+  staffId   String
+  memberId  String   // Knowledge is specific to each member
+  agentType String   // "nutrition" | "supplements" | "training"
+  content   String   @db.Text // Coach's custom knowledge/instructions
+
+  staff     Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  @@unique([staffId, memberId, agentType])
+  @@index([staffId])
+  @@index([memberId])
+  @@map("coach_knowledge")
 }

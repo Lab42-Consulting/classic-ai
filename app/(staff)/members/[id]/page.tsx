@@ -2,7 +2,8 @@
 
 import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, GlassCard, FadeIn, SlideUp } from "@/components/ui";
+import { Button, Card, GlassCard, FadeIn, SlideUp, AgentAvatar, agentMeta } from "@/components/ui";
+import { AgentType } from "@/components/ui/agent-avatar";
 
 interface NudgeTemplate {
   id: string;
@@ -84,13 +85,24 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [nudgeMessage, setNudgeMessage] = useState("");
   const [noteContent, setNoteContent] = useState("");
   const [sending, setSending] = useState(false);
+  const [showKnowledgeModal, setShowKnowledgeModal] = useState(false);
+  const [selectedAgent, setSelectedAgent] = useState<AgentType | null>(null);
+  const [coachKnowledge, setCoachKnowledge] = useState<Record<AgentType, string>>({
+    nutrition: "",
+    supplements: "",
+    training: "",
+  });
+  const [knowledgeContent, setKnowledgeContent] = useState("");
+  const [savingKnowledge, setSavingKnowledge] = useState(false);
+  const [knowledgeSaved, setKnowledgeSaved] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [memberRes, templatesRes] = await Promise.all([
+        const [memberRes, templatesRes, knowledgeRes] = await Promise.all([
           fetch(`/api/coach/member/${id}`),
           fetch("/api/coach/nudge?templates=true"),
+          fetch(`/api/coach/knowledge?memberId=${id}`),
         ]);
 
         if (memberRes.ok) {
@@ -101,6 +113,15 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         if (templatesRes.ok) {
           const templatesData = await templatesRes.json();
           setTemplates(templatesData.templates || []);
+        }
+
+        if (knowledgeRes.ok) {
+          const knowledgeData = await knowledgeRes.json();
+          setCoachKnowledge({
+            nutrition: knowledgeData.nutrition || "",
+            supplements: knowledgeData.supplements || "",
+            training: knowledgeData.training || "",
+          });
         }
       } catch {
         // Handle error silently
@@ -168,6 +189,80 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     } finally {
       setSending(false);
     }
+  };
+
+  const handleOpenKnowledgeEditor = (agent: AgentType) => {
+    setSelectedAgent(agent);
+    setKnowledgeContent(coachKnowledge[agent] || getDefaultTemplate(agent));
+    setShowKnowledgeModal(true);
+  };
+
+  const handleSaveKnowledge = async () => {
+    if (!selectedAgent) return;
+    setSavingKnowledge(true);
+
+    try {
+      const response = await fetch("/api/coach/knowledge", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          memberId: id,
+          agentType: selectedAgent,
+          content: knowledgeContent,
+        }),
+      });
+
+      if (response.ok) {
+        setCoachKnowledge((prev) => ({
+          ...prev,
+          [selectedAgent]: knowledgeContent,
+        }));
+        // Show success feedback
+        setKnowledgeSaved(true);
+        setTimeout(() => {
+          setKnowledgeSaved(false);
+          setShowKnowledgeModal(false);
+          setSelectedAgent(null);
+          setKnowledgeContent("");
+        }, 1200);
+      } else {
+        const errorData = await response.json();
+        console.error("Save knowledge error:", errorData);
+        alert(errorData.error || "Greška pri čuvanju smernica");
+      }
+    } catch (err) {
+      console.error("Save knowledge error:", err);
+    } finally {
+      setSavingKnowledge(false);
+    }
+  };
+
+  const getDefaultTemplate = (agent: AgentType): string => {
+    const templates: Record<AgentType, string> = {
+      nutrition: `Smernice za ishranu ovog člana:
+
+- Preporučene namirnice: [npr. piletina, riba, jaja, povrće]
+- Namirnice za izbegavanje: [npr. brza hrana, slatkiši]
+- Broj obroka dnevno: [npr. 4-5]
+- Timing obroka: [npr. protein u svakom obroku]
+- Posebne napomene: [alergije, preferencije, restrikcije]`,
+      supplements: `Smernice za suplemente ovog člana:
+
+- Preporučeni suplementi: [npr. whey protein, kreatin]
+- Timing uzimanja: [npr. protein posle treninga]
+- Doziranje: [npr. 30g proteina, 5g kreatina dnevno]
+- Suplementi za izbegavanje: [ako postoje]
+- Posebne napomene: [intolerancije, preferencije]`,
+      training: `Smernice za trening ovog člana:
+
+- Tip programa: [npr. Push/Pull/Legs, Full Body]
+- Učestalost: [npr. 4x nedeljno]
+- Fokus: [npr. snaga, hipertrofija]
+- Vežbe za naglasiti: [npr. složene vežbe]
+- Vežbe za izbegavati: [ako postoje povrede]
+- Posebne napomene: [povrede, ograničenja]`,
+    };
+    return templates[agent];
   };
 
   if (loading) {
@@ -391,6 +486,48 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             </GlassCard>
           </SlideUp>
         )}
+
+        {/* AI Knowledge Section */}
+        <SlideUp delay={400}>
+          <GlassCard>
+            <h3 className="text-sm font-medium text-foreground-muted mb-1">AI Podešavanja</h3>
+            <p className="text-xs text-foreground-muted/70 mb-4">
+              Tvoje smernice koje će AI agenti koristiti za ovog člana
+            </p>
+            <div className="space-y-3">
+              {(["nutrition", "supplements", "training"] as AgentType[]).map((agent) => {
+                const meta = agentMeta[agent];
+                const hasContent = !!coachKnowledge[agent];
+                const dotColor = hasContent
+                  ? agent === "nutrition"
+                    ? "bg-emerald-500"
+                    : agent === "supplements"
+                      ? "bg-violet-500"
+                      : "bg-orange-500"
+                  : "bg-foreground-muted/30";
+                return (
+                  <button
+                    key={agent}
+                    onClick={() => handleOpenKnowledgeEditor(agent)}
+                    className={`w-full flex items-center gap-3 p-3 rounded-xl transition-colors ${meta.borderClass} border ${meta.hoverBgClass}`}
+                  >
+                    <AgentAvatar agent={agent} size="sm" state="idle" />
+                    <div className="flex-1 text-left">
+                      <p className="text-sm font-medium text-foreground">{meta.name}</p>
+                      <p className="text-xs text-foreground-muted">
+                        {hasContent ? "Smernice postavljene" : "Klikni da dodaš smernice"}
+                      </p>
+                    </div>
+                    <div className={`w-2 h-2 rounded-full ${dotColor}`} />
+                    <svg className={`w-4 h-4 ${meta.textClass}`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </button>
+                );
+              })}
+            </div>
+          </GlassCard>
+        </SlideUp>
       </main>
 
       {/* Action Buttons */}
@@ -492,6 +629,97 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             >
               {sending ? "Čuvam..." : "Sačuvaj belešku"}
             </Button>
+          </div>
+        </div>
+      )}
+
+      {/* Knowledge Editor Modal */}
+      {showKnowledgeModal && selectedAgent && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+          <div className="bg-background w-full rounded-t-3xl p-6 max-h-[85vh] overflow-y-auto">
+            {knowledgeSaved ? (
+              /* Success State */
+              <FadeIn>
+                <div className="flex flex-col items-center justify-center py-12">
+                  <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mb-4">
+                    <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                    </svg>
+                  </div>
+                  <p className="text-xl font-bold text-foreground">Sačuvano!</p>
+                  <p className="text-sm text-foreground-muted mt-1">
+                    Smernice su uspešno ažurirane
+                  </p>
+                </div>
+              </FadeIn>
+            ) : (
+              /* Edit Form */
+              <>
+                <div className="flex items-center justify-between mb-6">
+                  <div className="flex items-center gap-3">
+                    <AgentAvatar agent={selectedAgent} size="sm" state="idle" />
+                    <div>
+                      <h2 className="text-lg font-bold text-foreground">
+                        {agentMeta[selectedAgent].name} smernice
+                      </h2>
+                      <p className="text-xs text-foreground-muted">
+                        Ove smernice će AI koristiti za savete
+                      </p>
+                    </div>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowKnowledgeModal(false);
+                      setSelectedAgent(null);
+                      setKnowledgeContent("");
+                    }}
+                    className="p-2 text-foreground-muted"
+                  >
+                    ✕
+                  </button>
+                </div>
+
+                <div className="space-y-4">
+                  <div>
+                    <p className="text-sm text-foreground-muted mb-2">
+                      Upiši smernice koje AI treba da prati za ovog člana:
+                    </p>
+                    <textarea
+                      value={knowledgeContent}
+                      onChange={(e) => setKnowledgeContent(e.target.value)}
+                      placeholder={getDefaultTemplate(selectedAgent)}
+                      className="w-full h-64 p-4 glass rounded-xl text-foreground placeholder:text-foreground-muted/30 focus:outline-none focus:ring-2 focus:ring-accent resize-none text-sm leading-relaxed"
+                    />
+                    <p className="text-xs text-foreground-muted/50 mt-2">
+                      {knowledgeContent.length}/2000 karaktera
+                    </p>
+                  </div>
+
+                  <div className="flex gap-3">
+                    <Button
+                      variant="secondary"
+                      className="flex-1 btn-press"
+                      onClick={() => setKnowledgeContent(getDefaultTemplate(selectedAgent))}
+                    >
+                      Resetuj šablon
+                    </Button>
+                    <Button
+                      className={`flex-1 btn-press ${
+                        selectedAgent === "nutrition"
+                          ? "bg-emerald-600 hover:bg-emerald-700"
+                          : selectedAgent === "supplements"
+                            ? "bg-violet-600 hover:bg-violet-700"
+                            : "bg-orange-600 hover:bg-orange-700"
+                      }`}
+                      onClick={handleSaveKnowledge}
+                      disabled={savingKnowledge || knowledgeContent.length > 2000}
+                    >
+                      {savingKnowledge ? "Čuvam..." : "Sačuvaj"}
+                    </Button>
+                  </div>
+                </div>
+              </>
+            )}
           </div>
         </div>
       )}

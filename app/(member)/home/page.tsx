@@ -57,14 +57,6 @@ async function getMemberData(memberId: string) {
     },
   });
 
-  const latestSummary = await prisma.aISummary.findFirst({
-    where: {
-      memberId,
-      type: "daily",
-    },
-    orderBy: { createdAt: "desc" },
-  });
-
   // Get unseen nudges from coach
   const unseenNudges = await prisma.coachNudge.findMany({
     where: {
@@ -84,7 +76,6 @@ async function getMemberData(memberId: string) {
     member,
     todayLogs,
     last7DaysLogs,
-    latestSummary,
     unseenNudges,
   };
 }
@@ -174,7 +165,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, latestSummary, unseenNudges } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
@@ -270,7 +261,6 @@ export default async function HomePage() {
     mealsToday,
     // Weekly data (for contextual advice, not displayed in stats row)
     weeklyTrainingSessions: weeklyStats.trainingSessions,
-    aiSummary: latestSummary?.content || null,
     // Coach nudges
     nudges: unseenNudges.map((nudge) => ({
       id: nudge.id,

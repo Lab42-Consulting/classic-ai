@@ -2,7 +2,8 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 
-// POST /api/coach/assign - Coach assigns themselves to a member with custom plan
+// POST /api/coach/assign - Coach sends a request to be assigned to a member
+// Member must accept/decline before assignment takes effect
 export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
@@ -21,10 +22,10 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
 
-    // Only coaches can assign members to themselves
+    // Only coaches can request to assign members
     if (staff.role.toLowerCase() !== "coach") {
       return NextResponse.json(
-        { error: "Only coaches can assign members" },
+        { error: "Only coaches can request member assignments" },
         { status: 403 }
       );
     }
@@ -39,7 +40,7 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate member exists, belongs to gym, and has no coach
+    // Validate member exists, belongs to gym, has no coach, and no pending request
     const member = await prisma.member.findFirst({
       where: {
         id: memberId,
@@ -47,6 +48,7 @@ export async function POST(request: NextRequest) {
       },
       include: {
         coachAssignment: true,
+        coachRequest: true,
       },
     });
 
@@ -64,8 +66,15 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create the assignment with custom targets
-    const assignment = await prisma.coachAssignment.create({
+    if (member.coachRequest) {
+      return NextResponse.json(
+        { error: "Member already has a pending coach request" },
+        { status: 400 }
+      );
+    }
+
+    // Create a pending coach request (NOT an assignment)
+    const coachRequest = await prisma.coachRequest.create({
       data: {
         staffId: session.userId,
         memberId: memberId,
@@ -87,37 +96,36 @@ export async function POST(request: NextRequest) {
             weight: true,
           },
         },
+        staff: {
+          select: {
+            name: true,
+          },
+        },
       },
     });
-
-    // If coach set a custom goal, update the member's goal too
-    if (customGoal) {
-      await prisma.member.update({
-        where: { id: memberId },
-        data: { goal: customGoal },
-      });
-    }
 
     return NextResponse.json({
       success: true,
-      assignment: {
-        id: assignment.id,
-        memberId: assignment.memberId,
-        memberName: assignment.member.name,
-        customGoal: assignment.customGoal,
-        customCalories: assignment.customCalories,
-        customProtein: assignment.customProtein,
-        customCarbs: assignment.customCarbs,
-        customFats: assignment.customFats,
-        notes: assignment.notes,
-        requireExactMacros: assignment.requireExactMacros,
-        assignedAt: assignment.assignedAt,
+      requestSent: true, // Flag indicating this is a request, not immediate assignment
+      request: {
+        id: coachRequest.id,
+        memberId: coachRequest.memberId,
+        memberName: coachRequest.member.name,
+        coachName: coachRequest.staff.name,
+        customGoal: coachRequest.customGoal,
+        customCalories: coachRequest.customCalories,
+        customProtein: coachRequest.customProtein,
+        customCarbs: coachRequest.customCarbs,
+        customFats: coachRequest.customFats,
+        notes: coachRequest.notes,
+        requireExactMacros: coachRequest.requireExactMacros,
+        createdAt: coachRequest.createdAt,
       },
     });
   } catch (error) {
-    console.error("Assign member error:", error);
+    console.error("Coach request error:", error);
     return NextResponse.json(
-      { error: "Failed to assign member" },
+      { error: "Failed to send coach request" },
       { status: 500 }
     );
   }

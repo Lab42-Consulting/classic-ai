@@ -207,6 +207,11 @@ async function main() {
       memberSince.setDate(memberSince.getDate() - WEEKS_OF_HISTORY * 7);
     }
 
+    // Calculate subscription dates (all members get 30 days from now for testing)
+    const subscribedAt = new Date();
+    const subscribedUntil = new Date();
+    subscribedUntil.setDate(subscribedUntil.getDate() + 30);
+
     const member = await prisma.member.upsert({
       where: {
         memberId_gymId: {
@@ -218,6 +223,9 @@ async function main() {
         weight: currentWeight,
         goal: memberData.goal,
         hasSeenOnboarding: !memberData.freshStart, // Show onboarding for fresh start members
+        subscriptionStatus: "active",
+        subscribedAt: subscribedAt,
+        subscribedUntil: subscribedUntil,
       },
       create: {
         memberId: memberData.memberId,
@@ -230,6 +238,9 @@ async function main() {
         gymId: gym.id,
         hasSeenOnboarding: !memberData.freshStart, // Show onboarding for fresh start members
         createdAt: memberSince,
+        subscriptionStatus: "active",
+        subscribedAt: subscribedAt,
+        subscribedUntil: subscribedUntil,
       },
     });
     console.log(`✅ Member created: ${member.memberId} (PIN: ${memberData.pin})${memberData.freshStart ? " [FRESH START]" : ""}`);

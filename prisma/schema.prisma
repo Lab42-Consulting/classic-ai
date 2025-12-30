@@ -38,11 +38,10 @@ model Member {
   status              String            @default("active")
   locale              String            @default("sr") // sr | en
   hasSeenOnboarding   Boolean           @default(false) // Track if user has seen the "Why This Works" explainer
-  // Subscription fields
-  trialStartDate      DateTime          @default(now())
-  trialEndDate        DateTime?
-  subscriptionStatus  String            @default("trial") // trial | active | expired | cancelled
-  subscriptionEndDate DateTime?
+  // Subscription fields (renewed at gym counter, 5€/month)
+  subscribedAt        DateTime?         // When subscription was first activated
+  subscribedUntil     DateTime?         // When current subscription period ends
+  subscriptionStatus  String            @default("active") // active | expired
   gymId               String
   gym                 Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
   dailyLogs           DailyLog[]

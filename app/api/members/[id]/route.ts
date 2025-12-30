@@ -4,7 +4,7 @@ import prisma from "@/lib/db";
 import { calculateDailyTargets, calculateStreak, Goal } from "@/lib/calculations";
 
 // Valid subscription status transitions
-const VALID_SUBSCRIPTION_STATUSES = ["trial", "active", "expired", "cancelled"] as const;
+const VALID_SUBSCRIPTION_STATUSES = ["active", "expired"] as const;
 type SubscriptionStatus = (typeof VALID_SUBSCRIPTION_STATUSES)[number];
 
 export async function GET(
@@ -80,8 +80,8 @@ export async function GET(
         height: member.height,
         status: member.status,
         subscriptionStatus: member.subscriptionStatus,
-        trialEndDate: member.trialEndDate,
-        subscriptionEndDate: member.subscriptionEndDate,
+        subscribedAt: member.subscribedAt,
+        subscribedUntil: member.subscribedUntil,
         createdAt: member.createdAt,
       },
       targets,
@@ -186,7 +186,8 @@ export async function PATCH(
     // Build update object based on allowed fields
     const updateData: {
       subscriptionStatus?: SubscriptionStatus;
-      subscriptionEndDate?: Date | null;
+      subscribedAt?: Date | null;
+      subscribedUntil?: Date | null;
       goal?: string;
       weight?: number;
       height?: number;
@@ -203,16 +204,20 @@ export async function PATCH(
       }
       updateData.subscriptionStatus = body.subscriptionStatus;
 
-      // Set subscription end date when activating (default 30 days from now)
-      if (body.subscriptionStatus === "active" && !member.subscriptionEndDate) {
-        const endDate = new Date();
-        endDate.setDate(endDate.getDate() + 30);
-        updateData.subscriptionEndDate = endDate;
-      }
-
-      // Allow custom subscription end date
-      if (body.subscriptionEndDate) {
-        updateData.subscriptionEndDate = new Date(body.subscriptionEndDate);
+      // Set subscription dates when activating (default 30 days from now)
+      if (body.subscriptionStatus === "active") {
+        // Set subscribedAt if not already set
+        if (!member.subscribedAt) {
+          updateData.subscribedAt = new Date();
+        }
+        // Set subscribedUntil (default 30 days from now, or custom)
+        if (body.subscribedUntil) {
+          updateData.subscribedUntil = new Date(body.subscribedUntil);
+        } else if (!member.subscribedUntil || new Date(member.subscribedUntil) < new Date()) {
+          const endDate = new Date();
+          endDate.setDate(endDate.getDate() + 30);
+          updateData.subscribedUntil = endDate;
+        }
       }
     }
 
@@ -252,7 +257,8 @@ export async function PATCH(
         memberId: updatedMember.memberId,
         name: updatedMember.name,
         subscriptionStatus: updatedMember.subscriptionStatus,
-        subscriptionEndDate: updatedMember.subscriptionEndDate,
+        subscribedAt: updatedMember.subscribedAt,
+        subscribedUntil: updatedMember.subscribedUntil,
         goal: updatedMember.goal,
         weight: updatedMember.weight,
         height: updatedMember.height,

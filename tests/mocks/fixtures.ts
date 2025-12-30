@@ -34,10 +34,9 @@ export const mockMember = {
   status: 'active',
   locale: 'sr',
   hasSeenOnboarding: true,
-  trialStartDate: new Date('2024-12-01'),
-  trialEndDate: new Date('2024-12-08'),
+  subscribedAt: new Date('2024-12-01'),
+  subscribedUntil: new Date('2025-12-01'),
   subscriptionStatus: 'active',
-  subscriptionEndDate: new Date('2025-12-01'),
   gymId: 'gym-test-001',
   createdAt: new Date('2024-12-01'),
   updatedAt: new Date('2024-12-01'),
@@ -48,14 +47,13 @@ export const mockMemberWithGym = {
   gym: mockGym,
 }
 
-export const mockTrialMember = {
+export const mockExpiredMember = {
   ...mockMember,
   id: 'member-test-002',
-  memberId: 'TRL001',
-  name: 'Trial User',
-  subscriptionStatus: 'trial',
-  subscriptionEndDate: null,
-  trialEndDate: new Date(Date.now() + 5 * 24 * 60 * 60 * 1000), // 5 days from now
+  memberId: 'EXP001',
+  name: 'Expired User',
+  subscriptionStatus: 'expired',
+  subscribedUntil: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // 5 days ago
 }
 
 export const mockInactiveMember = {

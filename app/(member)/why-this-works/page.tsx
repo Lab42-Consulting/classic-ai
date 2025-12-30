@@ -26,32 +26,18 @@ const sections: Section[] = [
         <p className="text-foreground font-medium mb-2">
           Problem nikada nije znanje.
         </p>
-        <p className="text-foreground-muted">
+        <p className="text-foreground-muted mb-4">
           Problem je: preskakanje dana, &ldquo;počinjem opet u ponedeljak&rdquo;,
           niko ne vidi kad ispadneš iz ritma.
         </p>
-      </>
-    ),
-  },
-  {
-    icon: "🔁",
-    title: "Ovo menja pravila igre",
-    content: (
-      <>
-        <p className="text-foreground-muted mb-3">
-          Ovaj sistem ne traži savršenstvo.
-          <br />
-          Traži <span className="text-foreground font-medium">doslednost</span>.
-        </p>
-        <p className="text-foreground-muted mb-3">
-          Ne broji svaki gram. Ne traži slike svakog obroka. Ne kažnjava greške.
-        </p>
-        <p className="text-foreground font-medium">On:</p>
-        <ul className="space-y-1 text-foreground-muted mt-2">
-          <li>• prati ritam</li>
-          <li>• pokazuje kad si &ldquo;u zoni&rdquo;</li>
-          <li>• reaguje pre nego što potpuno ispadneš</li>
-        </ul>
+        <div className="p-3 rounded-xl bg-accent/10 border border-accent/20">
+          <p className="text-accent text-sm font-medium mb-1">🔁 Ovaj sistem menja pravila igre</p>
+          <p className="text-foreground-muted text-sm">
+            Ne traži savršenstvo — traži <span className="text-foreground">doslednost</span>.
+            <br />
+            Prati ritam. Reaguje pre nego što ispadneš.
+          </p>
+        </div>
       </>
     ),
   },
@@ -63,9 +49,16 @@ const sections: Section[] = [
         <p className="text-foreground-muted mb-3">Zato ovde:</p>
         <ul className="space-y-2 text-foreground-muted mb-4">
           <li>• obrok biraš kao <span className="text-foreground">mali / srednji / veliki</span></li>
+          <li>• ili <span className="text-foreground">kreiraj svoj obrok</span> sa sastojcima — AI izračuna kalorije</li>
           <li>• trening loguješ <span className="text-foreground">jednim klikom</span></li>
           <li>• vodu dodaješ <span className="text-foreground">bez razmišljanja</span></li>
         </ul>
+        <div className="p-3 rounded-xl bg-accent/10 border border-accent/20 mb-4">
+          <p className="text-accent text-sm font-medium mb-1">🍽️ Biblioteka obroka</p>
+          <p className="text-foreground-muted text-sm">
+            Sačuvaj omiljene obroke. Podeli sa teretanom. Koristi obroke od trenera.
+          </p>
+        </div>
         <div className="p-3 rounded-xl bg-success/10 border border-success/20">
           <p className="text-success text-sm">
             Što je lakše → to je doslednije
@@ -77,7 +70,7 @@ const sections: Section[] = [
     ),
   },
   {
-    icon: "👀",
+    icon: "👨‍🏫",
     title: "Nisi sam u ovome",
     content: (
       <>
@@ -87,9 +80,15 @@ const sections: Section[] = [
         <p className="text-foreground font-medium mb-2">Tvoj napredak:</p>
         <ul className="space-y-1 text-foreground-muted mb-4">
           <li>• vidi sistem</li>
-          <li>• vidi trener</li>
+          <li>• vidi <span className="text-foreground">tvoj trener</span></li>
           <li>• vidiš i ti, jasno i iskreno</li>
         </ul>
+        <div className="p-3 rounded-xl bg-warning/10 border border-warning/20 mb-4">
+          <p className="text-warning text-sm font-medium mb-1">🎯 Pronađi trenera</p>
+          <p className="text-foreground-muted text-sm">
+            Prilagođeni ciljevi • Personalizovani obroci • Motivacione poruke
+          </p>
+        </div>
         <p className="text-foreground-muted mb-2">
           Kad si u ritmu — super.
           <br />

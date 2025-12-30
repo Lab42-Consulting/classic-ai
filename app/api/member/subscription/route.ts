@@ -14,10 +14,9 @@ export async function GET() {
       where: { id: session.userId },
       select: {
         goal: true,
-        trialStartDate: true,
-        trialEndDate: true,
+        subscribedAt: true,
+        subscribedUntil: true,
         subscriptionStatus: true,
-        subscriptionEndDate: true,
       },
     });
 
@@ -25,25 +24,11 @@ export async function GET() {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Calculate trial end date if not set (7 days from trial start)
-    let trialEndDate = member.trialEndDate;
-    if (!trialEndDate && member.trialStartDate) {
-      const trialStart = new Date(member.trialStartDate);
-      trialEndDate = new Date(trialStart.getTime() + 7 * 24 * 60 * 60 * 1000);
-    }
-
-    // Check if trial has expired and update status if needed
+    // Check if subscription has expired and update status if needed
     let subscriptionStatus = member.subscriptionStatus;
     const now = new Date();
 
-    if (subscriptionStatus === "trial" && trialEndDate && now > trialEndDate) {
-      subscriptionStatus = "expired";
-      // Update in database
-      await prisma.member.update({
-        where: { id: session.userId },
-        data: { subscriptionStatus: "expired" },
-      });
-    } else if (subscriptionStatus === "active" && member.subscriptionEndDate && now > member.subscriptionEndDate) {
+    if (subscriptionStatus === "active" && member.subscribedUntil && now > member.subscribedUntil) {
       subscriptionStatus = "expired";
       await prisma.member.update({
         where: { id: session.userId },
@@ -53,9 +38,8 @@ export async function GET() {
 
     return NextResponse.json({
       status: subscriptionStatus,
-      trialStartDate: member.trialStartDate?.toISOString() || null,
-      trialEndDate: trialEndDate?.toISOString() || null,
-      subscriptionEndDate: member.subscriptionEndDate?.toISOString() || null,
+      subscribedAt: member.subscribedAt?.toISOString() || null,
+      subscribedUntil: member.subscribedUntil?.toISOString() || null,
       goal: member.goal,
     });
   } catch (error) {

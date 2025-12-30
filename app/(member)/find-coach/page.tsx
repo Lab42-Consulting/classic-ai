@@ -323,13 +323,6 @@ export default function CoachesPage() {
               <SlideUp key={coach.id} delay={index * 0.05}>
                 <GlassCard className="p-4">
                   <div className="flex items-center gap-4">
-                    {/* Coach avatar */}
-                    <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                      <svg className="w-7 h-7 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-
                     {/* Coach info */}
                     <div className="flex-1 min-w-0">
                       <h3 className="text-lg font-semibold text-foreground truncate">
@@ -338,6 +331,18 @@ export default function CoachesPage() {
                       <p className="text-sm text-foreground-muted">
                         {coach.assignedMembersCount} {t.coaches?.membersCount || "članova"}
                       </p>
+                    </div>
+
+                    {/* Coach avatar with initials */}
+                    <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                      <span className="text-lg font-bold text-accent">
+                        {coach.name
+                          .split(" ")
+                          .map((n) => n[0])
+                          .join("")
+                          .toUpperCase()
+                          .slice(0, 2)}
+                      </span>
                     </div>
 
                     {/* Request button */}

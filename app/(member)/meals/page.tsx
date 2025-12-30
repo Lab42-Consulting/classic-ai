@@ -30,6 +30,7 @@ interface MealsData {
   coach: MealWithAuthor[];
   shared: MealWithAuthor[];
   loading: boolean;
+  hasCoach: boolean;
 }
 
 export default function MealsPage() {
@@ -40,6 +41,7 @@ export default function MealsPage() {
     coach: [],
     shared: [],
     loading: true,
+    hasCoach: false,
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealFormData | null>(null);
@@ -49,20 +51,32 @@ export default function MealsPage() {
 
   const fetchMeals = useCallback(async () => {
     try {
-      const response = await fetch("/api/member/meals");
-      if (response.ok) {
-        const result = await response.json();
+      // Fetch meals and profile in parallel
+      const [mealsResponse, profileResponse] = await Promise.all([
+        fetch("/api/member/meals"),
+        fetch("/api/member/profile"),
+      ]);
+
+      let hasCoach = false;
+      if (profileResponse.ok) {
+        const profile = await profileResponse.json();
+        hasCoach = !!profile.coachAssignment;
+      }
+
+      if (mealsResponse.ok) {
+        const result = await mealsResponse.json();
         setData({
           own: result.own || [],
           coach: result.coach || [],
           shared: result.shared || [],
           loading: false,
+          hasCoach,
         });
       } else {
-        setData({ own: [], coach: [], shared: [], loading: false });
+        setData({ own: [], coach: [], shared: [], loading: false, hasCoach });
       }
     } catch {
-      setData({ own: [], coach: [], shared: [], loading: false });
+      setData({ own: [], coach: [], shared: [], loading: false, hasCoach: false });
     }
   }, []);
 
@@ -244,36 +258,69 @@ export default function MealsPage() {
         ) : meals.length === 0 ? (
           <SlideUp delay={100}>
             <GlassCard className="text-center py-12">
-              <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
-                {activeTab === "coach" ? (
-                  <span className="text-3xl">👨‍🏫</span>
-                ) : (
-                  <svg
-                    className="w-8 h-8 text-foreground-muted"
-                    fill="none"
-                    stroke="currentColor"
-                    viewBox="0 0 24 24"
-                  >
-                    <path
-                      strokeLinecap="round"
-                      strokeLinejoin="round"
-                      strokeWidth={1.5}
-                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                    />
-                  </svg>
-                )}
-              </div>
-              <p className="text-foreground-muted">
-                {activeTab === "own"
-                  ? t.meals.noMeals
-                  : activeTab === "coach"
-                  ? "Trener ti još nije kreirao obroke"
-                  : t.meals.noSharedMeals}
-              </p>
+              {/* Own meals - empty state */}
+              {activeTab === "own" && (
+                <>
+                  <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">🍽️</span>
+                  </div>
+                  <p className="text-foreground font-medium mb-2">
+                    {t.meals.noMeals}
+                  </p>
+                  <p className="text-sm text-foreground-muted">
+                    Kreiraj svoj prvi obrok koristeći dugme ispod
+                  </p>
+                </>
+              )}
+
+              {/* Coach meals - empty state */}
               {activeTab === "coach" && (
-                <p className="text-sm text-foreground-muted mt-2">
-                  Tvoj trener može da ti kreira personalizovane obroke
-                </p>
+                <>
+                  <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">👨‍🏫</span>
+                  </div>
+                  {data.hasCoach ? (
+                    <>
+                      <p className="text-foreground font-medium mb-2">
+                        Trener ti još nije kreirao obroke
+                      </p>
+                      <p className="text-sm text-foreground-muted">
+                        Tvoj trener može da ti kreira personalizovane obroke
+                      </p>
+                    </>
+                  ) : (
+                    <>
+                      <p className="text-foreground font-medium mb-2">
+                        Nemaš dodeljenog trenera
+                      </p>
+                      <p className="text-sm text-foreground-muted mb-4">
+                        Pronađi personalnog trenera koji će ti kreirati prilagođene obroke
+                      </p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => router.push("/find-coach")}
+                      >
+                        Pronađi trenera
+                      </Button>
+                    </>
+                  )}
+                </>
+              )}
+
+              {/* Shared meals - empty state */}
+              {activeTab === "shared" && (
+                <>
+                  <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
+                    <span className="text-3xl">📚</span>
+                  </div>
+                  <p className="text-foreground font-medium mb-2">
+                    {t.meals.noSharedMeals}
+                  </p>
+                  <p className="text-sm text-foreground-muted">
+                    Ovde će se pojaviti obroci koje članovi dele sa teretanom
+                  </p>
+                </>
               )}
             </GlassCard>
           </SlideUp>

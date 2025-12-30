@@ -377,23 +377,54 @@ The home dashboard displays **daily metrics only** for a focused, simplified vie
 
 ### 3.11 Specialized AI Agents
 
-The system uses three specialized AI agents instead of a single general chat:
+The system uses three specialized AI agents instead of a single general chat. Each agent has a distinct visual identity and domain expertise.
 
-#### FR-AI-001: Agent Types
+#### FR-AI-001: Agent Types & Visual Identity
 
-| Agent | Domain | Icon |
-|-------|--------|------|
-| Nutrition (Ishrana) | Calories, macros, meal timing, food choices | Cherries (emerald) |
-| Supplements (Suplementi) | Protein, creatine, vitamins, dosages | Pills (violet) |
-| Training (Trening) | Workout types, exercise technique, recovery | Dumbbell (orange) |
+| Agent | Serbian Name | Domain | Icon | Primary Color |
+|-------|--------------|--------|------|---------------|
+| Nutrition | Ishrana | Calories, macros, meal timing, food choices | Cherries | Emerald (#10B981) |
+| Supplements | Suplementi | Protein, creatine, vitamins, dosages | Pill/Capsule | Violet (#8B5CF6) |
+| Training | Trening | Workout types, exercise technique, recovery | Dumbbell | Orange (#F97316) |
 
-#### FR-AI-002: Agent Chat Interface
-- **Selection:** Agent picker on main chat page
-- **Per-agent history:** Conversations are stored separately per agent
+**Agent Visual Identity Details:**
+
+| Agent | Gradient | Glow | Border | Text |
+|-------|----------|------|--------|------|
+| Nutrition | emerald-500 → 600 | emerald-500/30 | border-emerald-500/20 | text-emerald-500 |
+| Supplements | violet-500 → 600 | violet-500/30 | border-violet-500/20 | text-violet-500 |
+| Training | orange-500 → 600 | orange-500/30 | border-orange-500/20 | text-orange-500 |
+
+#### FR-AI-002: Agent Avatar Component
+
+The `AgentAvatar` component provides animated visual representation with states:
+
+| State | Description | Animation |
+|-------|-------------|-----------|
+| `idle` | Default state | Slow orbital rings (12s), subtle glow |
+| `active` | Agent responding | Faster rings (2.5s), pulsing icon |
+| `thinking` | Processing request | Fastest rings (1s), orbiting dot |
+
+**Avatar Sizes:** `sm` (40px), `md` (56px), `lg` (72px), `xl` (96px)
+
+#### FR-AI-003: Where Agents Appear
+
+| Location | Page | Usage |
+|----------|------|-------|
+| Agent Picker | `/chat` | Large cards for agent selection |
+| Chat Header | `/chat/[agent]` | Medium avatar with name |
+| Chat Messages | `/chat/[agent]` | Agent responses show avatar |
+| AI Settings | `/members/[id]` (staff) | Small avatars for coach knowledge config |
+| Onboarding | `/why-this-works` | Introduction to AI agents with avatars |
+
+#### FR-AI-004: Agent Chat Interface
+- **Selection:** Agent picker on main chat page (`/chat`)
+- **Per-agent history:** Conversations stored separately per agent
 - **Suggested prompts:** Domain-specific starter questions
 - **Character limit:** 500 characters per message
+- **Visual feedback:** Avatar animates based on state
 
-#### FR-AI-003: AI Context
+#### FR-AI-005: AI Context
 - **Includes:**
   - User's current stats (weight, goal)
   - Today's consumed macros vs targets
@@ -402,24 +433,41 @@ The system uses three specialized AI agents instead of a single general chat:
   - Consistency score
   - Coach knowledge (if configured)
 
-#### FR-AI-004: AI Language
+#### FR-AI-006: AI Language
 - **Primary:** Serbian (ekavica dialect)
 - **Rules:**
   - Use "e" instead of "ije": "lepo" not "lijepo", "mleko" not "mlijeko"
   - Serbian terminology: "nedelja" not "tjedan", "hleb" not "kruh"
   - Cyrillic only if user writes in Cyrillic
 
-#### FR-AI-005: AI Guardrails
+#### FR-AI-007: AI Guardrails
 - Each agent stays within its domain
 - Redirects off-topic questions to appropriate agent
 - No medical advice
 - No specific meal/training plans
 - Reference gym staff for personalized guidance
 
-#### FR-AI-006: Rate Limiting
+#### FR-AI-008: Rate Limiting
 - **Trial members:** 5 messages/day
 - **Active members:** 20 messages/day
 - **Gym budget cap:** Optional monthly AI cost limit
+
+#### FR-AI-009: Coach AI Knowledge Integration
+
+Coaches can customize AI behavior per member:
+
+**Location:** `/members/[id]` → "AI Podešavanja" section
+
+**Visual Indicator:**
+- Emerald dot: Nutrition configured
+- Violet dot: Supplements configured
+- Orange dot: Training configured
+- Gray dot: Not configured
+
+**Features:**
+- Separate knowledge entries for each agent
+- Max 2000 characters per agent
+- Guidelines injected into AI prompts for that member
 
 ### 3.12 Staff Dashboard
 

@@ -9,6 +9,7 @@ interface MemberStats {
   id: string;
   memberId: string;
   name: string;
+  avatarUrl: string | null;
   goal: string;
   currentWeight: number | null;
   activityStatus: ActivityStatus;
@@ -81,6 +82,7 @@ export async function GET() {
         id: true,
         memberId: true,
         name: true,
+        avatarUrl: true,
         goal: true,
         weight: true,
         createdAt: true,
@@ -332,6 +334,7 @@ export async function GET() {
           id: member.id,
           memberId: member.memberId,
           name: member.name,
+          avatarUrl: member.avatarUrl,
           goal: member.goal,
           currentWeight: member.weight,
           activityStatus,

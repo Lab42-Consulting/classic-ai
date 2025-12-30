@@ -36,6 +36,7 @@ interface CoachRequestData {
 
 interface HomeData {
   memberName: string;
+  memberAvatarUrl: string | null;
   hasCoach: boolean;
   status: StatusType;
   caloriesRemaining: number;
@@ -228,12 +229,22 @@ export function HomeClient({ data }: HomeClientProps) {
             {/* User Avatar - Tappable for Profile */}
             <button
               onClick={() => router.push("/profile")}
-              className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center mb-3 glow-accent btn-press hover:bg-accent/30 transition-colors"
+              className="w-16 h-16 rounded-full overflow-hidden mb-3 glow-accent btn-press hover:opacity-90 transition-opacity"
               aria-label="Open profile"
             >
-              <span className="text-xl font-bold text-accent">
-                {getInitials(data.memberName)}
-              </span>
+              {data.memberAvatarUrl ? (
+                <img
+                  src={data.memberAvatarUrl}
+                  alt={data.memberName}
+                  className="w-full h-full object-cover"
+                />
+              ) : (
+                <div className="w-full h-full bg-accent/20 flex items-center justify-center">
+                  <span className="text-xl font-bold text-accent">
+                    {getInitials(data.memberName)}
+                  </span>
+                </div>
+              )}
             </button>
             <p className="text-label">{greeting}</p>
             <h1 className="text-3xl text-display text-foreground mt-1">

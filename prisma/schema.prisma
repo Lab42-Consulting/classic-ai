@@ -30,6 +30,7 @@ model Member {
   pin                 String
   qrCode              String?           @unique
   name                String
+  avatarUrl           String?           @db.Text // Base64 encoded avatar image
   height              Float?
   weight              Float?
   gender              String?

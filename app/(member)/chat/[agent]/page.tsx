@@ -59,6 +59,9 @@ function AgentChatContent({ agent }: { agent: AgentType }) {
   const [messages, setMessages] = useState<Message[]>([]);
   const hasAutoSentRef = useRef(false);
   const [input, setInput] = useState("");
+
+  // Ref to hold the latest sendMessage function for the auto-send effect
+  const sendMessageRef = useRef<((content: string, currentMessages: Message[]) => Promise<void>) | null>(null);
   const [loading, setLoading] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(
     null
@@ -132,9 +135,12 @@ function AgentChatContent({ agent }: { agent: AgentType }) {
     [agent]
   );
 
+  // Keep sendMessageRef up to date
+  sendMessageRef.current = sendMessage;
+
   // Auto-send prompt from query params (e.g., from home page advice cards)
   useEffect(() => {
-    // Only run once on mount
+    // Only run once
     if (hasAutoSentRef.current) return;
 
     // Get prompt from URL
@@ -147,14 +153,18 @@ function AgentChatContent({ agent }: { agent: AgentType }) {
     }
 
     if (prompt && messages.length === 0) {
-      hasAutoSentRef.current = true;
       // Delay to ensure component is fully mounted
       const timer = setTimeout(() => {
-        sendMessage(prompt, []);
-      }, 200);
+        // Check ref again inside timeout (React Strict Mode runs effects twice)
+        if (hasAutoSentRef.current) return;
+        hasAutoSentRef.current = true;
+        sendMessageRef.current?.(prompt, []);
+      }, 100);
       return () => clearTimeout(timer);
     }
-  }, [searchParams, messages.length, sendMessage]);
+    // Note: sendMessage excluded from deps intentionally - we use sendMessageRef instead
+    // to prevent cleanup from cancelling the timeout when sendMessage reference changes
+  }, [searchParams, messages.length]);
 
   const handleTypingComplete = (index: number) => {
     if (typingMessageIndex === index) {

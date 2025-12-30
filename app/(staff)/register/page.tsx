@@ -26,6 +26,7 @@ interface UnassignedMember {
   id: string;
   memberId: string;
   name: string;
+  avatarUrl: string | null;
   goal: string;
   weight: number | null;
   height: number | null;
@@ -33,6 +34,15 @@ interface UnassignedMember {
   hasPendingRequest: boolean;
   pendingRequestFromMe: boolean;
   pendingRequestCoachName: string | null;
+}
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
 }
 
 export default function RegisterMemberPage() {
@@ -315,11 +325,19 @@ export default function RegisterMemberPage() {
           <Card>
             <h3 className="text-lg font-semibold text-foreground mb-2">Član</h3>
             <div className="flex items-center gap-3">
-              <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
-                <span className="text-xl font-bold text-accent">
-                  {selectedMember.name.charAt(0).toUpperCase()}
-                </span>
-              </div>
+              {selectedMember.avatarUrl ? (
+                <img
+                  src={selectedMember.avatarUrl}
+                  alt={selectedMember.name}
+                  className="w-12 h-12 rounded-full object-cover"
+                />
+              ) : (
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                  <span className="text-xl font-bold text-accent">
+                    {getInitials(selectedMember.name)}
+                  </span>
+                </div>
+              )}
               <div>
                 <p className="font-medium text-foreground">{selectedMember.name}</p>
                 <p className="text-sm text-foreground-muted">
@@ -590,20 +608,25 @@ export default function RegisterMemberPage() {
                       }}
                     >
                       <div className="flex items-center gap-4">
-                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                          member.pendingRequestFromMe ? "bg-warning/20" : "bg-accent/20"
-                        }`}>
-                          <span className={`text-lg font-bold ${
-                            member.pendingRequestFromMe ? "text-warning" : "text-accent"
+                        {member.avatarUrl ? (
+                          <img
+                            src={member.avatarUrl}
+                            alt={member.name}
+                            className={`w-12 h-12 rounded-full object-cover ${
+                              member.pendingRequestFromMe ? "opacity-75" : ""
+                            }`}
+                          />
+                        ) : (
+                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                            member.pendingRequestFromMe ? "bg-warning/20" : "bg-accent/20"
                           }`}>
-                            {member.name
-                              .split(" ")
-                              .map((n) => n[0])
-                              .join("")
-                              .toUpperCase()
-                              .slice(0, 2)}
-                          </span>
-                        </div>
+                            <span className={`text-lg font-bold ${
+                              member.pendingRequestFromMe ? "text-warning" : "text-accent"
+                            }`}>
+                              {getInitials(member.name)}
+                            </span>
+                          </div>
+                        )}
                         <div className="flex-1 min-w-0">
                           <div className="flex items-center gap-2">
                             <h3 className="font-medium text-foreground truncate">

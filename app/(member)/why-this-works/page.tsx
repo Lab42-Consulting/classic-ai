@@ -3,6 +3,7 @@
 import { useState, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard, Button, SlideUp, FadeIn } from "@/components/ui";
+import { AgentAvatar, agentMeta } from "@/components/ui/agent-avatar";
 
 interface Section {
   icon: string;
@@ -103,20 +104,61 @@ const sections: Section[] = [
   },
   {
     icon: "🤖",
-    title: "AI nije trener. On je podrška.",
+    title: "AI asistenti su ti na raspolaganju",
     content: (
       <>
-        <p className="text-foreground font-medium mb-2">AI ovde:</p>
-        <ul className="space-y-1 text-foreground-muted mb-4">
-          <li>• objašnjava</li>
-          <li>• motiviše</li>
-          <li>• pomaže da razumeš šta se dešava</li>
-        </ul>
-        <p className="text-foreground-muted mb-3">
-          Ne pravi dijete. Ne zamenjuje trenera. Ne glumi doktora.
+        <p className="text-foreground-muted mb-4">
+          Imaš pitanje? Tri AI asistenta su tu da pomognu — svaki stručnjak u svom domenu.
+        </p>
+
+        {/* AI Agents Grid */}
+        <div className="space-y-3 mb-4">
+          {/* Nutrition Agent */}
+          <div className={`flex items-center gap-3 p-3 rounded-xl ${agentMeta.nutrition.bgClass} ${agentMeta.nutrition.borderClass} border`}>
+            <AgentAvatar agent="nutrition" size="sm" state="idle" />
+            <div>
+              <p className={`font-medium ${agentMeta.nutrition.textClass}`}>
+                {agentMeta.nutrition.name}
+              </p>
+              <p className="text-xs text-foreground-muted">
+                {agentMeta.nutrition.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Supplements Agent */}
+          <div className={`flex items-center gap-3 p-3 rounded-xl ${agentMeta.supplements.bgClass} ${agentMeta.supplements.borderClass} border`}>
+            <AgentAvatar agent="supplements" size="sm" state="idle" />
+            <div>
+              <p className={`font-medium ${agentMeta.supplements.textClass}`}>
+                {agentMeta.supplements.name}
+              </p>
+              <p className="text-xs text-foreground-muted">
+                {agentMeta.supplements.description}
+              </p>
+            </div>
+          </div>
+
+          {/* Training Agent */}
+          <div className={`flex items-center gap-3 p-3 rounded-xl ${agentMeta.training.bgClass} ${agentMeta.training.borderClass} border`}>
+            <AgentAvatar agent="training" size="sm" state="idle" />
+            <div>
+              <p className={`font-medium ${agentMeta.training.textClass}`}>
+                {agentMeta.training.name}
+              </p>
+              <p className="text-xs text-foreground-muted">
+                {agentMeta.training.description}
+              </p>
+            </div>
+          </div>
+        </div>
+
+        <p className="text-foreground-muted text-sm mb-3">
+          AI objašnjava, motiviše i pomaže da razumeš šta se dešava.
+          Ne pravi dijete. Ne zamenjuje trenera.
         </p>
         <p className="text-foreground text-sm">
-          Ako treba nešto lično — tu je <span className="text-accent font-medium">tvoj trener</span>.
+          Za lične savete — tu je <span className="text-accent font-medium">tvoj trener</span>.
         </p>
       </>
     ),

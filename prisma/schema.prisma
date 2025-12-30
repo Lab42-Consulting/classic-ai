@@ -16,6 +16,8 @@ model Gym {
   members         Member[]
   staff           Staff[]
   aiUsageMonthly  AIUsageMonthly[]
+  customMeals     CustomMeal[]      // Gym-wide shared meals
+  savedIngredients SavedIngredient[] // Gym-wide shared ingredients
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -50,6 +52,8 @@ model Member {
   coachRequest        CoachRequest?     // Pending coach request (only 1 at a time)
   receivedNudges      CoachNudge[]
   coachKnowledge      CoachKnowledge[]  // Per-member AI knowledge from coach
+  customMeals         CustomMeal[]      // Member's saved meals
+  savedIngredients    SavedIngredient[] // Member's saved ingredients
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -285,12 +289,21 @@ model CoachKnowledge {
   @@map("coach_knowledge")
 }
 
-// Pending coach request - member must accept/decline before assignment takes effect
+// Pending coach request - can be initiated by coach OR member
 // Only 1 pending request per member at a time
 model CoachRequest {
   id             String   @id @default(cuid())
   staffId        String
   memberId       String   @unique // Only 1 pending request per member
+
+  // Request direction - who initiated this request
+  initiatedBy    String   @default("coach")  // "coach" | "member"
+
+  // Member contact info (for member-initiated requests)
+  memberFirstName  String?  // Member's first name
+  memberLastName   String?  // Member's last name
+  memberPhone      String?  // Member's phone number (required for member-initiated)
+  memberMessage    String?  // Optional message to coach
 
   // Coach-proposed settings (same as CoachAssignment)
   customGoal     String?  // Coach can override member's goal
@@ -309,4 +322,82 @@ model CoachRequest {
   @@index([staffId])
   @@index([memberId])
   @@map("coach_requests")
+}
+
+// Custom meals created by members (with ingredients)
+model CustomMeal {
+  id              String           @id @default(cuid())
+  memberId        String
+  member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  gymId           String
+  gym             Gym              @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name            String           // Meal name
+
+  // Totals (auto-summed from ingredients OR manual override)
+  totalCalories   Int
+  totalProtein    Int?
+  totalCarbs      Int?
+  totalFats       Int?
+  isManualTotal   Boolean          @default(false)  // If true, totals were manually set
+
+  // Sharing with gym (requires admin approval)
+  isShared           Boolean          @default(false)  // User wants to share with gym
+  shareApproved      Boolean          @default(false)  // Admin has approved sharing
+  shareRequestedAt   DateTime?        // When user requested to share
+
+  ingredients     MealIngredient[]
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([memberId])
+  @@index([gymId, isShared, shareApproved])
+  @@map("custom_meals")
+}
+
+// Saved ingredients library (reusable across meals)
+model SavedIngredient {
+  id              String           @id @default(cuid())
+  memberId        String
+  member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  gymId           String
+  gym             Gym              @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name            String           // e.g., "Chicken breast"
+  defaultPortion  String           // e.g., "100g", "1 piece"
+  calories        Int              // For the default portion
+  protein         Int?
+  carbs           Int?
+  fats            Int?
+
+  isShared        Boolean          @default(false)  // Gym-wide sharing
+
+  createdAt       DateTime         @default(now())
+  updatedAt       DateTime         @updatedAt
+
+  @@index([memberId])
+  @@index([gymId, isShared])
+  @@map("saved_ingredients")
+}
+
+// Ingredients within a custom meal
+model MealIngredient {
+  id                  String            @id @default(cuid())
+  mealId              String
+  meal                CustomMeal        @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  savedIngredientId   String?           // Optional - link to library
+
+  name                String            // Ingredient name (copied or custom)
+  portionSize         String            // e.g., "120g", "100ml", "2 pieces"
+  calories            Int
+  protein             Int?
+  carbs               Int?
+  fats                Int?
+
+  createdAt           DateTime          @default(now())
+
+  @@index([mealId])
+  @@map("meal_ingredients")
 }

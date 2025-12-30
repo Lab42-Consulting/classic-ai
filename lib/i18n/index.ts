@@ -215,6 +215,64 @@ export const translations = {
       },
     },
 
+    // Meals
+    meals: {
+      title: "Obroci",
+      myMeals: "Moji obroci",
+      sharedMeals: "Podeljeni obroci",
+      newMeal: "Novi obrok",
+      editMeal: "Izmeni obrok",
+      deleteMeal: "Obriši obrok",
+      mealName: "Naziv obroka",
+      ingredients: "Sastojci",
+      addIngredient: "Dodaj sastojak",
+      fromLibrary: "Iz biblioteke",
+      total: "Ukupno",
+      manualTotal: "Ručno podesi",
+      shareWithGym: "Podeli sa teretanom",
+      sharedWithGym: "Podeljeno sa teretanom",
+      sharedBy: "Podelio/la",
+      saveMeal: "Sačuvaj obrok",
+      savedMeals: "Sačuvani obroci",
+      noMeals: "Nemaš sačuvanih obroka",
+      noSharedMeals: "Nema podeljenih obroka",
+      logThis: "Unesi ovaj obrok",
+      copyToSaved: "Sačuvaj u svoje obroke",
+      options: "Opcije",
+      nameRequired: "Naziv obroka je obavezan",
+      needIngredients: "Dodaj bar jedan sastojak sa kalorijama",
+      saveError: "Greška prilikom čuvanja",
+      deleteConfirmTitle: "Obriši obrok?",
+      deleteConfirmMessage: "Ova akcija se ne može poništiti.",
+    },
+
+    // Ingredients
+    ingredients: {
+      title: "Biblioteka sastojaka",
+      name: "Naziv",
+      portion: "Porcija",
+      amount: "Kol.",
+      calories: "Kalorije",
+      protein: "Proteini (g)",
+      carbs: "UH (g)",
+      fats: "Masti (g)",
+      aiDeduce: "AI popuni",
+      aiDeducing: "AI računa...",
+      aiError: "Greška prilikom AI dedukcije",
+      saveToLibrary: "Sačuvaj u biblioteku",
+      noIngredients: "Nema sačuvanih sastojaka",
+      addMacros: "Dodaj makrose",
+      hideMacros: "Sakrij makrose",
+      searchPlaceholder: "Pretraži sastojke...",
+      noResults: "Nema rezultata",
+      newIngredient: "Novi sastojak",
+      editIngredient: "Izmeni sastojak",
+      deleteIngredient: "Obriši sastojak",
+      defaultPortion: "Podrazumevana porcija",
+      deleteConfirmTitle: "Obriši sastojak?",
+      deleteConfirmMessage: "Ova akcija se ne može poništiti.",
+    },
+
     // AI Agents
     agents: {
       title: "AI Asistenti",
@@ -256,6 +314,30 @@ export const translations = {
           "Kako da poboljšam bench press?",
         ],
       },
+    },
+
+    // Coaches
+    coaches: {
+      title: "Treneri",
+      subtitle: "Izaberi trenera koji će te voditi",
+      noCoaches: "Nema dostupnih trenera",
+      requestCoach: "Pošalji zahtev",
+      requestSent: "Zahtev poslat",
+      pendingRequest: "Čeka se odgovor trenera",
+      currentCoach: "Tvoj trener",
+      yourCoachDescription: "Tvoj trener te vodi ka cilju",
+      membersCount: "članova",
+      sendRequest: "Pošalji zahtev",
+      firstName: "Ime",
+      lastName: "Prezime",
+      phone: "Broj telefona",
+      message: "Poruka (opciono)",
+      messagePlaceholder: "Napiši nešto o sebi i svojim ciljevima...",
+      requestSuccess: "Zahtev uspešno poslat!",
+      waitingForCoach: "Trener će pregledati tvoj zahtev",
+      firstNameRequired: "Ime je obavezno",
+      lastNameRequired: "Prezime je obavezno",
+      phoneRequired: "Broj telefona je obavezan",
     },
   },
 
@@ -469,6 +551,64 @@ export const translations = {
       },
     },
 
+    // Meals
+    meals: {
+      title: "Meals",
+      myMeals: "My Meals",
+      sharedMeals: "Shared Meals",
+      newMeal: "New Meal",
+      editMeal: "Edit Meal",
+      deleteMeal: "Delete Meal",
+      mealName: "Meal Name",
+      ingredients: "Ingredients",
+      addIngredient: "Add Ingredient",
+      fromLibrary: "From Library",
+      total: "Total",
+      manualTotal: "Set Manually",
+      shareWithGym: "Share with Gym",
+      sharedWithGym: "Shared with Gym",
+      sharedBy: "Shared by",
+      saveMeal: "Save Meal",
+      savedMeals: "Saved Meals",
+      noMeals: "No saved meals",
+      noSharedMeals: "No shared meals",
+      logThis: "Log this meal",
+      copyToSaved: "Save to your meals",
+      options: "Options",
+      nameRequired: "Meal name is required",
+      needIngredients: "Add at least one ingredient with calories",
+      saveError: "Error saving meal",
+      deleteConfirmTitle: "Delete meal?",
+      deleteConfirmMessage: "This action cannot be undone.",
+    },
+
+    // Ingredients
+    ingredients: {
+      title: "Ingredient Library",
+      name: "Name",
+      portion: "Portion",
+      amount: "Amt.",
+      calories: "Calories",
+      protein: "Protein (g)",
+      carbs: "Carbs (g)",
+      fats: "Fats (g)",
+      aiDeduce: "AI Fill",
+      aiDeducing: "AI calculating...",
+      aiError: "AI deduction error",
+      saveToLibrary: "Save to Library",
+      noIngredients: "No saved ingredients",
+      addMacros: "Add macros",
+      hideMacros: "Hide macros",
+      searchPlaceholder: "Search ingredients...",
+      noResults: "No results",
+      newIngredient: "New Ingredient",
+      editIngredient: "Edit Ingredient",
+      deleteIngredient: "Delete Ingredient",
+      defaultPortion: "Default Portion",
+      deleteConfirmTitle: "Delete ingredient?",
+      deleteConfirmMessage: "This action cannot be undone.",
+    },
+
     // AI Agents
     agents: {
       title: "AI Assistants",
@@ -510,6 +650,30 @@ export const translations = {
           "How can I improve my bench press?",
         ],
       },
+    },
+
+    // Coaches
+    coaches: {
+      title: "Coaches",
+      subtitle: "Choose a coach to guide you",
+      noCoaches: "No coaches available",
+      requestCoach: "Send Request",
+      requestSent: "Request Sent",
+      pendingRequest: "Waiting for coach response",
+      currentCoach: "Your Coach",
+      yourCoachDescription: "Your coach is guiding you to your goal",
+      membersCount: "members",
+      sendRequest: "Send Request",
+      firstName: "First Name",
+      lastName: "Last Name",
+      phone: "Phone Number",
+      message: "Message (optional)",
+      messagePlaceholder: "Tell me about yourself and your goals...",
+      requestSuccess: "Request sent successfully!",
+      waitingForCoach: "Coach will review your request",
+      firstNameRequired: "First name is required",
+      lastNameRequired: "Last name is required",
+      phoneRequired: "Phone number is required",
     },
   },
 } as const;
@@ -694,6 +858,60 @@ export type TranslationKeys = {
       recomposition: string;
     };
   };
+  meals: {
+    title: string;
+    myMeals: string;
+    sharedMeals: string;
+    newMeal: string;
+    editMeal: string;
+    deleteMeal: string;
+    mealName: string;
+    ingredients: string;
+    addIngredient: string;
+    fromLibrary: string;
+    total: string;
+    manualTotal: string;
+    shareWithGym: string;
+    sharedWithGym: string;
+    sharedBy: string;
+    saveMeal: string;
+    savedMeals: string;
+    noMeals: string;
+    noSharedMeals: string;
+    logThis: string;
+    copyToSaved: string;
+    options: string;
+    nameRequired: string;
+    needIngredients: string;
+    saveError: string;
+    deleteConfirmTitle: string;
+    deleteConfirmMessage: string;
+  };
+  ingredients: {
+    title: string;
+    name: string;
+    portion: string;
+    amount: string;
+    calories: string;
+    protein: string;
+    carbs: string;
+    fats: string;
+    aiDeduce: string;
+    aiDeducing: string;
+    aiError: string;
+    saveToLibrary: string;
+    noIngredients: string;
+    addMacros: string;
+    hideMacros: string;
+    searchPlaceholder: string;
+    noResults: string;
+    newIngredient: string;
+    editIngredient: string;
+    deleteIngredient: string;
+    defaultPortion: string;
+    deleteConfirmTitle: string;
+    deleteConfirmMessage: string;
+  };
   agents: {
     title: string;
     selectAgent: string;
@@ -719,6 +937,28 @@ export type TranslationKeys = {
       askButton: string;
       suggestedPrompts: readonly string[];
     };
+  };
+  coaches?: {
+    title: string;
+    subtitle: string;
+    noCoaches: string;
+    requestCoach: string;
+    requestSent: string;
+    pendingRequest: string;
+    currentCoach: string;
+    yourCoachDescription: string;
+    membersCount: string;
+    sendRequest: string;
+    firstName: string;
+    lastName: string;
+    phone: string;
+    message: string;
+    messagePlaceholder: string;
+    requestSuccess: string;
+    waitingForCoach: string;
+    firstNameRequired: string;
+    lastNameRequired: string;
+    phoneRequired: string;
   };
 };
 

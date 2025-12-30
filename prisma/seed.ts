@@ -155,6 +155,7 @@ async function main() {
       gender: "male",
       goal: "fat_loss",
       assignToCoach: false, // Not assigned - test coach request flow
+      freshStart: false,
     },
     {
       memberId: "ĆEPA",
@@ -165,6 +166,7 @@ async function main() {
       gender: "male",
       goal: "muscle_gain",
       assignToCoach: false, // Not assigned - test coach request flow
+      freshStart: true, // Start from beginning - no logs, no history
     },
     {
       memberId: "TEST",
@@ -175,6 +177,7 @@ async function main() {
       gender: "male",
       goal: "recomposition",
       assignToCoach: false, // Unassigned - for testing coach assignment flow
+      freshStart: false,
     },
   ];
 
@@ -183,21 +186,26 @@ async function main() {
   const currentWeek = getWeekNumber(today);
 
   for (const memberData of members) {
-    // Generate weight progression for 12 weeks
-    const weightProgression = generateWeightProgression(
-      memberData.startWeight,
-      memberData.goal,
-      WEEKS_OF_HISTORY
-    );
-
-    // Current weight is the last recorded weight
-    const currentWeight = weightProgression[weightProgression.length - 1];
-
     const hashedPin = await hashPin(memberData.pin);
 
-    // Set createdAt to 3 months ago
-    const memberSince = new Date(today);
-    memberSince.setDate(memberSince.getDate() - WEEKS_OF_HISTORY * 7);
+    // For fresh start members, use starting weight and current date
+    // For others, generate weight progression
+    let currentWeight = memberData.startWeight;
+    let memberSince = new Date(today);
+    let weightProgression: number[] = [];
+
+    if (!memberData.freshStart) {
+      // Generate weight progression for 12 weeks
+      weightProgression = generateWeightProgression(
+        memberData.startWeight,
+        memberData.goal,
+        WEEKS_OF_HISTORY
+      );
+      // Current weight is the last recorded weight
+      currentWeight = weightProgression[weightProgression.length - 1];
+      // Set createdAt to 3 months ago
+      memberSince.setDate(memberSince.getDate() - WEEKS_OF_HISTORY * 7);
+    }
 
     const member = await prisma.member.upsert({
       where: {
@@ -208,7 +216,8 @@ async function main() {
       },
       update: {
         weight: currentWeight,
-        hasSeenOnboarding: true, // Skip onboarding for test members
+        goal: memberData.goal,
+        hasSeenOnboarding: !memberData.freshStart, // Show onboarding for fresh start members
       },
       create: {
         memberId: memberData.memberId,
@@ -219,121 +228,133 @@ async function main() {
         gender: memberData.gender,
         goal: memberData.goal,
         gymId: gym.id,
-        hasSeenOnboarding: true, // Skip onboarding for test members
+        hasSeenOnboarding: !memberData.freshStart, // Show onboarding for fresh start members
         createdAt: memberSince,
       },
     });
-    console.log(`✅ Member created: ${member.memberId} (PIN: ${memberData.pin})`);
+    console.log(`✅ Member created: ${member.memberId} (PIN: ${memberData.pin})${memberData.freshStart ? " [FRESH START]" : ""}`);
 
-    // Add 12 weeks of check-in history (but NOT the current week)
-    // For STRUJA, also skip last week to test accountability feature
-    const skipLastWeek = memberData.memberId === "STRUJA";
-    console.log(`   ↳ Adding ${WEEKS_OF_HISTORY} weeks of check-in history...`);
+    // Skip history for fresh start members
+    if (memberData.freshStart) {
+      console.log(`   ↳ Skipping history (fresh start member)`);
+    } else {
+      // Add 12 weeks of check-in history (but NOT the current week)
+      // For STRUJA, also skip last week to test accountability feature
+      const skipLastWeek = memberData.memberId === "STRUJA";
+      console.log(`   ↳ Adding ${WEEKS_OF_HISTORY} weeks of check-in history...`);
 
-    for (let weeksAgo = WEEKS_OF_HISTORY; weeksAgo >= 1; weeksAgo--) {
-      const checkinDate = new Date(today);
-      checkinDate.setDate(checkinDate.getDate() - weeksAgo * 7);
+      for (let weeksAgo = WEEKS_OF_HISTORY; weeksAgo >= 1; weeksAgo--) {
+        const checkinDate = new Date(today);
+        checkinDate.setDate(checkinDate.getDate() - weeksAgo * 7);
 
-      const weekInfo = getWeekNumber(checkinDate);
+        const weekInfo = getWeekNumber(checkinDate);
 
-      // Skip if this is the current week
-      if (weekInfo.week === currentWeek.week && weekInfo.year === currentWeek.year) {
-        continue;
-      }
+        // Skip if this is the current week
+        if (weekInfo.week === currentWeek.week && weekInfo.year === currentWeek.year) {
+          continue;
+        }
 
-      // For STRUJA, also skip last week (weeksAgo === 1) to test missed week accountability
-      if (skipLastWeek && weeksAgo === 1) {
-        continue;
-      }
+        // For STRUJA, also skip last week (weeksAgo === 1) to test missed week accountability
+        if (skipLastWeek && weeksAgo === 1) {
+          continue;
+        }
 
-      const weightIndex = WEEKS_OF_HISTORY - weeksAgo;
-      const weight = weightProgression[weightIndex] || memberData.startWeight;
+        const weightIndex = WEEKS_OF_HISTORY - weeksAgo;
+        const weight = weightProgression[weightIndex] || memberData.startWeight;
 
-      await prisma.weeklyCheckin.upsert({
-        where: {
-          memberId_weekNumber_year: {
+        await prisma.weeklyCheckin.upsert({
+          where: {
+            memberId_weekNumber_year: {
+              memberId: member.id,
+              weekNumber: weekInfo.week,
+              year: weekInfo.year,
+            },
+          },
+          update: {},
+          create: {
             memberId: member.id,
+            weight,
+            feeling: generateFeeling(),
             weekNumber: weekInfo.week,
             year: weekInfo.year,
+            createdAt: checkinDate,
           },
-        },
-        update: {},
-        create: {
-          memberId: member.id,
-          weight,
-          feeling: generateFeeling(),
-          weekNumber: weekInfo.week,
-          year: weekInfo.year,
-          createdAt: checkinDate,
-        },
-      });
+        });
+      }
+      console.log(`   ↳ Added check-in history (current week skipped${skipLastWeek ? ", last week also skipped for STRUJA" : ""})`);
     }
-    console.log(`   ↳ Added check-in history (current week skipped${skipLastWeek ? ", last week also skipped for STRUJA" : ""})`);
 
-    // Add some sample daily logs for today
-    const logs = [
-      {
-        type: "meal",
-        mealSize: "medium",
-        mealName: "Doručak",
-        calories: 500,
-        protein: 35,
-        carbs: 50,
-        fats: 15,
-      },
-      {
-        type: "meal",
-        mealSize: "large",
-        mealName: "Ručak",
-        calories: 800,
-        protein: 50,
-        carbs: 80,
-        fats: 25,
-      },
-      { type: "training", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
-      { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
-      { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
-      { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
-    ];
+    // Skip daily logs and AI summary for fresh start members
+    if (!memberData.freshStart) {
+      // Add some sample daily logs for today
+      const logs = [
+        {
+          type: "meal",
+          mealSize: "medium",
+          mealName: "Doručak",
+          calories: 500,
+          protein: 35,
+          carbs: 50,
+          fats: 15,
+        },
+        {
+          type: "meal",
+          mealSize: "large",
+          mealName: "Ručak",
+          calories: 800,
+          protein: 50,
+          carbs: 80,
+          fats: 25,
+        },
+        { type: "training", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
+        { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
+        { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
+        { type: "water", mealSize: null, mealName: null, calories: null, protein: null, carbs: null, fats: null },
+      ];
 
-    for (const log of logs) {
-      await prisma.dailyLog.create({
+      for (const log of logs) {
+        await prisma.dailyLog.create({
+          data: {
+            memberId: member.id,
+            type: log.type,
+            mealSize: log.mealSize,
+            mealName: log.mealName,
+            estimatedCalories: log.calories,
+            estimatedProtein: log.protein,
+            estimatedCarbs: log.carbs,
+            estimatedFats: log.fats,
+            date: today,
+          },
+        });
+      }
+      console.log(`   ↳ Added ${logs.length} logs for today`);
+
+      // Add sample AI summary
+      await prisma.aISummary.create({
         data: {
           memberId: member.id,
-          type: log.type,
-          mealSize: log.mealSize,
-          mealName: log.mealName,
-          estimatedCalories: log.calories,
-          estimatedProtein: log.protein,
-          estimatedCarbs: log.carbs,
-          estimatedFats: log.fats,
+          type: "daily",
+          content:
+            memberData.goal === "fat_loss"
+              ? "Odlično napreduješ! Izgubio si skoro 5kg u poslednja 3 meseca. Nastavi sa doslednim treninzima i umerenim obrocima."
+              : "Masa raste kako treba! Dodao si oko 2kg mišićne mase. Fokusiraj se na dovoljno proteina i odmor.",
           date: today,
         },
       });
+      console.log(`   ↳ Added AI summary`);
     }
-    console.log(`   ↳ Added ${logs.length} logs for today`);
-
-    // Add sample AI summary
-    await prisma.aISummary.create({
-      data: {
-        memberId: member.id,
-        type: "daily",
-        content:
-          memberData.goal === "fat_loss"
-            ? "Odlično napreduješ! Izgubio si skoro 5kg u poslednja 3 meseca. Nastavi sa doslednim treninzima i umerenim obrocima."
-            : "Masa raste kako treba! Dodao si oko 2kg mišićne mase. Fokusiraj se na dovoljno proteina i odmor.",
-        date: today,
-      },
-    });
-    console.log(`   ↳ Added AI summary`);
 
     // Show weight progress summary
-    const startW = memberData.startWeight;
-    const endW = currentWeight;
-    const diff = Math.round((endW - startW) * 10) / 10;
-    console.log(
-      `   ↳ Weight: ${startW}kg → ${endW}kg (${diff > 0 ? "+" : ""}${diff}kg)`
-    );
+    if (!memberData.freshStart) {
+      const startW = memberData.startWeight;
+      const endW = currentWeight;
+      const diff = Math.round((endW - startW) * 10) / 10;
+      console.log(
+        `   ↳ Weight: ${startW}kg → ${endW}kg (${diff > 0 ? "+" : ""}${diff}kg)`
+      );
+    } else {
+      console.log(`   ↳ Starting weight: ${memberData.startWeight}kg`);
+    }
   }
 
   // Create coach assignments - assign only some members to the coach
@@ -364,6 +385,98 @@ async function main() {
   }
   console.log(`ℹ️  ${allMembers.length} member(s) unassigned - test coach request flow`);
 
+  // Seed common ingredients library
+  console.log("\n🥗 Seeding common ingredients library...");
+  const strujaId = allMembers.find(m => m.memberId === "STRUJA")?.id;
+
+  if (strujaId) {
+    const commonIngredients = [
+      // Proteins
+      { name: "Jaje (celo)", defaultPortion: "1 kom", calories: 78, protein: 6, carbs: 1, fats: 5 },
+      { name: "Jaje (belance)", defaultPortion: "1 kom", calories: 17, protein: 4, carbs: 0, fats: 0 },
+      { name: "Pileća prsa", defaultPortion: "100g", calories: 165, protein: 31, carbs: 0, fats: 4 },
+      { name: "Pileći batak", defaultPortion: "100g", calories: 209, protein: 26, carbs: 0, fats: 11 },
+      { name: "Ćuretina", defaultPortion: "100g", calories: 135, protein: 30, carbs: 0, fats: 1 },
+      { name: "Juneće meso (mljeveno)", defaultPortion: "100g", calories: 250, protein: 26, carbs: 0, fats: 15 },
+      { name: "Svinjetina", defaultPortion: "100g", calories: 242, protein: 27, carbs: 0, fats: 14 },
+      { name: "Tuna (konzerva)", defaultPortion: "100g", calories: 116, protein: 26, carbs: 0, fats: 1 },
+      { name: "Losos", defaultPortion: "100g", calories: 208, protein: 20, carbs: 0, fats: 13 },
+      { name: "Skuša", defaultPortion: "100g", calories: 205, protein: 19, carbs: 0, fats: 14 },
+      { name: "Škampi", defaultPortion: "100g", calories: 85, protein: 18, carbs: 1, fats: 1 },
+
+      // Dairy
+      { name: "Grčki jogurt", defaultPortion: "100g", calories: 97, protein: 9, carbs: 3, fats: 5 },
+      { name: "Jogurt (obični)", defaultPortion: "100g", calories: 61, protein: 3, carbs: 5, fats: 3 },
+      { name: "Mlijeko", defaultPortion: "200ml", calories: 84, protein: 6, carbs: 10, fats: 2 },
+      { name: "Sir (gauda)", defaultPortion: "30g", calories: 108, protein: 8, carbs: 1, fats: 8 },
+      { name: "Cottage cheese", defaultPortion: "100g", calories: 98, protein: 11, carbs: 3, fats: 4 },
+      { name: "Whey protein", defaultPortion: "30g", calories: 120, protein: 24, carbs: 3, fats: 1 },
+
+      // Carbs
+      { name: "Pirinač (kuvani)", defaultPortion: "100g", calories: 130, protein: 3, carbs: 28, fats: 0 },
+      { name: "Pirinač (sirovi)", defaultPortion: "100g", calories: 360, protein: 7, carbs: 80, fats: 1 },
+      { name: "Ovsene pahuljice", defaultPortion: "50g", calories: 190, protein: 7, carbs: 34, fats: 3 },
+      { name: "Krompir", defaultPortion: "100g", calories: 77, protein: 2, carbs: 17, fats: 0 },
+      { name: "Slatki krompir", defaultPortion: "100g", calories: 86, protein: 2, carbs: 20, fats: 0 },
+      { name: "Hleb (bijeli)", defaultPortion: "1 parče", calories: 79, protein: 3, carbs: 15, fats: 1 },
+      { name: "Hleb (integralni)", defaultPortion: "1 parče", calories: 81, protein: 4, carbs: 14, fats: 1 },
+      { name: "Tjestenina (kuvana)", defaultPortion: "100g", calories: 131, protein: 5, carbs: 25, fats: 1 },
+      { name: "Tjestenina (sirova)", defaultPortion: "100g", calories: 371, protein: 13, carbs: 75, fats: 2 },
+
+      // Fruits
+      { name: "Banana", defaultPortion: "1 kom", calories: 105, protein: 1, carbs: 27, fats: 0 },
+      { name: "Jabuka", defaultPortion: "1 kom", calories: 95, protein: 0, carbs: 25, fats: 0 },
+      { name: "Narandža", defaultPortion: "1 kom", calories: 62, protein: 1, carbs: 15, fats: 0 },
+      { name: "Jagode", defaultPortion: "100g", calories: 32, protein: 1, carbs: 8, fats: 0 },
+      { name: "Borovnice", defaultPortion: "100g", calories: 57, protein: 1, carbs: 14, fats: 0 },
+      { name: "Grožđe", defaultPortion: "100g", calories: 69, protein: 1, carbs: 18, fats: 0 },
+
+      // Vegetables
+      { name: "Brokoli", defaultPortion: "100g", calories: 34, protein: 3, carbs: 7, fats: 0 },
+      { name: "Špinat", defaultPortion: "100g", calories: 23, protein: 3, carbs: 4, fats: 0 },
+      { name: "Paradajz", defaultPortion: "100g", calories: 18, protein: 1, carbs: 4, fats: 0 },
+      { name: "Krastavac", defaultPortion: "100g", calories: 16, protein: 1, carbs: 4, fats: 0 },
+      { name: "Paprika", defaultPortion: "100g", calories: 31, protein: 1, carbs: 6, fats: 0 },
+      { name: "Luk", defaultPortion: "100g", calories: 40, protein: 1, carbs: 9, fats: 0 },
+      { name: "Šampinjoni", defaultPortion: "100g", calories: 22, protein: 3, carbs: 3, fats: 0 },
+
+      // Fats & Nuts
+      { name: "Maslinovo ulje", defaultPortion: "1 kašika", calories: 119, protein: 0, carbs: 0, fats: 14 },
+      { name: "Maslac", defaultPortion: "10g", calories: 72, protein: 0, carbs: 0, fats: 8 },
+      { name: "Kikiriki maslac", defaultPortion: "1 kašika", calories: 94, protein: 4, carbs: 3, fats: 8 },
+      { name: "Bademi", defaultPortion: "30g", calories: 173, protein: 6, carbs: 6, fats: 15 },
+      { name: "Orasi", defaultPortion: "30g", calories: 196, protein: 5, carbs: 4, fats: 20 },
+      { name: "Avokado", defaultPortion: "100g", calories: 160, protein: 2, carbs: 9, fats: 15 },
+
+      // Legumes
+      { name: "Leblebije (kuvane)", defaultPortion: "100g", calories: 164, protein: 9, carbs: 27, fats: 3 },
+      { name: "Crni pasulj (kuvani)", defaultPortion: "100g", calories: 132, protein: 9, carbs: 24, fats: 1 },
+      { name: "Sočivo (kuvano)", defaultPortion: "100g", calories: 116, protein: 9, carbs: 20, fats: 0 },
+    ];
+
+    for (const ingredient of commonIngredients) {
+      await prisma.savedIngredient.upsert({
+        where: {
+          id: `common-${ingredient.name.toLowerCase().replace(/\s+/g, "-").replace(/[()]/g, "")}`,
+        },
+        update: {},
+        create: {
+          id: `common-${ingredient.name.toLowerCase().replace(/\s+/g, "-").replace(/[()]/g, "")}`,
+          memberId: strujaId,
+          gymId: gym.id,
+          name: ingredient.name,
+          defaultPortion: ingredient.defaultPortion,
+          calories: ingredient.calories,
+          protein: ingredient.protein,
+          carbs: ingredient.carbs,
+          fats: ingredient.fats,
+          isShared: true,
+        },
+      });
+    }
+    console.log(`✅ Seeded ${commonIngredients.length} common ingredients`);
+  }
+
   // Seed AI response cache with suggested prompts
   console.log("\n🤖 Seeding AI response cache...");
   if (process.env.ANTHROPIC_API_KEY) {
@@ -392,15 +505,16 @@ async function main() {
   console.log("  └─────────────┴────────┘");
   console.log("");
   console.log("  MEMBER LOGIN (/login):");
-  console.log("  ┌─────────────┬────────┬────────────────┬────────────┐");
-  console.log("  │ Member ID   │ PIN    │ Goal           │ Coach      │");
-  console.log("  ├─────────────┼────────┼────────────────┼────────────┤");
-  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │ ✗ None     │");
-  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │ ✗ None     │");
-  console.log("  │ TEST        │ 3333   │ Recomposition  │ ✗ None     │");
-  console.log("  └─────────────┴────────┴────────────────┴────────────┘");
+  console.log("  ┌─────────────┬────────┬────────────────┬────────────┬─────────────┐");
+  console.log("  │ Member ID   │ PIN    │ Goal           │ Coach      │ Status      │");
+  console.log("  ├─────────────┼────────┼────────────────┼────────────┼─────────────┤");
+  console.log("  │ STRUJA      │ 1111   │ Fat Loss       │ ✗ None     │ 12wk hist   │");
+  console.log("  │ ĆEPA        │ 2222   │ Muscle Gain    │ ✗ None     │ FRESH START │");
+  console.log("  │ TEST        │ 3333   │ Recomposition  │ ✗ None     │ 12wk hist   │");
+  console.log("  └─────────────┴────────┴────────────────┴────────────┴─────────────┘");
   console.log("");
-  console.log("  📊 Each member has 12 weeks of check-in history");
+  console.log("  📊 STRUJA & TEST have 12 weeks of check-in history");
+  console.log("  🆕 ĆEPA starts FRESH (no logs, no history, shows onboarding)");
   console.log("  ⏳ Current week check-in NOT done (for testing)");
   console.log("  ⚠️  STRUJA also missed LAST week (for accountability testing)");
   console.log("");

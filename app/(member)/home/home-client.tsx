@@ -36,6 +36,7 @@ interface CoachRequestData {
 
 interface HomeData {
   memberName: string;
+  hasCoach: boolean;
   status: StatusType;
   caloriesRemaining: number;
   targetCalories: number;
@@ -353,6 +354,35 @@ export function HomeClient({ data }: HomeClientProps) {
               </button>
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Find Coach Card - Show when member has no coach and no pending request */}
+      {!data.hasCoach && !coachRequest && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={50}>
+            <button
+              onClick={() => router.push("/find-coach")}
+              className="w-full relative bg-gradient-to-r from-accent/15 to-accent/5 border border-accent/20 rounded-2xl p-5 text-left hover:bg-accent/10 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">👨‍🏫</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <h3 className="text-lg font-semibold text-accent mb-1">
+                    {t.coaches?.title || "Pronađi trenera"}
+                  </h3>
+                  <p className="text-sm text-foreground-muted">
+                    {t.coaches?.subtitle || "Izaberi trenera koji će te voditi"}
+                  </p>
+                </div>
+                <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          </SlideUp>
         </div>
       )}
 

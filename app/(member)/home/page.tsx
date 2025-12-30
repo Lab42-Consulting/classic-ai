@@ -245,6 +245,7 @@ export default async function HomePage() {
 
   const homeData = {
     memberName: member.name,
+    hasCoach: !!member.coachAssignment,
     status,
     caloriesRemaining: Math.max(0, targets.calories - consumed.calories),
     targetCalories: targets.calories,

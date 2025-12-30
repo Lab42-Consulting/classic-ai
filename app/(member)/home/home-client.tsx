@@ -523,7 +523,10 @@ export function HomeClient({ data }: HomeClientProps) {
                   </div>
                   {/* Discuss with AI button */}
                   <button
-                    onClick={() => router.push("/chat/nutrition")}
+                    onClick={() => {
+                      const prompt = `Danas sam pojeo ${caloriesOver} kalorija više od cilja. Kako mogu da nadoknadim ovaj višak?`;
+                      router.push(`/chat/nutrition?prompt=${encodeURIComponent(prompt)}`);
+                    }}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
                     <AgentAvatar agent="nutrition" size="sm" state="idle" />
@@ -618,7 +621,10 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => router.push("/chat/nutrition")}
+                    onClick={() => {
+                      const prompt = `Danas sam popio samo ${data.waterGlasses} čaše vode. Koliko vode treba da pijem dnevno?`;
+                      router.push(`/chat/nutrition?prompt=${encodeURIComponent(prompt)}`);
+                    }}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
                     <AgentAvatar agent="nutrition" size="sm" state="idle" />
@@ -644,7 +650,10 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => router.push("/chat/nutrition")}
+                    onClick={() => {
+                      const prompt = `Danas sam uneo samo ${data.consumedProtein}g proteina od cilja ${data.targetProtein}g. Koje namirnice predlažeš za večeru?`;
+                      router.push(`/chat/nutrition?prompt=${encodeURIComponent(prompt)}`);
+                    }}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-emerald-500/10 hover:bg-emerald-500/20 rounded-lg transition-colors"
                   >
                     <AgentAvatar agent="nutrition" size="sm" state="idle" />
@@ -670,7 +679,10 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   </div>
                   <button
-                    onClick={() => router.push("/chat/training")}
+                    onClick={() => {
+                      const prompt = `Danas nisam trenirao, ove nedelje sam imao ${data.weeklyTrainingSessions} treninga. Da li treba da treniram danas?`;
+                      router.push(`/chat/training?prompt=${encodeURIComponent(prompt)}`);
+                    }}
                     className="w-full mt-3 flex items-center justify-center gap-2 py-2.5 px-4 bg-orange-500/10 hover:bg-orange-500/20 rounded-lg transition-colors"
                   >
                     <AgentAvatar agent="training" size="sm" state="idle" />
@@ -755,11 +767,11 @@ export function HomeClient({ data }: HomeClientProps) {
               <span className="text-sm text-foreground-muted">{t.home.supplements}</span>
             </button>
             <button
-              onClick={() => router.push("/goal")}
+              onClick={() => router.push("/meals")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">🎯</span>
-              <span className="text-sm text-foreground-muted">{t.home.changeGoal}</span>
+              <span className="text-2xl block mb-2">🍽️</span>
+              <span className="text-sm text-foreground-muted">{t.meals?.title || "Obroci"}</span>
             </button>
           </div>
         </SlideUp>

@@ -16,16 +16,18 @@ import { formatPortion, parsePortion } from "@/lib/constants/units";
 
 const t = getTranslations("sr");
 
-type Tab = "own" | "shared";
+type Tab = "own" | "coach" | "shared";
 
 interface MealWithAuthor extends Meal {
   member?: {
     name: string;
   };
+  coachName?: string;
 }
 
 interface MealsData {
   own: MealWithAuthor[];
+  coach: MealWithAuthor[];
   shared: MealWithAuthor[];
   loading: boolean;
 }
@@ -35,13 +37,13 @@ export default function MealsPage() {
   const [activeTab, setActiveTab] = useState<Tab>("own");
   const [data, setData] = useState<MealsData>({
     own: [],
+    coach: [],
     shared: [],
     loading: true,
   });
   const [showCreateModal, setShowCreateModal] = useState(false);
   const [editingMeal, setEditingMeal] = useState<MealFormData | null>(null);
   const [deletingMeal, setDeletingMeal] = useState<Meal | null>(null);
-  const [loggingMeal, setLoggingMeal] = useState<Meal | null>(null);
   const [copyingMealId, setCopyingMealId] = useState<string | null>(null);
   const [copyToast, setCopyToast] = useState<string | null>(null);
 
@@ -52,14 +54,15 @@ export default function MealsPage() {
         const result = await response.json();
         setData({
           own: result.own || [],
+          coach: result.coach || [],
           shared: result.shared || [],
           loading: false,
         });
       } else {
-        setData({ own: [], shared: [], loading: false });
+        setData({ own: [], coach: [], shared: [], loading: false });
       }
     } catch {
-      setData({ own: [], shared: [], loading: false });
+      setData({ own: [], coach: [], shared: [], loading: false });
     }
   }, []);
 
@@ -116,32 +119,9 @@ export default function MealsPage() {
     await fetchMeals();
   };
 
-  const handleLogMeal = async (meal: Meal) => {
-    setLoggingMeal(meal);
-    try {
-      const response = await fetch("/api/logs", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          type: "meal",
-          mealSize: "saved",
-          mealName: meal.name,
-          customCalories: meal.totalCalories,
-          customProtein: meal.totalProtein,
-          customCarbs: meal.totalCarbs,
-          customFats: meal.totalFats,
-        }),
-      });
-
-      if (response.ok) {
-        // Show success and redirect to home
-        router.push("/home");
-      }
-    } catch (err) {
-      console.error("Failed to log meal:", err);
-    } finally {
-      setLoggingMeal(null);
-    }
+  const handleLogMeal = (meal: Meal) => {
+    // Redirect to log page with meal pre-selected
+    router.push(`/log?mealId=${meal.id}`);
   };
 
   const handleCopyMeal = async (meal: Meal) => {
@@ -166,7 +146,12 @@ export default function MealsPage() {
     }
   };
 
-  const meals = activeTab === "own" ? data.own : data.shared;
+  const meals = activeTab === "own" ? data.own : activeTab === "coach" ? data.coach : data.shared;
+
+  // Determine if current tab allows editing
+  const canEdit = activeTab === "own";
+  // Coach meals show coach name, shared meals show author name
+  const isCoachTab = activeTab === "coach";
 
   return (
     <div className="min-h-screen bg-background pb-24">
@@ -203,14 +188,14 @@ export default function MealsPage() {
         </FadeIn>
       </header>
 
-      {/* Tabs */}
+      {/* Tabs - 3 tabs now */}
       <div className="px-6 py-4">
         <SlideUp>
-          <div className="flex gap-2 p-1 bg-background-secondary rounded-xl">
+          <div className="flex gap-1 p-1 bg-background-secondary rounded-xl">
             <button
               onClick={() => setActiveTab("own")}
               className={`
-                flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all
+                flex-1 py-2.5 px-2 rounded-lg text-xs font-medium transition-all
                 ${
                   activeTab === "own"
                     ? "bg-accent text-white"
@@ -218,12 +203,25 @@ export default function MealsPage() {
                 }
               `}
             >
-              {t.meals.myMeals}
+              Moji obroci
+            </button>
+            <button
+              onClick={() => setActiveTab("coach")}
+              className={`
+                flex-1 py-2.5 px-2 rounded-lg text-xs font-medium transition-all
+                ${
+                  activeTab === "coach"
+                    ? "bg-accent text-white"
+                    : "text-foreground-muted hover:text-foreground"
+                }
+              `}
+            >
+              Od trenera
             </button>
             <button
               onClick={() => setActiveTab("shared")}
               className={`
-                flex-1 py-3 px-4 rounded-lg text-sm font-medium transition-all
+                flex-1 py-2.5 px-2 rounded-lg text-xs font-medium transition-all
                 ${
                   activeTab === "shared"
                     ? "bg-accent text-white"
@@ -231,7 +229,7 @@ export default function MealsPage() {
                 }
               `}
             >
-              {t.meals.sharedMeals}
+              Biblioteka
             </button>
           </div>
         </SlideUp>
@@ -247,32 +245,51 @@ export default function MealsPage() {
           <SlideUp delay={100}>
             <GlassCard className="text-center py-12">
               <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
-                <svg
-                  className="w-8 h-8 text-foreground-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={1.5}
-                    d="M12 6v6m0 0v6m0-6h6m-6 0H6"
-                  />
-                </svg>
+                {activeTab === "coach" ? (
+                  <span className="text-3xl">👨‍🏫</span>
+                ) : (
+                  <svg
+                    className="w-8 h-8 text-foreground-muted"
+                    fill="none"
+                    stroke="currentColor"
+                    viewBox="0 0 24 24"
+                  >
+                    <path
+                      strokeLinecap="round"
+                      strokeLinejoin="round"
+                      strokeWidth={1.5}
+                      d="M12 6v6m0 0v6m0-6h6m-6 0H6"
+                    />
+                  </svg>
+                )}
               </div>
               <p className="text-foreground-muted">
-                {activeTab === "own" ? t.meals.noMeals : t.meals.noSharedMeals}
+                {activeTab === "own"
+                  ? t.meals.noMeals
+                  : activeTab === "coach"
+                  ? "Trener ti još nije kreirao obroke"
+                  : t.meals.noSharedMeals}
               </p>
+              {activeTab === "coach" && (
+                <p className="text-sm text-foreground-muted mt-2">
+                  Tvoj trener može da ti kreira personalizovane obroke
+                </p>
+              )}
             </GlassCard>
           </SlideUp>
         ) : (
           meals.map((meal, index) => (
             <SlideUp key={meal.id} delay={100 + index * 50}>
               <MealCard
-                meal={meal}
-                isOwner={activeTab === "own"}
-                onEdit={() => {
+                meal={{
+                  ...meal,
+                  // For coach meals, show coach name as member name for display
+                  member: isCoachTab && meal.coachName
+                    ? { name: meal.coachName }
+                    : meal.member,
+                }}
+                isOwner={activeTab === "own" || activeTab === "coach"}
+                onEdit={canEdit ? () => {
                   // Transform meal ingredients from portionSize string to portionAmount + portionUnit
                   const transformedMeal: MealFormData = {
                     ...meal,
@@ -291,11 +308,12 @@ export default function MealsPage() {
                     }),
                   };
                   setEditingMeal(transformedMeal);
-                }}
-                onDelete={() => setDeletingMeal(meal)}
+                } : undefined}
+                onDelete={activeTab !== "shared" ? () => setDeletingMeal(meal) : undefined}
                 onLog={() => handleLogMeal(meal)}
                 onCopy={activeTab === "shared" ? () => handleCopyMeal(meal) : undefined}
                 t={t}
+                isCoachMeal={isCoachTab}
               />
             </SlideUp>
           ))
@@ -346,16 +364,6 @@ export default function MealsPage() {
         message={t.meals.deleteConfirmMessage}
         t={t}
       />
-
-      {/* Logging overlay */}
-      {loggingMeal && (
-        <div className="fixed inset-0 bg-black/60 backdrop-blur-sm z-50 flex items-center justify-center">
-          <div className="text-center">
-            <div className="w-12 h-12 border-2 border-accent border-t-transparent rounded-full animate-spin mx-auto mb-4" />
-            <p className="text-foreground">Unosim obrok...</p>
-          </div>
-        </div>
-      )}
 
       {/* Copying overlay */}
       {copyingMealId && (

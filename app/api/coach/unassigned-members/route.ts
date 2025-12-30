@@ -42,13 +42,36 @@ export async function GET() {
         weight: true,
         height: true,
         createdAt: true,
+        coachRequest: {
+          select: {
+            id: true,
+            staffId: true,
+            staff: {
+              select: { name: true },
+            },
+          },
+        },
       },
       orderBy: { name: "asc" },
     });
 
+    // Map to include pending request info
+    const membersWithRequestInfo = unassignedMembers.map((member) => ({
+      id: member.id,
+      memberId: member.memberId,
+      name: member.name,
+      goal: member.goal,
+      weight: member.weight,
+      height: member.height,
+      createdAt: member.createdAt,
+      hasPendingRequest: !!member.coachRequest,
+      pendingRequestFromMe: member.coachRequest?.staffId === session.userId,
+      pendingRequestCoachName: member.coachRequest?.staff.name || null,
+    }));
+
     return NextResponse.json({
-      members: unassignedMembers,
-      count: unassignedMembers.length,
+      members: membersWithRequestInfo,
+      count: membersWithRequestInfo.length,
     });
   } catch (error) {
     console.error("Get unassigned members error:", error);

@@ -14,6 +14,7 @@ interface SavedIngredient {
   carbs?: number | null;
   fats?: number | null;
   isShared: boolean;
+  authorName?: string;
   member?: {
     name: string;
   };
@@ -45,7 +46,9 @@ export function IngredientPicker({
       const response = await fetch(`/api/member/ingredients?${params}`);
       if (response.ok) {
         const data = await response.json();
-        setIngredients(data.ingredients || []);
+        // Combine own and shared ingredients
+        const allIngredients = [...(data.own || []), ...(data.shared || [])];
+        setIngredients(allIngredients);
       }
     } catch (err) {
       console.error("Failed to fetch ingredients:", err);
@@ -121,26 +124,26 @@ export function IngredientPicker({
                     </p>
                   </div>
                   <div className="flex items-center gap-2">
-                    {ingredient.protein && (
+                    {ingredient.protein != null && (
                       <span className="text-xs text-foreground-muted">
-                        P:{ingredient.protein}
+                        P:{ingredient.protein}g
                       </span>
                     )}
-                    {ingredient.carbs && (
+                    {ingredient.carbs != null && (
                       <span className="text-xs text-foreground-muted">
-                        C:{ingredient.carbs}
+                        C:{ingredient.carbs}g
                       </span>
                     )}
-                    {ingredient.fats && (
+                    {ingredient.fats != null && (
                       <span className="text-xs text-foreground-muted">
-                        F:{ingredient.fats}
+                        F:{ingredient.fats}g
                       </span>
                     )}
                   </div>
                 </div>
-                {ingredient.isShared && ingredient.member && (
+                {ingredient.isShared && (ingredient.authorName || ingredient.member?.name) && (
                   <p className="text-xs text-foreground-muted mt-1 italic">
-                    {t.meals?.sharedBy || "Podelio/la"}: {ingredient.member.name}
+                    {t.meals?.sharedBy || "Podelio/la"}: {ingredient.authorName || ingredient.member?.name}
                   </p>
                 )}
               </button>

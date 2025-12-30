@@ -38,6 +38,7 @@ interface MealCardProps {
   onLog?: () => void;
   onCopy?: () => void;
   isOwner: boolean;
+  isCoachMeal?: boolean;
   t: TranslationKeys;
 }
 
@@ -48,6 +49,7 @@ export function MealCard({
   onLog,
   onCopy,
   isOwner,
+  isCoachMeal,
   t,
 }: MealCardProps) {
   const hasMacros = meal.totalProtein || meal.totalCarbs || meal.totalFats;
@@ -119,11 +121,11 @@ export function MealCard({
           {onLog && (
             <button
               onClick={onLog}
-              className="p-2 rounded-lg bg-accent/10 text-accent hover:bg-accent/20 transition-colors"
+              className="w-9 h-9 flex items-center justify-center rounded-xl bg-emerald-600 hover:bg-emerald-700 transition-colors"
               title={t.meals?.logThis || "Unesi ovaj obrok"}
             >
               <svg
-                className="w-5 h-5"
+                className="w-5 h-5 text-white"
                 fill="none"
                 stroke="currentColor"
                 viewBox="0 0 24 24"
@@ -131,7 +133,7 @@ export function MealCard({
                 <path
                   strokeLinecap="round"
                   strokeLinejoin="round"
-                  strokeWidth={2}
+                  strokeWidth={3}
                   d="M12 4v16m8-8H4"
                 />
               </svg>
@@ -210,8 +212,30 @@ export function MealCard({
         </div>
       </div>
 
+      {/* Coach meal badge */}
+      {isCoachMeal && meal.member?.name && (
+        <div className="mt-3 pt-3 border-t border-border">
+          <span className="inline-flex items-center gap-1.5 text-xs text-success bg-success/10 px-2 py-1 rounded-full">
+            <svg
+              className="w-3.5 h-3.5"
+              fill="none"
+              stroke="currentColor"
+              viewBox="0 0 24 24"
+            >
+              <path
+                strokeLinecap="round"
+                strokeLinejoin="round"
+                strokeWidth={2}
+                d="M9 12l2 2 4-4M7.835 4.697a3.42 3.42 0 001.946-.806 3.42 3.42 0 014.438 0 3.42 3.42 0 001.946.806 3.42 3.42 0 013.138 3.138 3.42 3.42 0 00.806 1.946 3.42 3.42 0 010 4.438 3.42 3.42 0 00-.806 1.946 3.42 3.42 0 01-3.138 3.138 3.42 3.42 0 00-1.946.806 3.42 3.42 0 01-4.438 0 3.42 3.42 0 00-1.946-.806 3.42 3.42 0 01-3.138-3.138 3.42 3.42 0 00-.806-1.946 3.42 3.42 0 010-4.438 3.42 3.42 0 00.806-1.946 3.42 3.42 0 013.138-3.138z"
+              />
+            </svg>
+            Od trenera: {meal.member.name}
+          </span>
+        </div>
+      )}
+
       {/* Shared badge */}
-      {meal.isShared && isOwner && (
+      {meal.isShared && isOwner && !isCoachMeal && (
         <div className="mt-3 pt-3 border-t border-border">
           {meal.sharePending ? (
             // Pending approval - show warning style

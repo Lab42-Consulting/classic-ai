@@ -1,7 +1,7 @@
 "use client";
 
-import { useState, useRef, useEffect, useCallback } from "react";
-import { useRouter, useParams } from "next/navigation";
+import { useState, useRef, useEffect, useCallback, Suspense } from "react";
+import { useRouter, useParams, useSearchParams } from "next/navigation";
 import { notFound } from "next/navigation";
 import {
   Button,
@@ -49,20 +49,15 @@ function isValidAgent(agent: string): agent is AgentType {
   return ["nutrition", "supplements", "training"].includes(agent);
 }
 
-export default function AgentChatPage() {
+// Wrapper component to handle Suspense for useSearchParams
+function AgentChatContent({ agent }: { agent: AgentType }) {
   const router = useRouter();
-  const params = useParams();
-  const agent = params.agent as string;
-
-  // Validate agent type
-  if (!isValidAgent(agent)) {
-    notFound();
-  }
-
+  const searchParams = useSearchParams();
   const meta = agentMeta[agent];
   const suggestedPrompts = agentPrompts[agent];
 
   const [messages, setMessages] = useState<Message[]>([]);
+  const hasAutoSentRef = useRef(false);
   const [input, setInput] = useState("");
   const [loading, setLoading] = useState(false);
   const [typingMessageIndex, setTypingMessageIndex] = useState<number | null>(
@@ -136,6 +131,30 @@ export default function AgentChatPage() {
     },
     [agent]
   );
+
+  // Auto-send prompt from query params (e.g., from home page advice cards)
+  useEffect(() => {
+    // Only run once on mount
+    if (hasAutoSentRef.current) return;
+
+    // Get prompt from URL
+    let prompt = searchParams.get("prompt");
+
+    // Fallback to window.location if searchParams doesn't have it
+    if (!prompt && typeof window !== "undefined") {
+      const urlParams = new URLSearchParams(window.location.search);
+      prompt = urlParams.get("prompt");
+    }
+
+    if (prompt && messages.length === 0) {
+      hasAutoSentRef.current = true;
+      // Delay to ensure component is fully mounted
+      const timer = setTimeout(() => {
+        sendMessage(prompt, []);
+      }, 200);
+      return () => clearTimeout(timer);
+    }
+  }, [searchParams, messages.length, sendMessage]);
 
   const handleTypingComplete = (index: number) => {
     if (typingMessageIndex === index) {
@@ -398,5 +417,26 @@ export default function AgentChatPage() {
         </form>
       </div>
     </div>
+  );
+}
+
+// Main page component with Suspense wrapper
+export default function AgentChatPage() {
+  const params = useParams();
+  const agent = params.agent as string;
+
+  // Validate agent type
+  if (!isValidAgent(agent)) {
+    notFound();
+  }
+
+  return (
+    <Suspense fallback={
+      <div className="min-h-screen bg-background flex items-center justify-center">
+        <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+      </div>
+    }>
+      <AgentChatContent agent={agent} />
+    </Suspense>
   );
 }

@@ -2,89 +2,61 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 
-// GET - Get meals for the logged-in member (own + coach + shared from gym)
-export async function GET(request: NextRequest) {
+// GET - Get meals created by coach for a specific member
+export async function GET(
+  request: NextRequest,
+  { params }: { params: Promise<{ memberId: string }> }
+) {
   try {
     const session = await getSession();
 
-    if (!session || session.userType !== "member") {
+    if (!session || session.userType !== "staff") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    // Get member's gymId
-    const member = await prisma.member.findUnique({
+    const { memberId } = await params;
+
+    // Get staff info to check role
+    const staff = await prisma.staff.findUnique({
       where: { id: session.userId },
-      select: { gymId: true },
+      select: { role: true },
     });
 
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (!staff || staff.role.toLowerCase() !== "coach") {
+      return NextResponse.json({ error: "Only coaches can access this" }, { status: 403 });
     }
 
-    // Get query params
-    const { searchParams } = new URL(request.url);
-    const type = searchParams.get("type") || "all"; // "own" | "coach" | "shared" | "all"
+    // Verify coach is assigned to this member
+    const assignment = await prisma.coachAssignment.findFirst({
+      where: {
+        staffId: session.userId,
+        memberId: memberId,
+      },
+    });
 
-    // Build where clause based on type
-    // Shared meals only show if BOTH isShared AND shareApproved are true
-    let whereClause;
-    if (type === "own") {
-      whereClause = {
-        memberId: session.userId,
-        createdByCoachId: null, // Only meals created by member themselves
-      };
-    } else if (type === "coach") {
-      whereClause = {
-        memberId: session.userId,
-        createdByCoachId: { not: null }, // Only meals created by coach
-      };
-    } else if (type === "shared") {
-      whereClause = {
-        gymId: member.gymId,
-        isShared: true,
-        shareApproved: true, // Only approved shared meals
-        memberId: { not: session.userId }, // Exclude own meals from shared
-      };
-    } else {
-      // "all" - own meals + coach meals + approved shared meals from gym
-      whereClause = {
-        OR: [
-          { memberId: session.userId },
-          { gymId: member.gymId, isShared: true, shareApproved: true },
-        ],
-      };
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "You are not assigned to this member" },
+        { status: 403 }
+      );
     }
 
-    // Fetch meals with ingredients and coach info
+    // Get meals created by this coach for this member
     const meals = await prisma.customMeal.findMany({
-      where: whereClause,
+      where: {
+        memberId: memberId,
+        createdByCoachId: session.userId,
+      },
       include: {
         ingredients: {
           orderBy: { createdAt: "asc" },
-        },
-        member: {
-          select: { name: true },
-        },
-        createdByCoach: {
-          select: { name: true },
         },
       },
       orderBy: { updatedAt: "desc" },
     });
 
-    // Separate own, coach, and shared meals
-    const ownMeals = meals.filter(
-      (m) => m.memberId === session.userId && !m.createdByCoachId
-    );
-    const coachMeals = meals.filter(
-      (m) => m.memberId === session.userId && m.createdByCoachId
-    );
-    const sharedMeals = meals.filter(
-      (m) => m.memberId !== session.userId && m.isShared && m.shareApproved
-    );
-
     return NextResponse.json({
-      own: ownMeals.map((meal) => ({
+      meals: meals.map((meal) => ({
         id: meal.id,
         name: meal.name,
         totalCalories: meal.totalCalories,
@@ -92,43 +64,14 @@ export async function GET(request: NextRequest) {
         totalCarbs: meal.totalCarbs,
         totalFats: meal.totalFats,
         isManualTotal: meal.isManualTotal,
-        isShared: meal.isShared,
-        shareApproved: meal.shareApproved,
-        sharePending: meal.isShared && !meal.shareApproved, // Pending approval
         ingredientCount: meal.ingredients.length,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
         updatedAt: meal.updatedAt,
-      })),
-      coach: coachMeals.map((meal) => ({
-        id: meal.id,
-        name: meal.name,
-        totalCalories: meal.totalCalories,
-        totalProtein: meal.totalProtein,
-        totalCarbs: meal.totalCarbs,
-        totalFats: meal.totalFats,
-        isManualTotal: meal.isManualTotal,
-        coachName: meal.createdByCoach?.name,
-        ingredientCount: meal.ingredients.length,
-        ingredients: meal.ingredients,
-        createdAt: meal.createdAt,
-        updatedAt: meal.updatedAt,
-      })),
-      shared: sharedMeals.map((meal) => ({
-        id: meal.id,
-        name: meal.name,
-        totalCalories: meal.totalCalories,
-        totalProtein: meal.totalProtein,
-        totalCarbs: meal.totalCarbs,
-        totalFats: meal.totalFats,
-        authorName: meal.member.name,
-        ingredientCount: meal.ingredients.length,
-        ingredients: meal.ingredients,
-        createdAt: meal.createdAt,
       })),
     });
   } catch (error) {
-    console.error("Get meals error:", error);
+    console.error("Get coach meals error:", error);
     return NextResponse.json(
       { error: "Failed to get meals" },
       { status: 500 }
@@ -136,13 +79,53 @@ export async function GET(request: NextRequest) {
   }
 }
 
-// POST - Create a new meal with ingredients
-export async function POST(request: NextRequest) {
+// POST - Create a new meal for a member
+export async function POST(
+  request: NextRequest,
+  { params }: { params: Promise<{ memberId: string }> }
+) {
   try {
     const session = await getSession();
 
-    if (!session || session.userType !== "member") {
+    if (!session || session.userType !== "staff") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const { memberId } = await params;
+
+    // Get staff info to check role
+    const staff = await prisma.staff.findUnique({
+      where: { id: session.userId },
+      select: { role: true },
+    });
+
+    if (!staff || staff.role.toLowerCase() !== "coach") {
+      return NextResponse.json({ error: "Only coaches can create meals" }, { status: 403 });
+    }
+
+    // Verify coach is assigned to this member
+    const assignment = await prisma.coachAssignment.findFirst({
+      where: {
+        staffId: session.userId,
+        memberId: memberId,
+      },
+    });
+
+    if (!assignment) {
+      return NextResponse.json(
+        { error: "You are not assigned to this member" },
+        { status: 403 }
+      );
+    }
+
+    // Get member's gymId
+    const member = await prisma.member.findUnique({
+      where: { id: memberId },
+      select: { gymId: true },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
     const body = await request.json();
@@ -154,7 +137,6 @@ export async function POST(request: NextRequest) {
       totalCarbs,
       totalFats,
       isManualTotal = false,
-      isShared = false,
     } = body;
 
     // Validation
@@ -180,16 +162,6 @@ export async function POST(request: NextRequest) {
           { status: 400 }
         );
       }
-    }
-
-    // Get member's gymId
-    const member = await prisma.member.findUnique({
-      where: { id: session.userId },
-      select: { gymId: true },
-    });
-
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
     // Calculate totals from ingredients if not manual
@@ -222,17 +194,17 @@ export async function POST(request: NextRequest) {
           totalFats: calculatedTotals.fats,
         };
 
-    // Create meal with ingredients in a transaction
+    // Create meal with ingredients - set createdByCoachId
     const meal = await prisma.customMeal.create({
       data: {
-        memberId: session.userId,
+        memberId: memberId,
         gymId: member.gymId,
+        createdByCoachId: session.userId, // Mark this meal as coach-created
         name: name.trim(),
         ...finalTotals,
         isManualTotal,
-        isShared,
-        shareApproved: false, // Requires admin approval
-        shareRequestedAt: isShared ? new Date() : null, // Track when share was requested
+        isShared: false, // Coach-created meals are not shared
+        shareApproved: false,
         ingredients: {
           create: ingredients.map((ing: {
             name: string;
@@ -241,7 +213,6 @@ export async function POST(request: NextRequest) {
             protein?: number;
             carbs?: number;
             fats?: number;
-            savedIngredientId?: string;
           }) => ({
             name: ing.name,
             portionSize: ing.portionSize,
@@ -249,7 +220,6 @@ export async function POST(request: NextRequest) {
             protein: ing.protein || null,
             carbs: ing.carbs || null,
             fats: ing.fats || null,
-            savedIngredientId: ing.savedIngredientId || null,
           })),
         },
       },
@@ -268,15 +238,12 @@ export async function POST(request: NextRequest) {
         totalCarbs: meal.totalCarbs,
         totalFats: meal.totalFats,
         isManualTotal: meal.isManualTotal,
-        isShared: meal.isShared,
-        shareApproved: meal.shareApproved,
-        sharePending: meal.isShared && !meal.shareApproved,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
       },
     });
   } catch (error) {
-    console.error("Create meal error:", error);
+    console.error("Create coach meal error:", error);
     return NextResponse.json(
       { error: "Failed to create meal" },
       { status: 500 }

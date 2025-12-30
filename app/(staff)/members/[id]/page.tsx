@@ -4,11 +4,27 @@ import { useEffect, useState, use } from "react";
 import { useRouter } from "next/navigation";
 import { Button, Card, GlassCard, FadeIn, SlideUp, AgentAvatar, agentMeta } from "@/components/ui";
 import { AgentType } from "@/components/ui/agent-avatar";
+import { CreateEditMealModal, MealFormData } from "@/components/meals";
+import { getTranslations } from "@/lib/i18n";
+import { formatPortion } from "@/lib/constants/units";
+
+const t = getTranslations("sr");
 
 interface NudgeTemplate {
   id: string;
   label: string;
   message: string;
+}
+
+interface CoachMeal {
+  id: string;
+  name: string;
+  totalCalories: number;
+  totalProtein?: number | null;
+  totalCarbs?: number | null;
+  totalFats?: number | null;
+  ingredientCount: number;
+  createdAt: string;
 }
 
 interface MemberDetail {
@@ -79,6 +95,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const router = useRouter();
   const [data, setData] = useState<MemberDetail | null>(null);
   const [loading, setLoading] = useState(true);
+  const [error, setError] = useState<string | null>(null);
   const [templates, setTemplates] = useState<NudgeTemplate[]>([]);
   const [showNudgeModal, setShowNudgeModal] = useState(false);
   const [showNoteModal, setShowNoteModal] = useState(false);
@@ -96,18 +113,33 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [savingKnowledge, setSavingKnowledge] = useState(false);
   const [knowledgeSaved, setKnowledgeSaved] = useState(false);
 
+  // Coach meals state
+  const [coachMeals, setCoachMeals] = useState<CoachMeal[]>([]);
+  const [showMealModal, setShowMealModal] = useState(false);
+
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [memberRes, templatesRes, knowledgeRes] = await Promise.all([
+        const [memberRes, templatesRes, knowledgeRes, mealsRes] = await Promise.all([
           fetch(`/api/coach/member/${id}`),
           fetch("/api/coach/nudge?templates=true"),
           fetch(`/api/coach/knowledge?memberId=${id}`),
+          fetch(`/api/coach/member-meals/${id}`),
         ]);
 
         if (memberRes.ok) {
           const result = await memberRes.json();
           setData(result);
+        } else {
+          // Handle specific error cases
+          const errorData = await memberRes.json().catch(() => ({}));
+          if (memberRes.status === 403) {
+            setError(errorData.error || "Niste dodeljeni ovom članu");
+          } else if (memberRes.status === 404) {
+            setError("Član nije pronađen");
+          } else {
+            setError("Greška pri učitavanju podataka");
+          }
         }
 
         if (templatesRes.ok) {
@@ -123,8 +155,13 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             training: knowledgeData.training || "",
           });
         }
+
+        if (mealsRes.ok) {
+          const mealsData = await mealsRes.json();
+          setCoachMeals(mealsData.meals || []);
+        }
       } catch {
-        // Handle error silently
+        setError("Greška pri povezivanju");
       } finally {
         setLoading(false);
       }
@@ -237,6 +274,51 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     }
   };
 
+  const handleCreateMeal = async (meal: MealFormData) => {
+    const response = await fetch(`/api/coach/member-meals/${id}`, {
+      method: "POST",
+      headers: { "Content-Type": "application/json" },
+      body: JSON.stringify({
+        name: meal.name,
+        isManualTotal: meal.isManualTotal,
+        totalCalories: meal.totalCalories,
+        totalProtein: meal.totalProtein,
+        totalCarbs: meal.totalCarbs,
+        totalFats: meal.totalFats,
+        ingredients: meal.ingredients.map((ing) => ({
+          name: ing.name,
+          portionSize: formatPortion(ing.portionAmount, ing.portionUnit),
+          calories: ing.calories,
+          protein: ing.protein,
+          carbs: ing.carbs,
+          fats: ing.fats,
+        })),
+      }),
+    });
+
+    if (!response.ok) {
+      throw new Error("Failed to create meal");
+    }
+
+    const result = await response.json();
+    setCoachMeals((prev) => [result.meal, ...prev]);
+    setShowMealModal(false);
+  };
+
+  const handleDeleteMeal = async (mealId: string) => {
+    try {
+      const response = await fetch(`/api/coach/member-meals/${id}/${mealId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setCoachMeals((prev) => prev.filter((m) => m.id !== mealId));
+      }
+    } catch {
+      // Handle error
+    }
+  };
+
   const getDefaultTemplate = (agent: AgentType): string => {
     const templates: Record<AgentType, string> = {
       nutrition: `Smernice za ishranu ovog člana:
@@ -284,7 +366,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     return (
       <div className="min-h-screen bg-background px-6 pt-12">
         <Card className="text-center py-8">
-          <p className="text-foreground-muted">Član nije pronađen</p>
+          <p className="text-foreground-muted">{error || "Član nije pronađen"}</p>
           <Button
             variant="secondary"
             className="mt-4"
@@ -528,6 +610,65 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             </div>
           </GlassCard>
         </SlideUp>
+
+        {/* Coach Meals Section */}
+        <SlideUp delay={450}>
+          <GlassCard>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-medium text-foreground-muted">Obroci za člana</h3>
+                <p className="text-xs text-foreground-muted/70">
+                  Obroci koje si kreirao/la za ovog člana
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMealModal(true)}
+                className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                + Dodaj
+              </button>
+            </div>
+
+            {coachMeals.length === 0 ? (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">🍽️</span>
+                </div>
+                <p className="text-sm text-foreground-muted">
+                  Još nisi kreirao/la obroke za ovog člana
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {coachMeals.map((meal) => (
+                  <div
+                    key={meal.id}
+                    className="flex items-center justify-between p-3 bg-background-tertiary rounded-xl"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-foreground truncate">{meal.name}</p>
+                      <div className="flex items-center gap-2 text-xs text-foreground-muted mt-0.5">
+                        <span>{meal.totalCalories} kcal</span>
+                        {meal.totalProtein && <span>P: {meal.totalProtein}g</span>}
+                        {meal.totalCarbs && <span>U: {meal.totalCarbs}g</span>}
+                        {meal.totalFats && <span>M: {meal.totalFats}g</span>}
+                      </div>
+                    </div>
+                    <button
+                      onClick={() => handleDeleteMeal(meal.id)}
+                      className="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                      title="Obriši obrok"
+                    >
+                      <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                      </svg>
+                    </button>
+                  </div>
+                ))}
+              </div>
+            )}
+          </GlassCard>
+        </SlideUp>
       </main>
 
       {/* Action Buttons */}
@@ -723,6 +864,16 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </div>
         </div>
       )}
+
+      {/* Create Meal Modal */}
+      <CreateEditMealModal
+        isOpen={showMealModal}
+        onClose={() => setShowMealModal(false)}
+        onSave={handleCreateMeal}
+        existingMeal={null}
+        t={t}
+        hideShareOption
+      />
     </div>
   );
 }

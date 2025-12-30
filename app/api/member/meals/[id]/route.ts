@@ -77,7 +77,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// PATCH - Update a meal (only own meals)
+// PATCH - Update a meal (only own meals, NOT coach-created meals)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
@@ -102,6 +102,14 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
     if (existingMeal.memberId !== session.userId) {
       return NextResponse.json(
         { error: "You can only edit your own meals" },
+        { status: 403 }
+      );
+    }
+
+    // Members cannot edit meals created by their coach
+    if (existingMeal.createdByCoachId) {
+      return NextResponse.json(
+        { error: "You cannot edit meals created by your coach" },
         { status: 403 }
       );
     }
@@ -281,7 +289,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
   }
 }
 
-// DELETE - Delete a meal (only own meals)
+// DELETE - Delete a meal (own meals AND coach-created meals assigned to member)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
     const session = await getSession();
@@ -293,6 +301,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     const { id } = await params;
 
     // Check if meal exists and belongs to the user
+    // (includes both member-created and coach-created meals for this member)
     const meal = await prisma.customMeal.findUnique({
       where: { id },
     });
@@ -301,9 +310,10 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Meal not found" }, { status: 404 });
     }
 
+    // Member can delete any meal assigned to them (own or coach-created)
     if (meal.memberId !== session.userId) {
       return NextResponse.json(
-        { error: "You can only delete your own meals" },
+        { error: "You can only delete meals assigned to you" },
         { status: 403 }
       );
     }

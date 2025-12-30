@@ -43,7 +43,7 @@ export default function IngredientsPage() {
     shared: [],
     loading: true,
   });
-  const [activeTab, setActiveTab] = useState<Tab>("shared"); // Default to shared (gym library)
+  const [activeTab, setActiveTab] = useState<Tab>("own"); // Default to own ingredients
   const [search, setSearch] = useState("");
   const [showModal, setShowModal] = useState(false);
   const [editingIngredient, setEditingIngredient] = useState<SavedIngredient | null>(null);
@@ -250,16 +250,6 @@ export default function IngredientsPage() {
         <SlideUp>
           <div className="flex gap-2 mb-4">
             <button
-              onClick={() => setActiveTab("shared")}
-              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
-                activeTab === "shared"
-                  ? "bg-accent text-white"
-                  : "bg-background-secondary text-foreground-muted hover:text-foreground"
-              }`}
-            >
-              Biblioteka teretane ({data.shared.length})
-            </button>
-            <button
               onClick={() => setActiveTab("own")}
               className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
                 activeTab === "own"
@@ -268,6 +258,16 @@ export default function IngredientsPage() {
               }`}
             >
               Moji sastojci ({data.own.length})
+            </button>
+            <button
+              onClick={() => setActiveTab("shared")}
+              className={`flex-1 py-2.5 rounded-xl text-sm font-medium transition-colors ${
+                activeTab === "shared"
+                  ? "bg-accent text-white"
+                  : "bg-background-secondary text-foreground-muted hover:text-foreground"
+              }`}
+            >
+              Biblioteka teretane ({data.shared.length})
             </button>
           </div>
           <Input
@@ -305,9 +305,19 @@ export default function IngredientsPage() {
               <p className="text-foreground-muted mb-4">
                 {search ? t.ingredients.noResults : (activeTab === "own" ? t.ingredients.noIngredients : "Nema sastojaka u biblioteci teretane")}
               </p>
+              {!search && activeTab === "shared" && data.own.length > 0 && (
+                <p className="text-sm text-foreground-muted mb-4">
+                  Imaš {data.own.length} sačuvanih sastojaka u &quot;Moji sastojci&quot;
+                </p>
+              )}
               {!search && activeTab === "own" && (
                 <Button size="sm" onClick={openCreateModal}>
                   {t.ingredients.newIngredient}
+                </Button>
+              )}
+              {!search && activeTab === "shared" && (
+                <Button size="sm" variant="secondary" onClick={() => setActiveTab("own")}>
+                  Pogledaj moje sastojke
                 </Button>
               )}
             </GlassCard>
@@ -324,9 +334,9 @@ export default function IngredientsPage() {
                     {ingredient.defaultPortion} • {ingredient.calories} {t.common.cal}
                   </p>
                   <div className="flex gap-2 mt-1 text-xs text-foreground-muted">
-                    {ingredient.protein && <span>P:{ingredient.protein}g</span>}
-                    {ingredient.carbs && <span>C:{ingredient.carbs}g</span>}
-                    {ingredient.fats && <span>F:{ingredient.fats}g</span>}
+                    {ingredient.protein != null && <span>P:{ingredient.protein}g</span>}
+                    {ingredient.carbs != null && <span>C:{ingredient.carbs}g</span>}
+                    {ingredient.fats != null && <span>F:{ingredient.fats}g</span>}
                   </div>
                   {ingredient.isShared && (
                     <span className="inline-flex items-center gap-1 text-xs text-accent mt-2">

@@ -30,6 +30,9 @@ interface UnassignedMember {
   weight: number | null;
   height: number | null;
   createdAt: string;
+  hasPendingRequest: boolean;
+  pendingRequestFromMe: boolean;
+  pendingRequestCoachName: string | null;
 }
 
 export default function RegisterMemberPage() {
@@ -577,18 +580,28 @@ export default function RegisterMemberPage() {
                 {displayedMembers.map((member, index) => (
                   <SlideUp key={member.id} delay={250 + Math.min(index, 5) * 30}>
                     <GlassCard
-                      hover
-                      className="cursor-pointer"
+                      hover={!member.pendingRequestFromMe}
+                      className={member.pendingRequestFromMe ? "opacity-75" : "cursor-pointer"}
                       onClick={() => {
+                        if (member.pendingRequestFromMe) return;
                         setSelectedMember(member);
                         setGoal(member.goal); // Pre-fill with current goal
                         setCoachStep("setup");
                       }}
                     >
                       <div className="flex items-center gap-4">
-                        <div className="w-12 h-12 rounded-full bg-background-secondary flex items-center justify-center">
-                          <span className="text-xl font-bold text-foreground-muted">
-                            {member.name.charAt(0).toUpperCase()}
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          member.pendingRequestFromMe ? "bg-warning/20" : "bg-accent/20"
+                        }`}>
+                          <span className={`text-lg font-bold ${
+                            member.pendingRequestFromMe ? "text-warning" : "text-accent"
+                          }`}>
+                            {member.name
+                              .split(" ")
+                              .map((n) => n[0])
+                              .join("")
+                              .toUpperCase()
+                              .slice(0, 2)}
                           </span>
                         </div>
                         <div className="flex-1 min-w-0">
@@ -599,6 +612,16 @@ export default function RegisterMemberPage() {
                             <span className="text-xs bg-background-secondary text-foreground-muted px-2 py-0.5 rounded font-mono">
                               {member.memberId}
                             </span>
+                            {member.pendingRequestFromMe && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning rounded-full flex-shrink-0">
+                                Zahtev poslat
+                              </span>
+                            )}
+                            {member.hasPendingRequest && !member.pendingRequestFromMe && (
+                              <span className="px-2 py-0.5 text-xs font-medium bg-foreground-muted/20 text-foreground-muted rounded-full flex-shrink-0">
+                                {member.pendingRequestCoachName}
+                              </span>
+                            )}
                           </div>
                           <p className="text-sm text-foreground-muted">
                             {goalLabels[member.goal] || member.goal}
@@ -610,9 +633,17 @@ export default function RegisterMemberPage() {
                             </p>
                           )}
                         </div>
-                        <svg className="w-5 h-5 text-foreground-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                        </svg>
+                        {member.pendingRequestFromMe ? (
+                          <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                            <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                            </svg>
+                          </div>
+                        ) : (
+                          <svg className="w-5 h-5 text-foreground-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                          </svg>
+                        )}
                       </div>
                     </GlassCard>
                   </SlideUp>

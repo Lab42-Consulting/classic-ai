@@ -2,8 +2,16 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.2
+**Version:** 1.3
 **Last Updated:** December 2024
+
+**Changelog v1.3:**
+- Added Custom Meal System with ingredients and nutritional tracking
+- Added Coach Meal Creation for members (full ingredient support)
+- Added Member-Initiated Coach Requests (browse and request coaches)
+- Added AI Ingredient Deduction with staff bypass (no rate limits for coaches)
+- Added Coach Meal Selection in Exact Macros mode
+- Updated member meals to show coach-created meals with visual distinction
 
 **Changelog v1.2:**
 - Added Specialized AI Agents (Nutrition, Supplements, Training)

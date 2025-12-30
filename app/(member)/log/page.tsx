@@ -1,13 +1,23 @@
 "use client";
 
-import { useState, useEffect } from "react";
+import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { Button, GlassCard, Input, Modal, SlideUp, FadeIn } from "@/components/ui";
 import { getTranslations } from "@/lib/i18n";
 import { estimateMealMacros, Goal, MealSize as MealSizeType } from "@/lib/calculations";
 
 type LogType = "meal" | "training" | "water" | null;
-type MealSize = "small" | "medium" | "large" | "custom";
+type MealSize = "small" | "medium" | "large" | "custom" | "saved";
+
+interface SavedMeal {
+  id: string;
+  name: string;
+  totalCalories: number;
+  totalProtein?: number | null;
+  totalCarbs?: number | null;
+  totalFats?: number | null;
+  ingredients: { name: string }[];
+}
 
 const t = getTranslations("sr");
 
@@ -24,6 +34,26 @@ export default function LogPage() {
   const [requireExactMacros, setRequireExactMacros] = useState(false);
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFats, setCustomFats] = useState("");
+  const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
+  const [selectedSavedMeal, setSelectedSavedMeal] = useState<SavedMeal | null>(null);
+  const [loadingMeals, setLoadingMeals] = useState(false);
+
+  const fetchSavedMeals = useCallback(async () => {
+    setLoadingMeals(true);
+    try {
+      const response = await fetch("/api/member/meals");
+      if (response.ok) {
+        const data = await response.json();
+        // Combine own and shared meals
+        const allMeals = [...(data.own || []), ...(data.shared || [])];
+        setSavedMeals(allMeals);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setLoadingMeals(false);
+    }
+  }, []);
 
   useEffect(() => {
     fetchUserProfile();
@@ -60,6 +90,8 @@ export default function LogPage() {
     // Validation for exact macros mode
     if (selectedType === "meal" && requireExactMacros) {
       if (!customProtein || !customCarbs || !customFats) return;
+    } else if (selectedType === "meal" && mealSize === "saved") {
+      if (!selectedSavedMeal) return;
     } else if (selectedType === "meal" && !mealSize) {
       return;
     } else if (selectedType === "meal" && mealSize === "custom" && !customCalories) {
@@ -90,6 +122,14 @@ export default function LogPage() {
           payload.customFats = parseInt(customFats, 10);
           payload.customCalories = calculateCaloriesFromMacros();
           payload.mealSize = "exact";
+        } else if (mealSize === "saved" && selectedSavedMeal) {
+          // Saved meal mode: use saved meal values
+          payload.mealSize = "saved";
+          payload.mealName = selectedSavedMeal.name;
+          payload.customCalories = selectedSavedMeal.totalCalories;
+          payload.customProtein = selectedSavedMeal.totalProtein || undefined;
+          payload.customCarbs = selectedSavedMeal.totalCarbs || undefined;
+          payload.customFats = selectedSavedMeal.totalFats || undefined;
         } else if (mealSize === "custom") {
           // Custom mode: use entered values
           payload.mealSize = mealSize;
@@ -258,6 +298,7 @@ export default function LogPage() {
           setCustomProtein("");
           setCustomCarbs("");
           setCustomFats("");
+          setSelectedSavedMeal(null);
         }}
         title={t.log.logMeal}
         variant="bottom-sheet"
@@ -316,19 +357,26 @@ export default function LogPage() {
             <>
               <div>
                 <p className="text-label mb-4">{t.log.howBigMeal}</p>
-                <div className="grid grid-cols-4 gap-2">
+                <div className="grid grid-cols-5 gap-2">
                   {([
                     { size: "small" as const, emoji: "🥗", label: t.log.small },
                     { size: "medium" as const, emoji: "🍛", label: t.log.medium },
                     { size: "large" as const, emoji: "🍱", label: t.log.large },
                     { size: "custom" as const, emoji: "✏️", label: "Tačno" },
+                    { size: "saved" as const, emoji: "⭐", label: "Sačuvano" },
                   ]).map(({ size, emoji, label }) => {
                     const isCustom = size === "custom";
-                    const macros = isCustom ? null : getMacrosForSize(size as Exclude<MealSize, "custom">);
+                    const isSaved = size === "saved";
+                    const macros = isCustom || isSaved ? null : getMacrosForSize(size as Exclude<MealSize, "custom" | "saved">);
                     return (
                       <button
                         key={size}
-                        onClick={() => setMealSize(size)}
+                        onClick={() => {
+                          setMealSize(size);
+                          if (size === "saved") {
+                            fetchSavedMeals();
+                          }
+                        }}
                         className={`
                           py-4 px-1 rounded-2xl border-2 transition-all btn-press
                           ${
@@ -376,8 +424,115 @@ export default function LogPage() {
                 </div>
               )}
 
+              {/* Saved Meals Picker */}
+              {mealSize === "saved" && (
+                <div className="p-4 rounded-xl bg-white/5 border border-white/10">
+                  <div className="flex items-center justify-between mb-3">
+                    <p className="text-xs text-foreground-muted">Izaberi sačuvani obrok:</p>
+                    <button
+                      onClick={() => router.push("/meals")}
+                      className="text-xs text-accent hover:text-accent-hover transition-colors flex items-center gap-1"
+                    >
+                      <svg className="w-3.5 h-3.5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+                      </svg>
+                      Novi obrok
+                    </button>
+                  </div>
+                  {loadingMeals ? (
+                    <div className="flex justify-center py-4">
+                      <div className="w-6 h-6 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+                    </div>
+                  ) : savedMeals.length === 0 ? (
+                    <div className="text-center py-4">
+                      <p className="text-foreground-muted text-sm mb-3">{t.meals.noMeals}</p>
+                      <Button
+                        variant="secondary"
+                        size="sm"
+                        onClick={() => router.push("/meals")}
+                      >
+                        Kreiraj obrok
+                      </Button>
+                    </div>
+                  ) : (
+                    <div className="space-y-2 max-h-40 overflow-y-auto pr-1">
+                      {savedMeals.map((meal) => (
+                        <button
+                          key={meal.id}
+                          onClick={() => setSelectedSavedMeal(meal)}
+                          className={`
+                            w-full p-3 rounded-xl text-left transition-all
+                            ${
+                              selectedSavedMeal?.id === meal.id
+                                ? "bg-accent/20 border-2 border-accent"
+                                : "bg-white/5 border-2 border-transparent hover:bg-white/10"
+                            }
+                          `}
+                        >
+                          <div className="flex items-center justify-between">
+                            <div>
+                              <p className="font-medium text-foreground">{meal.name}</p>
+                              <p className="text-sm text-foreground-muted">
+                                {meal.totalCalories} kcal
+                                {meal.ingredients.length > 0 && ` • ${meal.ingredients.length} sastojaka`}
+                              </p>
+                            </div>
+                            {selectedSavedMeal?.id === meal.id && (
+                              <svg
+                                className="w-5 h-5 text-accent"
+                                fill="none"
+                                stroke="currentColor"
+                                viewBox="0 0 24 24"
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  strokeWidth={2}
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                        </button>
+                      ))}
+                    </div>
+                  )}
+                </div>
+              )}
+
+              {/* Selected Saved Meal Preview */}
+              {mealSize === "saved" && selectedSavedMeal && (
+                <div className="p-4 rounded-xl bg-accent/5 border border-accent/20">
+                  <p className="text-xs text-foreground-muted mb-3">Izabran obrok:</p>
+                  <div className="grid grid-cols-4 gap-2 text-center">
+                    <div>
+                      <p className="text-lg font-bold text-foreground">{selectedSavedMeal.totalCalories}</p>
+                      <p className="text-xs text-foreground-muted">kcal</p>
+                    </div>
+                    {selectedSavedMeal.totalProtein && (
+                      <div>
+                        <p className="text-lg font-bold text-success">{selectedSavedMeal.totalProtein}g</p>
+                        <p className="text-xs text-foreground-muted">proteini</p>
+                      </div>
+                    )}
+                    {selectedSavedMeal.totalCarbs && (
+                      <div>
+                        <p className="text-lg font-bold text-warning">{selectedSavedMeal.totalCarbs}g</p>
+                        <p className="text-xs text-foreground-muted">ugljeni</p>
+                      </div>
+                    )}
+                    {selectedSavedMeal.totalFats && (
+                      <div>
+                        <p className="text-lg font-bold text-accent">{selectedSavedMeal.totalFats}g</p>
+                        <p className="text-xs text-foreground-muted">masti</p>
+                      </div>
+                    )}
+                  </div>
+                </div>
+              )}
+
               {/* Macro Breakdown Preview - only for preset sizes */}
-              {mealSize && mealSize !== "custom" && (
+              {mealSize && mealSize !== "custom" && mealSize !== "saved" && (
                 <div className="p-4 rounded-xl bg-white/5 border border-white/10">
                   <p className="text-xs text-foreground-muted mb-3">Procena za ovaj obrok:</p>
                   <div className="grid grid-cols-4 gap-2 text-center">
@@ -406,12 +561,15 @@ export default function LogPage() {
             </>
           )}
 
-          <Input
-            label={t.log.whatDidYouEat}
-            placeholder={t.log.mealPlaceholder}
-            value={mealName}
-            onChange={(e) => setMealName(e.target.value)}
-          />
+          {/* Hide meal name input for saved meals since name comes from saved meal */}
+          {mealSize !== "saved" && (
+            <Input
+              label={t.log.whatDidYouEat}
+              placeholder={t.log.mealPlaceholder}
+              value={mealName}
+              onChange={(e) => setMealName(e.target.value)}
+            />
+          )}
 
           <Button
             className="w-full btn-press glow-accent"
@@ -420,7 +578,10 @@ export default function LogPage() {
             disabled={
               requireExactMacros
                 ? !customProtein || !customCarbs || !customFats || loading
-                : !mealSize || (mealSize === "custom" && !customCalories) || loading
+                : !mealSize ||
+                  (mealSize === "custom" && !customCalories) ||
+                  (mealSize === "saved" && !selectedSavedMeal) ||
+                  loading
             }
             loading={loading}
           >

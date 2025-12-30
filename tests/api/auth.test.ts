@@ -262,7 +262,7 @@ describe('Authentication API', () => {
 
       const request = createMockRequest({})
 
-      const response = await logoutPost(request as never)
+      const response = await logoutPost()
       const data = await response.json()
 
       expect(response.status).toBe(200)

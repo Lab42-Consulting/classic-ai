@@ -1,4 +1,4 @@
-import { describe, it, expect, vi, beforeEach } from 'vitest'
+import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { POST, GET } from '@/app/api/checkins/route'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'

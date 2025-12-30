@@ -44,14 +44,32 @@ export async function POST(request: NextRequest) {
     };
 
     if (type === "meal") {
-      if (!mealSize || !["small", "medium", "large", "custom", "exact"].includes(mealSize)) {
+      if (!mealSize || !["small", "medium", "large", "custom", "exact", "saved"].includes(mealSize)) {
         return NextResponse.json(
           { error: "Meal size is required" },
           { status: 400 }
         );
       }
 
-      if (mealSize === "exact") {
+      if (mealSize === "saved") {
+        // Saved meal - uses provided values from the custom meal
+        if (!customCalories || typeof customCalories !== "number" || customCalories <= 0) {
+          return NextResponse.json(
+            { error: "Calories required for saved meal" },
+            { status: 400 }
+          );
+        }
+
+        logData = {
+          ...logData,
+          mealSize,
+          mealName: mealName || undefined,
+          estimatedCalories: customCalories,
+          estimatedProtein: customProtein || undefined,
+          estimatedCarbs: customCarbs || undefined,
+          estimatedFats: customFats || undefined,
+        };
+      } else if (mealSize === "exact") {
         // Exact macros mode - coach requires P/C/F input
         if (!customProtein || !customCarbs || !customFats) {
           return NextResponse.json(

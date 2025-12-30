@@ -371,3 +371,104 @@ a,
 ::-webkit-scrollbar-thumb:hover {
   background: var(--border-hover);
 }
+
+/* ============================================
+   CUSTOM CHECKBOX
+   ============================================ */
+
+.checkbox-styled {
+  appearance: none;
+  -webkit-appearance: none;
+  width: 1.25rem;
+  height: 1.25rem;
+  border-radius: 0.375rem;
+  border: 2px solid var(--border);
+  background: var(--background-secondary);
+  cursor: pointer;
+  position: relative;
+  transition: all 0.2s ease;
+  flex-shrink: 0;
+}
+
+.checkbox-styled:hover {
+  border-color: var(--border-hover);
+  background: var(--background-tertiary);
+}
+
+.checkbox-styled:focus-visible {
+  outline: none;
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.checkbox-styled:checked {
+  background: var(--accent);
+  border-color: var(--accent);
+}
+
+.checkbox-styled:checked:hover {
+  background: var(--accent-hover);
+  border-color: var(--accent-hover);
+}
+
+.checkbox-styled:checked::after {
+  content: '';
+  position: absolute;
+  left: 50%;
+  top: 45%;
+  width: 0.35rem;
+  height: 0.6rem;
+  border: solid white;
+  border-width: 0 2px 2px 0;
+  transform: translate(-50%, -50%) rotate(45deg);
+}
+
+.checkbox-styled:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* ============================================
+   CUSTOM SELECT DROPDOWN
+   ============================================ */
+
+.select-styled {
+  appearance: none;
+  -webkit-appearance: none;
+  -moz-appearance: none;
+  width: 100%;
+  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  border-radius: 0.75rem;
+  border: 2px solid var(--border);
+  background-color: var(--background-secondary);
+  color: var(--foreground);
+  font-size: 0.875rem;
+  cursor: pointer;
+  transition: all 0.2s ease;
+  background-image: url("data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' fill='none' viewBox='0 0 24 24' stroke='%23a1a1aa'%3E%3Cpath stroke-linecap='round' stroke-linejoin='round' stroke-width='2' d='M19 9l-7 7-7-7'%3E%3C/path%3E%3C/svg%3E");
+  background-repeat: no-repeat;
+  background-position: right 0.5rem center;
+  background-size: 1rem;
+}
+
+.select-styled:hover {
+  border-color: var(--border-hover);
+  background-color: var(--background-tertiary);
+}
+
+.select-styled:focus {
+  outline: none;
+  border-color: var(--accent);
+  box-shadow: 0 0 0 3px var(--accent-glow);
+}
+
+.select-styled:disabled {
+  opacity: 0.5;
+  cursor: not-allowed;
+}
+
+/* Style select options (limited browser support) */
+.select-styled option {
+  background-color: var(--background-secondary);
+  color: var(--foreground);
+  padding: 0.5rem;
+}

@@ -2,26 +2,9 @@
 
 import { useState } from "react";
 import { Input } from "@/components/ui/input";
+import { AgentAvatar } from "@/components/ui/agent-avatar";
 import { TranslationKeys } from "@/lib/i18n";
 import { PORTION_UNITS, PortionUnit } from "@/lib/constants/units";
-
-// Nutrition agent icon (cherries) - matches the nutrition AI assistant
-function NutritionIcon({ className }: { className?: string }) {
-  return (
-    <svg className={className} viewBox="0 0 24 24" fill="currentColor">
-      <circle cx="8" cy="16" r="5" />
-      <circle cx="16" cy="18" r="4" />
-      <path
-        d="M8 11 C8 8, 10 5, 13 4 M16 14 C16 10, 14 6, 13 4"
-        stroke="currentColor"
-        strokeWidth="2"
-        strokeLinecap="round"
-        fill="none"
-      />
-      <ellipse cx="14" cy="4" rx="3" ry="1.5" transform="rotate(-20 14 4)" />
-    </svg>
-  );
-}
 
 interface IngredientData {
   id?: string;
@@ -68,20 +51,20 @@ export function IngredientRow({
 
   return (
     <div className="bg-background-tertiary rounded-xl p-4 space-y-3">
-      {/* Main row - name, portion (amount + unit), AI button, remove */}
-      <div className="flex items-start gap-2">
-        {/* Name input */}
-        <div className="flex-1">
+      {/* Row 1 - Ingredient name + Amount + Units */}
+      <div className="flex items-center gap-2">
+        {/* Name input - gets most of the width */}
+        <div className="flex-1 min-w-0">
           <Input
-            placeholder={t.ingredients?.name || "Naziv"}
+            placeholder={t.ingredients?.name || "Naziv sastojka"}
             value={ingredient.name}
             onChange={(e) => handleChange("name", e.target.value)}
             className="h-10 text-sm"
           />
         </div>
 
-        {/* Portion amount */}
-        <div className="w-20">
+        {/* Portion amount - same width as units */}
+        <div className="w-16 flex-shrink-0">
           <Input
             type="number"
             placeholder={t.ingredients?.amount || "Kol."}
@@ -95,12 +78,12 @@ export function IngredientRow({
           />
         </div>
 
-        {/* Portion unit dropdown */}
-        <div className="w-24">
+        {/* Portion unit dropdown - same width as amount */}
+        <div className="w-16 flex-shrink-0">
           <select
             value={ingredient.portionUnit}
             onChange={(e) => handleChange("portionUnit", e.target.value)}
-            className="select-styled h-10"
+            className="select-styled h-10 w-full"
           >
             {PORTION_UNITS.map((unit) => (
               <option key={unit.value} value={unit.value}>
@@ -110,51 +93,11 @@ export function IngredientRow({
           </select>
         </div>
 
-        {/* AI Deduce button - uses Nutrition Agent visual identity */}
-        <button
-          onClick={() => onAiDeduce(index)}
-          disabled={isDeducing || !ingredient.name || !ingredient.portionAmount}
-          className={`
-            p-2.5 rounded-xl transition-all
-            ${
-              isDeducing
-                ? "bg-emerald-500/20 text-emerald-500 animate-pulse"
-                : "bg-emerald-500/10 text-emerald-500 hover:bg-emerald-500/20"
-            }
-            disabled:opacity-40 disabled:cursor-not-allowed
-          `}
-          title={t.ingredients?.aiDeduce || "AI popuni"}
-        >
-          {isDeducing ? (
-            <svg
-              className="w-5 h-5 animate-spin"
-              fill="none"
-              viewBox="0 0 24 24"
-            >
-              <circle
-                className="opacity-25"
-                cx="12"
-                cy="12"
-                r="10"
-                stroke="currentColor"
-                strokeWidth="4"
-              />
-              <path
-                className="opacity-75"
-                fill="currentColor"
-                d="M4 12a8 8 0 018-8V0C5.373 0 0 5.373 0 12h4zm2 5.291A7.962 7.962 0 014 12H0c0 3.042 1.135 5.824 3 7.938l3-2.647z"
-              />
-            </svg>
-          ) : (
-            <NutritionIcon className="w-5 h-5" />
-          )}
-        </button>
-
         {/* Remove button */}
         {canRemove && (
           <button
             onClick={() => onRemove(index)}
-            className="p-2.5 rounded-xl text-foreground-muted hover:text-error hover:bg-error/10 transition-all"
+            className="p-2 rounded-xl text-foreground-muted hover:text-error hover:bg-error/10 transition-all flex-shrink-0"
             title={t.common.cancel}
           >
             <svg
@@ -174,21 +117,42 @@ export function IngredientRow({
         )}
       </div>
 
-      {/* Calories (always visible) */}
+      {/* Row 2 - Calories (same width as name) + AI Agent button (centered) */}
       <div className="flex items-center gap-2">
-        <Input
-          type="number"
-          placeholder={t.ingredients?.calories || "Kalorije"}
-          value={ingredient.calories || ""}
-          onChange={(e) => handleChange("calories", parseInt(e.target.value) || 0)}
-          className="h-10 text-sm w-28"
-        />
-        <span className="text-sm text-foreground-muted">{t.common.cal}</span>
+        {/* Calories input - same flex-1 as name to match width */}
+        <div className="flex-1 min-w-0">
+          <Input
+            type="number"
+            placeholder={t.ingredients?.calories || "kcal"}
+            value={ingredient.calories || ""}
+            onChange={(e) => handleChange("calories", parseInt(e.target.value) || 0)}
+            className="h-10 text-sm"
+          />
+        </div>
+        <span className="text-sm text-foreground-muted flex-shrink-0">kcal</span>
 
-        {/* Toggle macros button */}
+        {/* AI button container - same width as (amount + units + remove minus kcal label) to center the button */}
+        <div className="w-[108px] flex-shrink-0 flex justify-center">
+          <button
+            onClick={() => onAiDeduce(index)}
+            disabled={isDeducing || !ingredient.name || !ingredient.portionAmount}
+            className="disabled:opacity-40 disabled:cursor-not-allowed transition-opacity"
+            title={t.ingredients?.aiDeduce || "AI popuni"}
+          >
+            <AgentAvatar
+              agent="nutrition"
+              size="sm"
+              state={isDeducing ? "thinking" : "idle"}
+            />
+          </button>
+        </div>
+      </div>
+
+      {/* Row 3 - Toggle macros button */}
+      <div className="flex items-center">
         <button
           onClick={() => setExpanded(!expanded)}
-          className="ml-auto text-sm text-accent flex items-center gap-1"
+          className="text-sm text-accent flex items-center gap-1"
         >
           {expanded ? (
             <>

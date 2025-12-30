@@ -32,6 +32,7 @@ interface MemberDetail {
     id: string;
     memberId: string;
     name: string;
+    avatarUrl: string | null;
     goal: string;
     weight: number | null;
     height: number | null;
@@ -89,6 +90,15 @@ const trendIcons = {
   down: "↘️",
   stable: "➡️",
 };
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function MemberDetailPage({ params }: { params: Promise<{ id: string }> }) {
   const { id } = use(params);
@@ -406,19 +416,37 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         {/* Member Header */}
         <SlideUp delay={100}>
           <GlassCard variant="prominent">
-            <div className="flex items-start justify-between mb-4">
-              <div>
-                <h2 className="text-2xl font-bold text-foreground">{member.name}</h2>
-                <p className="text-foreground-muted">{member.memberId} • {goalLabels[member.goal]}</p>
-              </div>
-              <div className={`
-                px-3 py-1 rounded-full flex items-center gap-1.5
-                ${isProgressPositive ? "bg-success/10" : "bg-warning/10"}
-              `}>
-                <span>{trendIcons[snapshot.weightTrend]}</span>
-                <span className={isProgressPositive ? "text-success" : "text-warning"}>
-                  {snapshot.weightChange > 0 ? "+" : ""}{snapshot.weightChange}kg
-                </span>
+            <div className="flex items-start gap-4 mb-4">
+              {/* Avatar */}
+              {member.avatarUrl ? (
+                <img
+                  src={member.avatarUrl}
+                  alt={member.name}
+                  className="w-16 h-16 rounded-full object-cover flex-shrink-0"
+                />
+              ) : (
+                <div className="w-16 h-16 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl font-semibold text-accent">
+                    {getInitials(member.name)}
+                  </span>
+                </div>
+              )}
+              <div className="flex-1 min-w-0">
+                <div className="flex items-start justify-between">
+                  <div>
+                    <h2 className="text-2xl font-bold text-foreground">{member.name}</h2>
+                    <p className="text-foreground-muted">{member.memberId} • {goalLabels[member.goal]}</p>
+                  </div>
+                  <div className={`
+                    px-3 py-1 rounded-full flex items-center gap-1.5
+                    ${isProgressPositive ? "bg-success/10" : "bg-warning/10"}
+                  `}>
+                    <span>{trendIcons[snapshot.weightTrend]}</span>
+                    <span className={isProgressPositive ? "text-success" : "text-warning"}>
+                      {snapshot.weightChange > 0 ? "+" : ""}{snapshot.weightChange}kg
+                    </span>
+                  </div>
+                </div>
               </div>
             </div>
 

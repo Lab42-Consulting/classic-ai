@@ -272,7 +272,7 @@ function LogPageContent() {
               className="cursor-pointer btn-press"
               onClick={() => handleQuickLog("training")}
             >
-              <div className="flex flex-col items-center py-6">
+              <div className="flex flex-col items-center text-center py-6">
                 <div className="text-4xl mb-3">💪</div>
                 <span className="text-foreground font-semibold">{t.log.iTrained}</span>
                 <span className="text-xs text-foreground-muted mt-1">{t.log.oneTapLog}</span>
@@ -284,7 +284,7 @@ function LogPageContent() {
               className="cursor-pointer btn-press"
               onClick={() => handleQuickLog("water")}
             >
-              <div className="flex flex-col items-center py-6">
+              <div className="flex flex-col items-center text-center py-6">
                 <div className="text-4xl mb-3">💧</div>
                 <span className="text-foreground font-semibold">{t.log.drankWater}</span>
                 <span className="text-xs text-foreground-muted mt-1">{t.log.plusOneGlass}</span>
@@ -300,17 +300,10 @@ function LogPageContent() {
             className="cursor-pointer btn-press"
             onClick={() => setSelectedType("meal")}
           >
-            <div className="flex items-center gap-4">
-              <div className="text-4xl">🍽️</div>
-              <div className="flex-1">
-                <h3 className="text-foreground font-semibold text-lg">{t.log.iAte}</h3>
-                <p className="text-sm text-foreground-muted">{t.log.logMealWithSize}</p>
-              </div>
-              <div className="w-10 h-10 rounded-full bg-white/5 flex items-center justify-center">
-                <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
+            <div className="flex flex-col items-center text-center py-4">
+              <div className="text-4xl mb-3">🍽️</div>
+              <span className="text-foreground font-semibold">{t.log.iAte}</span>
+              <span className="text-xs text-foreground-muted mt-1">{t.log.logMealWithSize}</span>
             </div>
           </GlassCard>
         </SlideUp>
@@ -492,30 +485,22 @@ function LogPageContent() {
           ) : (
             /* Standard Mode - Meal size selection */
             <>
+              {/* Preset Sizes - 3 column grid */}
               <div>
-                <p className="text-label mb-4">{t.log.howBigMeal}</p>
-                <div className="grid grid-cols-5 gap-2">
+                <p className="text-label mb-3">{t.log.howBigMeal}</p>
+                <div className="grid grid-cols-3 gap-3">
                   {([
                     { size: "small" as const, emoji: "🥗", label: t.log.small },
                     { size: "medium" as const, emoji: "🍛", label: t.log.medium },
                     { size: "large" as const, emoji: "🍱", label: t.log.large },
-                    { size: "custom" as const, emoji: "✏️", label: "Tačno" },
-                    { size: "saved" as const, emoji: "⭐", label: "Sačuvano" },
                   ]).map(({ size, emoji, label }) => {
-                    const isCustom = size === "custom";
-                    const isSaved = size === "saved";
-                    const macros = isCustom || isSaved ? null : getMacrosForSize(size as Exclude<MealSize, "custom" | "saved">);
+                    const macros = getMacrosForSize(size);
                     return (
                       <button
                         key={size}
-                        onClick={() => {
-                          setMealSize(size);
-                          if (size === "saved") {
-                            fetchSavedMeals();
-                          }
-                        }}
+                        onClick={() => setMealSize(size)}
                         className={`
-                          py-4 px-1 rounded-2xl border-2 transition-all btn-press
+                          py-5 px-2 rounded-2xl border-2 transition-all btn-press text-center
                           ${
                             mealSize === size
                               ? "border-accent bg-accent/10 glow-accent"
@@ -523,18 +508,56 @@ function LogPageContent() {
                           }
                         `}
                       >
-                        <span className="block text-2xl mb-1">{emoji}</span>
-                        <span className="text-xs font-semibold text-foreground">
+                        <span className="block text-3xl mb-2">{emoji}</span>
+                        <span className="block text-sm font-semibold text-foreground">
                           {label}
                         </span>
-                        {macros && (
-                          <span className="block text-xs text-foreground-muted mt-1">
-                            ~{macros.calories}
-                          </span>
-                        )}
+                        <span className="block text-xs text-foreground-muted mt-1">
+                          ~{macros.calories} kcal
+                        </span>
                       </button>
                     );
                   })}
+                </div>
+              </div>
+
+              {/* Custom/Saved Options - 2 column grid */}
+              <div>
+                <p className="text-label mb-3">Ili izaberi:</p>
+                <div className="grid grid-cols-2 gap-3">
+                  <button
+                    onClick={() => setMealSize("custom")}
+                    className={`
+                      py-4 px-3 rounded-2xl border-2 transition-all btn-press text-center
+                      ${
+                        mealSize === "custom"
+                          ? "border-accent bg-accent/10 glow-accent"
+                          : "border-white/10 glass hover:border-white/20"
+                      }
+                    `}
+                  >
+                    <span className="block text-2xl mb-2">✏️</span>
+                    <span className="block text-sm font-semibold text-foreground">Unesi tačno</span>
+                    <span className="block text-xs text-foreground-muted mt-1">Kalorije i proteini</span>
+                  </button>
+                  <button
+                    onClick={() => {
+                      setMealSize("saved");
+                      fetchSavedMeals();
+                    }}
+                    className={`
+                      py-4 px-3 rounded-2xl border-2 transition-all btn-press text-center
+                      ${
+                        mealSize === "saved"
+                          ? "border-accent bg-accent/10 glow-accent"
+                          : "border-white/10 glass hover:border-white/20"
+                      }
+                    `}
+                  >
+                    <span className="block text-2xl mb-2">⭐</span>
+                    <span className="block text-sm font-semibold text-foreground">Sačuvano</span>
+                    <span className="block text-xs text-foreground-muted mt-1">Moji obroci</span>
+                  </button>
                 </div>
               </div>
 

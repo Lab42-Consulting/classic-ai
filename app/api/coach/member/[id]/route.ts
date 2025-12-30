@@ -52,6 +52,7 @@ export async function GET(
         id: true,
         memberId: true,
         name: true,
+        avatarUrl: true,
         goal: true,
         weight: true,
         height: true,

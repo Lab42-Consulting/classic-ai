@@ -8,6 +8,7 @@ interface MemberStats {
   id: string;
   memberId: string;
   name: string;
+  avatarUrl: string | null;
   goal: string;
   currentWeight: number | null;
   activityStatus: "on_track" | "slipping" | "off_track";
@@ -42,6 +43,7 @@ interface MemberRequest {
   member: {
     id: string;
     name: string;
+    avatarUrl: string | null;
     goal: string;
     weight: number | null;
     height: number | null;
@@ -97,6 +99,15 @@ const goalLabels: Record<string, string> = {
   muscle_gain: "Masa",
   recomposition: "Rekompozicija",
 };
+
+function getInitials(name: string): string {
+  return name
+    .split(" ")
+    .map((n) => n[0])
+    .join("")
+    .toUpperCase()
+    .slice(0, 2);
+}
 
 export default function CoachDashboard() {
   const router = useRouter();
@@ -422,11 +433,19 @@ export default function CoachDashboard() {
                   <div className="space-y-3">
                     {/* Member info */}
                     <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                        </svg>
-                      </div>
+                      {request.member.avatarUrl ? (
+                        <img
+                          src={request.member.avatarUrl}
+                          alt={request.member.name}
+                          className="w-12 h-12 rounded-full object-cover flex-shrink-0"
+                        />
+                      ) : (
+                        <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                          <span className="text-lg font-medium text-accent">
+                            {getInitials(request.firstName + " " + request.lastName)}
+                          </span>
+                        </div>
+                      )}
                       <div className="flex-1 min-w-0">
                         <h3 className="font-medium text-foreground">
                           {request.firstName} {request.lastName}
@@ -559,13 +578,24 @@ export default function CoachDashboard() {
                     className={`cursor-pointer ${member.alerts.length > 0 ? "border-warning/30" : ""}`}
                     onClick={() => router.push(`/members/${member.id}`)}
                   >
-                    <div className="flex items-start gap-4">
-                      {/* Status indicator */}
-                      <div className="flex flex-col items-center gap-1 pt-1">
-                        <div className={`w-3 h-3 rounded-full ${activityColors[member.activityStatus]}`} />
-                        <span className="text-xs text-foreground-muted">
-                          {member.consistencyScore}%
-                        </span>
+                    <div className="flex items-start gap-3">
+                      {/* Avatar with status indicator */}
+                      <div className="relative flex-shrink-0">
+                        {member.avatarUrl ? (
+                          <img
+                            src={member.avatarUrl}
+                            alt={member.name}
+                            className="w-12 h-12 rounded-full object-cover"
+                          />
+                        ) : (
+                          <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                            <span className="text-sm font-medium text-accent">
+                              {getInitials(member.name)}
+                            </span>
+                          </div>
+                        )}
+                        {/* Status indicator overlay */}
+                        <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background ${activityColors[member.activityStatus]}`} />
                       </div>
 
                       {/* Main info */}
@@ -586,6 +616,9 @@ export default function CoachDashboard() {
 
                         {/* Quick stats row */}
                         <div className="flex gap-4 mt-2 text-xs text-foreground-muted">
+                          <span title="Konzistentnost">
+                            📊 {member.consistencyScore}%
+                          </span>
                           <span title="Treninzi ove nedelje">
                             🏋️ {member.weeklyTrainingSessions}x
                           </span>

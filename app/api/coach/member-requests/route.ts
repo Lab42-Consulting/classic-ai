@@ -35,6 +35,7 @@ export async function GET() {
           select: {
             id: true,
             name: true,
+            avatarUrl: true,
             goal: true,
             weight: true,
             height: true,
@@ -51,6 +52,7 @@ export async function GET() {
         member: {
           id: req.member.id,
           name: req.member.name,
+          avatarUrl: req.member.avatarUrl,
           goal: req.member.goal,
           weight: req.member.weight,
           height: req.member.height,

@@ -152,7 +152,7 @@ export async function POST(request: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session || session.userType !== "member") {
+    if (!session || (session.userType !== "member" && session.userType !== "staff")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
@@ -190,35 +190,69 @@ export async function POST(request: NextRequest) {
     // Step 2: Check for similar ingredients in database (suggestions)
     const suggestions = searchIngredients(name.trim(), 3);
 
-    // Step 3: Fall back to AI (requires rate limit check)
-    const member = await prisma.member.findUnique({
-      where: { id: session.userId },
-      select: { subscriptionStatus: true },
-    });
+    // Step 3: Fall back to AI (requires rate limit check for members, not for staff)
+    const isStaff = session.userType === "staff";
 
-    if (!member) {
-      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    if (!isStaff) {
+      // Member flow with rate limiting
+      const member = await prisma.member.findUnique({
+        where: { id: session.userId },
+        select: { subscriptionStatus: true },
+      });
+
+      if (!member) {
+        return NextResponse.json({ error: "Member not found" }, { status: 404 });
+      }
+
+      // Check rate limit
+      const rateLimit = await checkRateLimit(session.userId, member.subscriptionStatus);
+
+      if (!rateLimit.allowed) {
+        return NextResponse.json(
+          {
+            error: "Daily AI limit reached",
+            remaining: rateLimit.remaining,
+            limit: rateLimit.limit,
+            suggestions: suggestions.map((s) => ({
+              name: s.name,
+              per100: s.per100,
+            })),
+          },
+          { status: 429 }
+        );
+      }
+
+      // Call AI
+      const aiResult = await callAI(name.trim(), portionSize.trim());
+
+      if (!aiResult) {
+        return NextResponse.json(
+          {
+            error: "Could not determine nutrition values",
+            suggestions: suggestions.map((s) => ({
+              name: s.name,
+              per100: s.per100,
+            })),
+          },
+          { status: 422 }
+        );
+      }
+
+      // Increment usage counter
+      await incrementUsage(session.userId);
+
+      // Return AI result
+      return NextResponse.json({
+        success: true,
+        source: "ai",
+        confidence: "medium",
+        ...aiResult,
+        remaining: rateLimit.remaining - 1,
+        limit: rateLimit.limit,
+      });
     }
 
-    // Check rate limit
-    const rateLimit = await checkRateLimit(session.userId, member.subscriptionStatus);
-
-    if (!rateLimit.allowed) {
-      return NextResponse.json(
-        {
-          error: "Daily AI limit reached",
-          remaining: rateLimit.remaining,
-          limit: rateLimit.limit,
-          suggestions: suggestions.map((s) => ({
-            name: s.name,
-            per100: s.per100,
-          })),
-        },
-        { status: 429 }
-      );
-    }
-
-    // Call AI
+    // Staff flow - no rate limiting
     const aiResult = await callAI(name.trim(), portionSize.trim());
 
     if (!aiResult) {
@@ -234,17 +268,11 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Increment usage counter
-    await incrementUsage(session.userId);
-
-    // Return AI result
     return NextResponse.json({
       success: true,
       source: "ai",
       confidence: "medium",
       ...aiResult,
-      remaining: rateLimit.remaining - 1,
-      limit: rateLimit.limit,
     });
   } catch (error) {
     console.error("Deduce ingredient error:", error);
@@ -260,7 +288,7 @@ export async function GET(request: NextRequest) {
   try {
     const session = await getSession();
 
-    if (!session || session.userType !== "member") {
+    if (!session || (session.userType !== "member" && session.userType !== "staff")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 

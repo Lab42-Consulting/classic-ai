@@ -54,12 +54,28 @@ export async function GET() {
         select: { memberId: true },
       });
       memberIds = assignments.map(a => a.memberId);
+
+      // If coach has no assigned members, return empty list
+      if (memberIds.length === 0) {
+        return NextResponse.json({
+          coachName: staff.name,
+          isCoach,
+          stats: {
+            total: 0,
+            onTrack: 0,
+            slipping: 0,
+            offTrack: 0,
+            needsAttention: 0,
+          },
+          members: [],
+        });
+      }
     }
 
     const members = await prisma.member.findMany({
       where: {
         gymId: session.gymId,
-        ...(isCoach && memberIds.length > 0 ? { id: { in: memberIds } } : {}),
+        ...(isCoach ? { id: { in: memberIds } } : {}),
       },
       select: {
         id: true,

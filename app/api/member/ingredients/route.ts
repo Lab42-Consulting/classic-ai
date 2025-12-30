@@ -98,6 +98,7 @@ export async function GET(request: NextRequest) {
         protein: ing.protein,
         carbs: ing.carbs,
         fats: ing.fats,
+        isShared: true,
         authorName: ing.member.name,
         createdAt: ing.createdAt,
       })),

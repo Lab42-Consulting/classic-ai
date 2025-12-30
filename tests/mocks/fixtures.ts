@@ -381,6 +381,75 @@ export function createMockGetRequest(searchParams?: Record<string, string>): Req
 }
 
 // =============================================================================
+// CUSTOM MEAL FIXTURES
+// =============================================================================
+
+export const mockMealIngredient = {
+  id: 'ingredient-001',
+  customMealId: 'meal-001',
+  name: 'Chicken Breast',
+  portionSize: '150g',
+  calories: 248,
+  protein: 47,
+  carbs: 0,
+  fats: 5,
+  savedIngredientId: null,
+  createdAt: new Date(),
+}
+
+export const mockCustomMeal = {
+  id: 'meal-001',
+  memberId: mockMember.id,
+  gymId: mockGym.id,
+  name: 'Piletina sa risom',
+  totalCalories: 650,
+  totalProtein: 55,
+  totalCarbs: 60,
+  totalFats: 15,
+  isManualTotal: false,
+  isShared: false,
+  shareApproved: false,
+  shareRequestedAt: null,
+  createdByCoachId: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
+export const mockCoachMeal = {
+  ...mockCustomMeal,
+  id: 'meal-002',
+  name: 'Pre-Workout Meal',
+  createdByCoachId: mockStaffCoach.id,
+  totalCalories: 450,
+  totalProtein: 35,
+  totalCarbs: 45,
+  totalFats: 12,
+}
+
+export const mockSharedMeal = {
+  ...mockCustomMeal,
+  id: 'meal-003',
+  name: 'Shared Healthy Meal',
+  isShared: true,
+  shareApproved: true,
+  shareRequestedAt: new Date(),
+}
+
+export const mockMealWithIngredients = {
+  ...mockCustomMeal,
+  ingredients: [mockMealIngredient],
+  member: { name: mockMember.name },
+  createdByCoach: null,
+}
+
+export const mockCoachMealWithIngredients = {
+  ...mockCoachMeal,
+  ingredients: [mockMealIngredient],
+  member: { name: mockMember.name },
+  createdByCoach: { name: mockStaffCoach.name },
+}
+
+// =============================================================================
 // DATE HELPERS FOR TESTING
 // =============================================================================
 

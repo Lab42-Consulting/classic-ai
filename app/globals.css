@@ -436,7 +436,8 @@ a,
   -webkit-appearance: none;
   -moz-appearance: none;
   width: 100%;
-  padding: 0.5rem 2rem 0.5rem 0.75rem;
+  height: 2.5rem; /* Match h-10 input height */
+  padding: 0 2rem 0 0.75rem;
   border-radius: 0.75rem;
   border: 2px solid var(--border);
   background-color: var(--background-secondary);

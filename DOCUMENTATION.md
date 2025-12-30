@@ -15,7 +15,11 @@ A digital accountability and guidance system for gym members and staff.
    - [Require Exact Macros](#require-exact-macros-feature)
    - [Coach Nudges](#coach-nudges)
    - [Per-Member AI Knowledge](#per-member-ai-knowledge)
+   - [Coach Meal Creation](#coach-meal-creation)
 6. [Member Guide](#member-guide)
+   - [Custom Meal System](#custom-meal-system)
+   - [Coach Meals](#coach-meals)
+   - [Browse and Request Coaches](#browse-and-request-coaches)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
    - [Meal Logging Modes](#log-a-meal)
@@ -246,6 +250,52 @@ Customize how AI agents respond to specific members:
 - Izbegavati: pre-workout (osetljivost na kofein)
 ```
 
+### Coach Meal Creation
+
+Create custom meals with full nutritional tracking for your assigned members:
+
+1. Go to the member's detail page
+2. Click **"Dodaj obrok"** (Add Meal) button
+3. The meal creation modal opens with:
+   - **Meal Name**: Required name for the meal
+   - **Ingredients List**: Add multiple ingredients
+   - **Totals Summary**: Auto-calculated or manual
+
+**Adding Ingredients:**
+
+For each ingredient, you can enter:
+- **Name**: Ingredient name (e.g., "Piletina")
+- **Portion**: Amount + unit (e.g., 150g, 2 komada)
+- **Calories**: Required
+- **Protein/Carbs/Fats**: Optional macros
+
+**AI Deduce Feature:**
+
+Click the cherries icon (🍒) next to any ingredient to auto-fill nutritional values:
+1. Enter ingredient name and portion
+2. Click the AI deduce button
+3. System first checks the static nutrition database (free, instant)
+4. If not found, uses AI to estimate values
+
+**Note:** Coaches have **unlimited AI deduce calls** (no rate limits).
+
+**Meal Totals:**
+
+- **Auto-calculate**: Totals sum from all ingredients
+- **Manual override**: Check "Ručno podesi" to enter totals manually
+
+**After saving**, the meal appears in the member's **"Od trenera" (Coach Meals)** section.
+
+### Reviewing Member Coach Requests
+
+Members can browse coaches and send requests to work with you:
+
+1. Check your dashboard for pending member requests
+2. See member contact info: name, phone number
+3. Read their message explaining their goals
+4. **Accept**: Creates assignment, clears member history for fresh start
+5. **Decline**: Removes the request, member can try another coach
+
 ---
 
 ## Member Guide
@@ -255,6 +305,91 @@ Customize how AI agents respond to specific members:
 1. Go to `/login` (or scan your QR code)
 2. Enter your Member ID
 3. Enter your 4-digit PIN
+
+### Custom Meal System
+
+Create and save custom meals with detailed nutritional information:
+
+1. Go to `/meals` or access from the meal logging screen
+2. Click **"Novi obrok"** (New Meal)
+3. Fill in the meal details:
+   - **Naziv obroka**: Meal name (e.g., "Piletina sa risom")
+   - **Sastojci**: Add ingredients
+
+**Adding Ingredients:**
+
+For each ingredient:
+1. Enter the ingredient name
+2. Set portion amount and unit (g, ml, komad, šolja, etc.)
+3. Enter calories (required)
+4. Optionally expand to add protein, carbs, fats
+
+**AI Deduce Button:**
+
+Click the cherries icon (🍒) to auto-fill nutritional values:
+- First checks a database of 200+ common ingredients
+- Falls back to AI if ingredient not found
+- Rate limits apply: Trial (5/day), Active (20/day)
+
+**Meal Totals:**
+
+- Totals auto-calculate from ingredients
+- Check "Ručno podesi" to override with manual totals
+
+**Sharing Meals:**
+
+- Check "Podeli sa teretanom" to share your meal
+- Shared meals require admin approval
+- Once approved, visible to all gym members
+
+**Meal Categories:**
+
+| Category | Description |
+|----------|-------------|
+| Moji obroci | Meals you created |
+| Od trenera | Meals your coach created for you |
+| Deljeni | Approved shared meals from gym |
+
+### Coach Meals
+
+If you have an assigned coach, they can create custom meals for you:
+
+- Coach meals appear with a **"Trener"** badge
+- Highlighted with accent color for easy identification
+- Include full nutritional info (calories, P/C/F)
+- Can be selected when logging meals
+
+**In Exact Macros Mode:**
+
+When your coach requires exact macro tracking:
+1. Open the meal logging modal
+2. Coach meals appear at the top under **"OD TRENERA"**
+3. Select a coach meal to auto-fill macros
+4. Or enter macros manually below
+
+This makes it easy to log coach-prescribed meals with accurate nutrition.
+
+### Browse and Request Coaches
+
+If you don't have a coach, you can browse and request one:
+
+1. Go to `/coaches`
+2. See available coaches in your gym with:
+   - Coach name
+   - Number of assigned members
+3. Click **"Pošalji zahtev"** on a coach
+4. Fill in the request form:
+   - **Ime**: Your first name
+   - **Prezime**: Your last name
+   - **Telefon**: Your phone number (required)
+   - **Poruka**: Optional message about your goals
+5. Submit the request
+6. Wait for coach to accept or decline
+
+**Status Tracking:**
+- Pending request shows "Zahtev poslat" status
+- If declined, you can request a different coach
+- If accepted, coach becomes your assigned coach
 
 ### Home Screen
 
@@ -627,6 +762,140 @@ Access your profile and account settings:
   "memberId": "member-cuid",
   "agentType": "nutrition",
   "content": "Preporučene namirnice: piletina, riba..."
+}
+```
+
+### Member Meals
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/meals` | GET | Get member's meals (own, coach, shared) |
+| `/api/member/meals` | POST | Create a new meal with ingredients |
+
+**GET `/api/member/meals` response:**
+```json
+{
+  "own": [{ "id": "...", "name": "My Meal", "totalCalories": 500, ... }],
+  "coach": [{ "id": "...", "name": "Coach Meal", "coachName": "Coach Marko", ... }],
+  "shared": [{ "id": "...", "name": "Shared Meal", "authorName": "Petar", ... }]
+}
+```
+
+**POST `/api/member/meals` body:**
+```json
+{
+  "name": "Piletina sa risom",
+  "ingredients": [
+    {
+      "name": "Chicken breast",
+      "portionSize": "150g",
+      "calories": 248,
+      "protein": 47,
+      "carbs": 0,
+      "fats": 5
+    }
+  ],
+  "isManualTotal": false,
+  "isShared": false
+}
+```
+
+### Coach Meals (Staff only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/member-meals/[memberId]` | POST | Create meal for assigned member |
+
+**POST body:** Same as member meals, creates meal with `createdByCoachId` set.
+
+### AI Ingredient Deduction
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/ai/deduce-ingredient` | POST | Deduce nutrition from ingredient name + portion |
+| `/api/ai/deduce-ingredient?q=xxx` | GET | Search ingredient database |
+
+**POST body:**
+```json
+{
+  "name": "chicken breast",
+  "portionSize": "150g"
+}
+```
+
+**POST response (database match):**
+```json
+{
+  "success": true,
+  "source": "database",
+  "confidence": "high",
+  "ingredientName": "Chicken Breast",
+  "calories": 248,
+  "protein": 47,
+  "carbs": 0,
+  "fats": 5
+}
+```
+
+**POST response (AI fallback):**
+```json
+{
+  "success": true,
+  "source": "ai",
+  "confidence": "medium",
+  "calories": 248,
+  "protein": 47,
+  "carbs": 0,
+  "fats": 5,
+  "remaining": 14,
+  "limit": 20
+}
+```
+
+**Note:** Staff (coaches) bypass rate limits and get unlimited AI deduce calls.
+
+### Member Coach Browsing
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/coaches` | GET | List available coaches in gym |
+| `/api/member/coaches/[coachId]/request` | POST | Send request to coach |
+
+**GET response:**
+```json
+{
+  "coaches": [
+    { "id": "staff-id", "name": "Coach Marko", "assignedMembersCount": 12 }
+  ],
+  "currentCoach": null,
+  "pendingRequest": null
+}
+```
+
+**POST body:**
+```json
+{
+  "firstName": "Miloš",
+  "lastName": "Mladenović",
+  "phone": "+381641234567",
+  "message": "Želim da radim na gubitku masti..."
+}
+```
+
+### Coach Member Requests (Staff only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/member-requests` | GET | Get pending requests from members |
+| `/api/coach/member-requests/[id]` | POST | Accept or decline request |
+
+**POST body:**
+```json
+{
+  "action": "accept",
+  "notes": "Welcome!",
+  "customGoal": "fat_loss",
+  "customCalories": 2200
 }
 ```
 

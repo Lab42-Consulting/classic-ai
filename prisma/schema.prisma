@@ -78,6 +78,7 @@ model Staff {
   coachRequests     CoachRequest[]    // Pending coach requests sent by this coach
   nudges            CoachNudge[]
   coachKnowledge    CoachKnowledge[]
+  createdMeals      CustomMeal[]      // Meals created by coach for their members
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -325,12 +326,18 @@ model CoachRequest {
 }
 
 // Custom meals created by members (with ingredients)
+// Can also be created by coaches for their assigned members
 model CustomMeal {
   id              String           @id @default(cuid())
   memberId        String
   member          Member           @relation(fields: [memberId], references: [id], onDelete: Cascade)
   gymId           String
   gym             Gym              @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // If set, this meal was created by a coach for the member
+  // Member can see and use the meal but cannot edit it
+  createdByCoachId String?
+  createdByCoach   Staff?           @relation(fields: [createdByCoachId], references: [id], onDelete: SetNull)
 
   name            String           // Meal name
 

@@ -476,6 +476,32 @@ export default function CoachDashboard() {
           </SlideUp>
         )}
 
+        {/* Discover Members Button (for coaches) */}
+        {data.isCoach && (
+          <SlideUp delay={175}>
+            <GlassCard
+              hover
+              className="cursor-pointer border-accent/20"
+              onClick={() => router.push("/register")}
+            >
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                    <span className="text-lg">🔍</span>
+                  </div>
+                  <div>
+                    <p className="font-medium text-foreground">Pronađi članove</p>
+                    <p className="text-sm text-foreground-muted">Pregledaj članove teretane i pošalji zahtev</p>
+                  </div>
+                </div>
+                <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </GlassCard>
+          </SlideUp>
+        )}
+
         {/* Needs Attention Alert */}
         {data.stats.needsAttention > 0 && (
           <SlideUp delay={200}>

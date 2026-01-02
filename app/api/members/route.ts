@@ -100,9 +100,22 @@ export async function GET() {
         id: true,
         memberId: true,
         name: true,
+        avatarUrl: true,
         goal: true,
         status: true,
+        subscriptionStatus: true,
+        subscribedUntil: true,
         createdAt: true,
+        coachAssignment: {
+          select: {
+            staff: {
+              select: {
+                id: true,
+                name: true,
+              },
+            },
+          },
+        },
         _count: {
           select: {
             dailyLogs: true,
@@ -147,6 +160,7 @@ export async function GET() {
           ...member,
           activityStatus,
           lastActivity: recentLogs[0]?.createdAt || null,
+          coach: member.coachAssignment?.staff || null,
         };
       })
     );

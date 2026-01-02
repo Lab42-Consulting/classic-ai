@@ -14,7 +14,16 @@ export async function GET() {
 
     const gym = await prisma.gym.findUnique({
       where: { id: session.gymId },
-      select: { settings: true },
+      select: {
+        id: true,
+        name: true,
+        logo: true,
+        settings: true,
+        subscriptionStatus: true,
+        subscribedAt: true,
+        subscribedUntil: true,
+        primaryColor: true,
+      },
     });
 
     if (!gym) {
@@ -22,9 +31,72 @@ export async function GET() {
     }
 
     // Parse settings as GymSettings (it's stored as JSON)
-    const settings = gym.settings as GymSettings;
+    // Merge primaryColor into settings so theme context can use it
+    const baseSettings = gym.settings as GymSettings;
+    const settings: GymSettings = {
+      ...baseSettings,
+      // Use primaryColor from gym model if set, otherwise fall back to settings.accentColor
+      accentColor: gym.primaryColor || baseSettings?.accentColor,
+    };
 
-    return NextResponse.json({ settings });
+    // If user is staff, include staff data and gym stats
+    if (session.userType === "staff") {
+      const staff = await prisma.staff.findUnique({
+        where: { id: session.userId },
+        select: {
+          id: true,
+          name: true,
+          role: true,
+        },
+      });
+
+      // Get gym stats
+      const [totalMembers, activeMembers, totalStaff, coaches] = await Promise.all([
+        prisma.member.count({ where: { gymId: session.gymId } }),
+        prisma.member.count({
+          where: {
+            gymId: session.gymId,
+            subscriptionStatus: "active",
+          },
+        }),
+        prisma.staff.count({ where: { gymId: session.gymId } }),
+        prisma.staff.count({
+          where: {
+            gymId: session.gymId,
+            role: { equals: "coach", mode: "insensitive" },
+          },
+        }),
+      ]);
+
+      return NextResponse.json({
+        settings,
+        gym: {
+          id: gym.id,
+          name: gym.name,
+          logo: gym.logo,
+          subscriptionStatus: gym.subscriptionStatus,
+          subscribedAt: gym.subscribedAt,
+          subscribedUntil: gym.subscribedUntil,
+          primaryColor: gym.primaryColor,
+        },
+        staff,
+        stats: {
+          totalMembers,
+          activeMembers,
+          totalStaff,
+          coaches,
+        },
+      });
+    }
+
+    // For members, return settings and basic gym info (logo, name)
+    return NextResponse.json({
+      settings,
+      gym: {
+        name: gym.name,
+        logo: gym.logo,
+      },
+    });
   } catch (error) {
     console.error("Error fetching gym settings:", error);
     return NextResponse.json({ settings: {} });

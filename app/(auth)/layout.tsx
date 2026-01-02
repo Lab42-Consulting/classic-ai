@@ -1,11 +1,9 @@
-"use client";
-
-import { ThemeProvider } from "@/lib/theme-context";
-
 export default function AuthLayout({
   children,
 }: {
   children: React.ReactNode;
 }) {
-  return <ThemeProvider>{children}</ThemeProvider>;
+  // Auth pages (login) don't use gym-specific theming
+  // They always use default colors
+  return <>{children}</>;
 }

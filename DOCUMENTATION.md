@@ -10,23 +10,34 @@ A digital accountability and guidance system for gym members and staff.
 2. [Environment Setup](#environment-setup)
 3. [Database Setup](#database-setup)
 4. [Running the Application](#running-the-application)
-5. [Staff Guide](#staff-guide)
+5. [Admin Guide (Gym Portal)](#admin-guide-gym-portal)
+   - [Logging In as Admin](#logging-in-as-admin)
+   - [Admin Dashboard](#admin-dashboard)
+   - [Member Management](#member-management)
+   - [Staff Management](#staff-management)
+   - [Gym Branding](#gym-branding)
+6. [Coach Guide](#coach-guide)
+   - [Logging In as Coach](#logging-in-as-coach)
+   - [Coach Dashboard](#coach-dashboard)
+   - [Personal Fitness Tracking (Dual-Role)](#personal-fitness-tracking-dual-role)
    - [Coach Assignment](#coach-assignment)
+   - [Coach Request Flow](#coach-request-flow)
    - [Require Exact Macros](#require-exact-macros-feature)
    - [Coach Nudges](#coach-nudges)
    - [Per-Member AI Knowledge](#per-member-ai-knowledge)
    - [Coach Meal Creation](#coach-meal-creation)
-6. [Member Guide](#member-guide)
+7. [Member Guide](#member-guide)
    - [Custom Meal System](#custom-meal-system)
    - [Coach Meals](#coach-meals)
    - [Browse and Request Coaches](#browse-and-request-coaches)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
+   - [Custom Nutrition Targets](#custom-nutrition-targets)
    - [Meal Logging Modes](#log-a-meal)
    - [AI Agents](#ai-agents)
    - [Weekly Check-In](#weekly-check-in)
-7. [API Reference](#api-reference)
-8. [Configuration](#configuration)
+8. [API Reference](#api-reference)
+9. [Configuration](#configuration)
 
 ---
 
@@ -122,21 +133,110 @@ npm start
 
 ---
 
-## Staff Guide
+## Admin Guide (Gym Portal)
 
-### Logging In
+Administrators use the **Gym Portal** at `/gym-portal/manage` - a desktop-first interface for comprehensive gym management.
+
+### Logging In as Admin
+
+1. Go to `/staff-login`
+2. Enter your Staff ID (e.g., `S-ADMIN`)
+3. Enter your 4-digit PIN
+4. **Admins are automatically redirected to `/gym-portal/manage`**
+
+> **Note:** Admins cannot access the coach dashboard at `/dashboard`. If you try to navigate there, you'll be redirected back to the Gym Portal.
+
+### Admin Dashboard
+
+The admin dashboard at `/gym-portal/manage` shows:
+
+- **Gym subscription status** and expiration
+- **Stats cards**: Total members, Active members, Total staff, Coaches
+- **Quick action buttons**: Members, Staff, Branding
+
+### Member Management
+
+Access the full member list at `/gym-portal/manage/members`:
+
+- **Search** members by name or member ID
+- **Filter by**:
+  - Goal (Fat Loss, Muscle Gain, Recomposition)
+  - Activity status (Active, Slipping, Inactive)
+  - Subscription status (Active, Expiring, Expired)
+- **View subscription status** for each member
+- Click any member to see details
+
+#### Registering a New Member (Admin)
+
+1. Go to `/gym-portal/manage/members/new`
+2. Fill in the form:
+   - **Name** (required): Member's name or nickname
+   - **Height** (optional): In centimeters
+   - **Weight** (optional): In kilograms
+   - **Gender** (optional): Male, Female, or Other
+   - **Goal** (required): Fat Loss, Muscle Gain, or Recomposition
+3. Click **"Registruj člana"**
+4. Share the credentials with the member:
+   - **Member ID**: 6-character code
+   - **PIN**: 4-digit code
+   - **QR Code**: For quick login
+
+#### Member Subscription Management
+
+View and extend member subscriptions at `/gym-portal/manage/members/[id]`:
+
+1. See current subscription status (Active, Expired, Expiring)
+2. Click **"Produži"** to extend subscription
+3. Choose duration: 1, 3, 6, or 12 months
+4. Or use custom date picker for specific end date
+
+### Staff Management
+
+Manage gym staff at `/gym-portal/manage/staff`:
+
+- View all staff members (admins and coaches)
+- See assigned member count per coach
+- **Add new staff**: Click "Dodaj novog člana osoblja"
+  - Enter name
+  - Select role (Coach or Admin)
+  - Credentials are auto-generated (Staff ID + PIN)
+
+### Gym Branding
+
+Customize your gym's appearance at `/gym-portal/manage/branding`:
+
+1. **Logo upload**: Click to upload your gym logo (max 2MB)
+2. **Primary color**: Use the color picker to set your accent color
+3. Click **"Sačuvaj promene"** to save
+
+**How branding works:**
+- Custom colors apply to **members** and **coaches** after login
+- **Login pages always use default colors** (red accent)
+- Logo appears in member and coach headers
+
+---
+
+## Coach Guide
+
+Coaches use the **Dashboard** at `/dashboard` - a mobile-first interface for day-to-day member coaching.
+
+### Logging In as Coach
 
 1. Go to `/staff-login`
 2. Enter your Staff ID (e.g., `S-AB12`)
 3. Enter your 4-digit PIN
+4. **Coaches are automatically redirected to `/dashboard`**
 
-### Dashboard
+> **Note:** Coaches cannot access the admin Gym Portal at `/gym-portal/manage`. If you try to navigate there, you'll be redirected back to the Dashboard.
 
-After login, you'll see the **Staff Dashboard** with:
+### Coach Dashboard
 
-- **Stats cards**: Total members, Active, Slipping, Inactive
-- **Filter buttons**: Filter members by activity status
+After login, you'll see the **Coach Dashboard** with:
+
+- **Stats cards**: Assigned members, Active, Slipping, Inactive
+- **Filter buttons**: Filter your assigned members by activity status
 - **Member list**: Click any member to view details
+- **Pending requests**: Member requests awaiting your response
 
 #### Activity Status Definitions
 
@@ -146,30 +246,49 @@ After login, you'll see the **Staff Dashboard** with:
 | Slipping | Some activity in last 30 days, but <3 logs in last week |
 | Inactive | No activity in last 30 days |
 
-### Registering a New Member
-
-1. Click **"Register New Member"** button
-2. Fill in the form:
-   - **Name** (required): Member's name or nickname
-   - **Height** (optional): In centimeters
-   - **Weight** (optional): In kilograms
-   - **Gender** (optional): Male, Female, or Other
-   - **Goal** (required): Fat Loss, Muscle Gain, or Recomposition
-3. Click **"Register Member"**
-4. Share the credentials with the member:
-   - **Member ID**: 6-character code (e.g., `ABC123`)
-   - **PIN**: 4-digit code
-   - **QR Code**: For quick login
-
 ### Viewing Member Details
 
-Click on any member in the list to see:
+Click on any member in your list to see:
 
 - Profile information and goals
 - Consistency streak
 - Activity summary (meals, training, water logs)
 - Weight progress from weekly check-ins
 - AI-generated summaries
+
+### Personal Fitness Tracking (Dual-Role)
+
+Coaches can track their own fitness progress using the same member features:
+
+**Setting Up Your Personal Account:**
+
+1. On the dashboard header, click **"Moj nalog"** (or the + icon if not set up yet)
+2. If you don't have a linked member account, a setup modal appears:
+   - **Select your goal**: Fat Loss, Muscle Gain, or Recomposition
+   - **Enter your weight** (optional): Current weight in kg
+3. Click **"Kreiraj nalog"**
+
+**How It Works:**
+
+- Uses the **same PIN** as your staff account (no additional login needed)
+- Your member account gets **free subscription** (no 5€/month fee)
+- Access all member features: meal logging, AI chat, progress tracking, check-ins
+- Click **"Moj nalog"** button anytime to switch to member view
+
+**Switching Between Views:**
+
+| View | How to Access |
+|------|---------------|
+| Coach Dashboard | Click logout icon → login as staff, or navigate to `/dashboard` |
+| Member Home | Click "Moj nalog" button in dashboard header |
+
+**API Endpoints:**
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/staff/member-account` | GET | Check if staff has linked member |
+| `/api/staff/member-account` | POST | Create or link member account |
+| `/api/staff/member-account` | DELETE | Unlink member account |
 
 ### Coach Assignment
 
@@ -186,6 +305,46 @@ Staff members can assign themselves as a coach to gym members for personalized t
 5. Click "Dodeli člana" to complete the assignment
 
 **Important:** One member can only have one coach. If macros are entered, calories are auto-calculated using the formula: `Calories = (P × 4) + (C × 4) + (F × 9)`
+
+### Coach Request Flow
+
+The coach-member relationship follows a specific flow with two types of requests:
+
+**Member-Initiated Requests (Interest Signals):**
+
+When a member browses coaches and sends a request:
+1. Member goes to `/find-coach` and clicks "Pošalji zahtev" on a coach
+2. Creates a `CoachRequest` with `initiatedBy: "member"`
+3. Coach sees notification in their dashboard under "Zahtevi članova"
+4. This is just an **interest signal** - member is saying "I'd like to work with you"
+5. Coach accepts/declines the notification (this is a meeting acknowledgment)
+6. After accepting, the coach should meet the member in person
+
+**Coach-Initiated Requests (Formal Plans):**
+
+After the meeting, coach sends a formal request with a plan:
+1. Coach goes to `/register` and finds the member
+2. Clicks "Dodeli člana" and configures:
+   - Custom goal, calories, macros
+   - Optional notes
+   - Require exact macros toggle
+3. Creates a `CoachRequest` with `initiatedBy: "coach"`
+4. **Member sees this on their home screen** as "Coach X želi da postane tvoj trener"
+5. Member reviews the proposed plan and accepts/declines
+6. If accepted: `CoachAssignment` is created, member's progress is reset
+
+**Key Differences:**
+
+| Type | Who Sees It | Action Required | Creates Assignment |
+|------|-------------|-----------------|-------------------|
+| Member-initiated | Coach dashboard | Meeting acknowledgment | No |
+| Coach-initiated | Member home screen | Accept/decline plan | Yes (on accept) |
+
+**Edge Cases:**
+
+- If member sends interest to Coach A, Coach A can still send them a formal plan (replaces the interest signal)
+- If member has pending coach-initiated request, other coaches cannot send requests
+- Member can only have one pending request at a time
 
 ### Require Exact Macros Feature
 
@@ -434,6 +593,41 @@ For detailed tracking, visit the **Progress page** (`/progress`):
 | Calorie adherence | 25 points |
 | Protein adherence | 15 points |
 | Water consistency | 10 points |
+
+### Custom Nutrition Targets
+
+Members can manually adjust their daily nutrition targets from the **Profile page**:
+
+**Location:** Profile → "Daily Targets" section
+
+**Available Fields:**
+- Calories (kcal): 800-10000
+- Protein (g): 0-500
+- Carbs (g): 0-1000
+- Fats (g): 0-500
+
+**How to Adjust:**
+1. Go to your Profile page
+2. Find the "Dnevni ciljevi" (Daily Targets) section
+3. Click "Izmeni" (Edit)
+4. Enter your custom values in the modal
+5. Click "Sačuvaj" (Save)
+
+**Reset to Auto:** Click "Vrati na automatski izračunato" to reset all targets to auto-calculated values based on your weight and goal.
+
+**Target Priority:**
+The system uses the following priority for determining your daily targets:
+1. **Coach-assigned targets** (highest priority) - if you have a coach
+2. **Your custom targets** - values you set manually
+3. **Auto-calculated targets** - based on your weight and goal
+
+**Important:** If you have an assigned coach, you **cannot** modify your targets. The "Izmeni" button will be hidden, and you'll see a notice showing your coach's name. Contact your coach to request target changes.
+
+**Coach Notice Example:**
+```
+👨‍🏫 Managed by Coach Marko
+Contact your coach to adjust targets
+```
 
 ### Logging Actions
 

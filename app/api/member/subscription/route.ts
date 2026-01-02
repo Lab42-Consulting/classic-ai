@@ -10,6 +10,7 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
+    // Fetch member with their gym's subscription status
     const member = await prisma.member.findUnique({
       where: { id: session.userId },
       select: {
@@ -17,6 +18,12 @@ export async function GET() {
         subscribedAt: true,
         subscribedUntil: true,
         subscriptionStatus: true,
+        gym: {
+          select: {
+            subscriptionStatus: true,
+            subscribedUntil: true,
+          },
+        },
       },
     });
 
@@ -24,7 +31,19 @@ export async function GET() {
       return NextResponse.json({ error: "Member not found" }, { status: 404 });
     }
 
-    // Check if subscription has expired and update status if needed
+    // Check gym subscription status first
+    // If gym is expired, members cannot access the app
+    if (member.gym) {
+      const gymStatus = member.gym.subscriptionStatus;
+      if (gymStatus === "expired") {
+        return NextResponse.json({
+          status: "gym_expired",
+          message: "Gym subscription has expired",
+        });
+      }
+    }
+
+    // Check if member subscription has expired and update status if needed
     let subscriptionStatus = member.subscriptionStatus;
     const now = new Date();
 

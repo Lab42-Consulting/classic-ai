@@ -11,6 +11,7 @@ interface SubscriptionGuardProps {
 const ALLOWED_EXPIRED_PATHS = [
   "/subscription-expired",
   "/subscription",
+  "/unavailable",
 ];
 
 export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
@@ -40,8 +41,14 @@ export function SubscriptionGuard({ children }: SubscriptionGuardProps) {
 
         const data = await response.json();
 
+        if (data.status === "gym_expired") {
+          // Gym subscription expired - show generic unavailable message
+          router.replace("/unavailable");
+          return;
+        }
+
         if (data.status === "expired") {
-          // Redirect to expired page
+          // Member subscription expired
           router.replace("/subscription-expired");
           return;
         }

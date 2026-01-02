@@ -42,15 +42,15 @@ export async function GET() {
       },
     });
 
-    // Calculate targets (use coach targets if available)
+    // Priority: Coach targets > Member custom targets > Auto-calculated
     const autoTargets = calculateDailyTargets(
       member.weight || 70,
       member.goal as Goal
     );
     const coachTargets = member.coachAssignment;
     const targets = {
-      calories: coachTargets?.customCalories || autoTargets.calories,
-      protein: coachTargets?.customProtein || autoTargets.protein,
+      calories: coachTargets?.customCalories || member.customCalories || autoTargets.calories,
+      protein: coachTargets?.customProtein || member.customProtein || autoTargets.protein,
     };
 
     // Calculate weekly stats for consistency

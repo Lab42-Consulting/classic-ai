@@ -66,11 +66,22 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Check for existing pending request
     if (member.coachRequest) {
-      return NextResponse.json(
-        { error: "Member already has a pending coach request" },
-        { status: 400 }
-      );
+      // If it's a member-initiated request TO THIS SAME COACH, we can replace it
+      // with a proper coach-initiated request that includes the plan
+      if (member.coachRequest.initiatedBy === "member" && member.coachRequest.staffId === session.userId) {
+        // Delete the member's interest signal - we're replacing it with a coach request
+        await prisma.coachRequest.delete({
+          where: { id: member.coachRequest.id },
+        });
+      } else {
+        // Either it's a coach-initiated request already, or it's to a different coach
+        return NextResponse.json(
+          { error: "Member already has a pending coach request" },
+          { status: 400 }
+        );
+      }
     }
 
     // Create a pending coach request (NOT an assignment)

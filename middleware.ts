@@ -7,6 +7,10 @@ const publicPaths = [
   "/api/auth/login",
   "/api/auth/staff-login",
   "/api/gyms",
+  "/gym-portal",
+  "/api/gym/register",
+  "/api/stripe",
+  "/unavailable",
 ];
 
 const memberPaths = ["/home", "/log", "/checkin", "/chat", "/history"];
@@ -54,7 +58,9 @@ export async function middleware(request: NextRequest) {
   const isMemberPath = memberPaths.some((path) => pathname.startsWith(path));
   const isStaffPath = staffPaths.some((path) => pathname.startsWith(path));
 
-  if (isMemberPath && session.userType !== "member") {
+  // Staff can access member paths if they have a linked member account
+  // The actual check happens at the page level
+  if (isMemberPath && session.userType !== "member" && session.userType !== "staff") {
     return NextResponse.redirect(new URL("/dashboard", request.url));
   }
 

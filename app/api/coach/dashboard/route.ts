@@ -378,11 +378,50 @@ export async function GET() {
       needsAttention: membersWithStats.filter(m => m.alerts.length > 0).length,
     };
 
+    // Calculate expiring subscriptions (only for this gym)
+    const sevenDaysFromNow = new Date(now);
+    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+    const thirtyDaysFromNow = new Date(now);
+    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+    const [expiringIn7Days, expiringIn30Days, expiredCount] = await Promise.all([
+      prisma.member.count({
+        where: {
+          gymId: session.gymId,
+          subscriptionStatus: "active",
+          subscribedUntil: {
+            gte: now,
+            lte: sevenDaysFromNow,
+          },
+        },
+      }),
+      prisma.member.count({
+        where: {
+          gymId: session.gymId,
+          subscriptionStatus: "active",
+          subscribedUntil: {
+            gt: sevenDaysFromNow,
+            lte: thirtyDaysFromNow,
+          },
+        },
+      }),
+      prisma.member.count({
+        where: {
+          gymId: session.gymId,
+          subscriptionStatus: "expired",
+        },
+      }),
+    ]);
+
     return NextResponse.json({
       coachName: staff.name,
       isCoach,
       stats,
       members: membersWithStats,
+      expiringSubscriptions: {
+        expiringIn7Days,
+        expiringIn30Days,
+        expiredCount,
+      },
     });
   } catch (error) {
     console.error("Coach dashboard error:", error);

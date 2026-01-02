@@ -10,9 +10,27 @@ datasource db {
 model Gym {
   id              String            @id @default(cuid())
   name            String
-  logo            String?
+  logo            String?           @db.Text // Base64 encoded logo image
   settings        Json              @default("{}")
   aiMonthlyBudget Float?            // Monthly AI budget cap in USD (null = unlimited)
+
+  // Subscription fields (B2B - 150€/month)
+  subscribedAt        DateTime?     // When gym subscription was first activated
+  subscribedUntil     DateTime?     // When current subscription period ends
+  subscriptionStatus  String        @default("pending") // pending | active | grace | expired
+  stripeCustomerId    String?       // Stripe customer ID
+  stripeSubscriptionId String?      // Stripe subscription ID
+
+  // Branding customization
+  primaryColor    String?           // Primary brand color (e.g., #ef4444)
+  secondaryColor  String?           // Secondary color
+
+  // Contact info for gym portal
+  ownerEmail      String?           // Gym owner email for billing
+  ownerName       String?           // Gym owner name
+  phone           String?           // Contact phone
+  address         String?           // Gym address
+
   members         Member[]
   staff           Staff[]
   aiUsageMonthly  AIUsageMonthly[]
@@ -21,6 +39,8 @@ model Gym {
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
+  @@index([subscriptionStatus])
+  @@index([stripeCustomerId])
   @@map("gyms")
 }
 
@@ -38,6 +58,14 @@ model Member {
   status              String            @default("active")
   locale              String            @default("sr") // sr | en
   hasSeenOnboarding   Boolean           @default(false) // Track if user has seen the "Why This Works" explainer
+
+  // Custom targets (member can set these if they don't have a coach)
+  // Priority: CoachAssignment targets > Member custom targets > Auto-calculated
+  customCalories      Int?              // Custom daily calorie target
+  customProtein       Int?              // Custom protein target (grams)
+  customCarbs         Int?              // Custom carbs target (grams)
+  customFats          Int?              // Custom fats target (grams)
+
   // Subscription fields (renewed at gym counter, 5€/month)
   subscribedAt        DateTime?         // When subscription was first activated
   subscribedUntil     DateTime?         // When current subscription period ends
@@ -54,6 +82,10 @@ model Member {
   coachKnowledge      CoachKnowledge[]  // Per-member AI knowledge from coach
   customMeals         CustomMeal[]      // Member's saved meals
   savedIngredients    SavedIngredient[] // Member's saved ingredients
+
+  // Dual-role: Staff member linked to this account (for coaches who track their own progress)
+  staffAccount        Staff?            @relation("StaffMemberLink")
+
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -71,8 +103,15 @@ model Staff {
   name              String
   role              String            // "ADMIN" | "COACH"
   locale            String            @default("sr") // sr | en
+  avatarUrl         String?           @db.Text // Base64 encoded avatar image
+  bio               String?           @db.Text // Short bio/description for coach profile
   gymId             String
   gym               Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Dual-role: Staff can optionally link to a Member account for personal tracking
+  linkedMemberId    String?           @unique
+  linkedMember      Member?           @relation("StaffMemberLink", fields: [linkedMemberId], references: [id], onDelete: SetNull)
+
   notes             StaffNote[]
   assignedMembers   CoachAssignment[]
   coachRequests     CoachRequest[]    // Pending coach requests sent by this coach
@@ -407,4 +446,30 @@ model MealIngredient {
 
   @@index([mealId])
   @@map("meal_ingredients")
+}
+
+// Subscription history log - tracks all subscription changes for gyms and members
+model SubscriptionLog {
+  id              String    @id @default(cuid())
+
+  // Polymorphic - can track gym or member subscriptions
+  entityType      String    // "gym" | "member"
+  entityId        String    // Gym ID or Member ID
+
+  action          String    // "activated" | "extended" | "expired" | "payment_received" | "grace_started"
+  previousEndDate DateTime?
+  newEndDate      DateTime?
+  months          Int?      // Number of months added
+  amount          Float?    // Payment amount (150€ for gym, 5€ for member)
+  notes           String?
+
+  // Who made the change
+  performedBy     String?   // Staff ID who made the change (null for automated/Stripe)
+  performedByType String?   // "staff" | "system" | "stripe"
+
+  createdAt       DateTime  @default(now())
+
+  @@index([entityType, entityId])
+  @@index([createdAt])
+  @@map("subscription_logs")
 }

@@ -59,6 +59,8 @@ export async function GET(
         gender: true,
         status: true,
         subscriptionStatus: true,
+        subscribedAt: true,
+        subscribedUntil: true,
         createdAt: true,
       },
     });
@@ -191,6 +193,8 @@ export async function GET(
     return NextResponse.json({
       member: {
         ...member,
+        subscribedAt: member.subscribedAt?.toISOString() || null,
+        subscribedUntil: member.subscribedUntil?.toISOString() || null,
         memberSince: member.createdAt,
       },
       snapshot: {

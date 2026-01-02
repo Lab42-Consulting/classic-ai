@@ -57,6 +57,8 @@ interface HomeData {
   weeklyTrainingSessions: number;
   nudges: NudgeData[];
   pendingCoachRequest: CoachRequestData | null;
+  // Staff viewing as member (dual-role)
+  isStaffMember: boolean;
 }
 
 interface HomeClientProps {
@@ -250,6 +252,20 @@ export function HomeClient({ data }: HomeClientProps) {
             <h1 className="text-3xl text-display text-foreground mt-1">
               {data.memberName}
             </h1>
+
+            {/* Coach Mode Toggle - Only for staff with linked member account */}
+            {data.isStaffMember && (
+              <button
+                onClick={() => router.push("/dashboard")}
+                className="mt-3 inline-flex items-center gap-2 px-4 py-2 bg-accent/10 hover:bg-accent/20 border border-accent/30 rounded-full transition-colors"
+              >
+                <span className="text-sm">👨‍🏫</span>
+                <span className="text-sm font-medium text-accent">Trenerski režim</span>
+                <svg className="w-4 h-4 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7h12m0 0l-4-4m4 4l-4 4m0 6H4m0 0l4 4m-4-4l4-4" />
+                </svg>
+              </button>
+            )}
           </div>
         </FadeIn>
       </header>
@@ -368,8 +384,8 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
-      {/* Find Coach Card - Show when member has no coach and no pending request */}
-      {!data.hasCoach && !coachRequest && (
+      {/* Find Coach Card - Show when member has no coach, no pending request, and is not staff */}
+      {!data.hasCoach && !coachRequest && !data.isStaffMember && (
         <div className="px-6 mb-4">
           <SlideUp delay={50}>
             <button

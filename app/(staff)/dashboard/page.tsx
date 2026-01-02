@@ -2,7 +2,8 @@
 
 import { useEffect, useState } from "react";
 import { useRouter } from "next/navigation";
-import { Button, Card, GlassCard, FadeIn, SlideUp } from "@/components/ui";
+import { Button, Card, GlassCard, FadeIn, SlideUp, Modal } from "@/components/ui";
+import { Input } from "@/components/ui/input";
 
 interface MemberStats {
   id: string;
@@ -25,6 +26,18 @@ interface MemberStats {
   alerts: string[];
 }
 
+interface ExpiringSubscriptions {
+  expiringIn7Days: number;
+  expiringIn30Days: number;
+  expiredCount: number;
+}
+
+interface LinkedMember {
+  id: string;
+  memberId: string;
+  name: string;
+}
+
 interface DashboardData {
   coachName: string;
   isCoach: boolean;
@@ -36,6 +49,8 @@ interface DashboardData {
     needsAttention: number;
   };
   members: MemberStats[];
+  expiringSubscriptions?: ExpiringSubscriptions;
+  linkedMember?: LinkedMember | null;
 }
 
 interface MemberRequest {
@@ -56,19 +71,6 @@ interface MemberRequest {
   createdAt: string;
 }
 
-interface PendingShare {
-  id: string;
-  name: string;
-  totalCalories: number;
-  totalProtein: number;
-  totalCarbs: number;
-  totalFats: number;
-  ingredientCount: number;
-  ingredients: { name: string; portionSize: number; calories: number }[];
-  memberName: string;
-  memberId: string;
-  requestedAt: string | null;
-}
 
 const activityColors = {
   on_track: "bg-success",
@@ -113,12 +115,17 @@ export default function CoachDashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [memberRequests, setMemberRequests] = useState<MemberRequest[]>([]);
-  const [pendingShares, setPendingShares] = useState<PendingShare[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "on_track" | "slipping" | "off_track">("all");
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
-  const [processingShare, setProcessingShare] = useState<string | null>(null);
   const [toast, setToast] = useState<{ message: string; phone?: string } | null>(null);
+  const [linkedMember, setLinkedMember] = useState<LinkedMember | null>(null);
+  const [showMemberSetup, setShowMemberSetup] = useState(false);
+  const [memberSetupGoal, setMemberSetupGoal] = useState("fat_loss");
+  const [memberSetupWeight, setMemberSetupWeight] = useState("");
+  const [memberSetupHeight, setMemberSetupHeight] = useState("");
+  const [memberSetupLoading, setMemberSetupLoading] = useState(false);
+  const [memberSetupError, setMemberSetupError] = useState("");
 
   const fetchMemberRequests = async () => {
     try {
@@ -132,35 +139,17 @@ export default function CoachDashboard() {
     }
   };
 
-  const fetchPendingShares = async () => {
+  const fetchLinkedMember = async () => {
     try {
-      const response = await fetch("/api/admin/pending-shares");
+      const response = await fetch("/api/staff/member-account");
       if (response.ok) {
         const result = await response.json();
-        setPendingShares(result.pendingMeals || []);
+        if (result.linkedMember) {
+          setLinkedMember(result.linkedMember);
+        }
       }
     } catch {
       // Handle error silently
-    }
-  };
-
-  const handleShareAction = async (mealId: string, action: "approve" | "reject") => {
-    setProcessingShare(mealId);
-    try {
-      const response = await fetch("/api/admin/pending-shares", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({ mealId, action }),
-      });
-
-      if (response.ok) {
-        // Refresh pending shares list
-        await fetchPendingShares();
-      }
-    } catch {
-      // Handle error silently
-    } finally {
-      setProcessingShare(null);
     }
   };
 
@@ -170,14 +159,18 @@ export default function CoachDashboard() {
         const response = await fetch("/api/coach/dashboard");
         if (response.ok) {
           const result = await response.json();
+
+          // Redirect admins to gym portal - dashboard is for coaches only
+          if (!result.isCoach) {
+            router.push("/gym-portal/manage");
+            return;
+          }
+
           setData(result);
           // Fetch member requests for coaches
-          if (result.isCoach) {
-            await fetchMemberRequests();
-          } else {
-            // Fetch pending share requests for admins
-            await fetchPendingShares();
-          }
+          await fetchMemberRequests();
+          // Fetch linked member account
+          await fetchLinkedMember();
         }
       } catch {
         // Handle error silently
@@ -187,7 +180,7 @@ export default function CoachDashboard() {
     };
 
     fetchDashboard();
-  }, []);
+  }, [router]);
 
   const handleRequestAction = async (requestId: string, action: "accept" | "decline") => {
     setProcessingRequest(requestId);
@@ -232,6 +225,62 @@ export default function CoachDashboard() {
     router.push("/staff-login");
   };
 
+  const handleCreateMemberAccount = async () => {
+    // Validate required fields
+    if (!memberSetupWeight || !memberSetupHeight) {
+      setMemberSetupError("Težina i visina su obavezni");
+      return;
+    }
+
+    const weight = parseFloat(memberSetupWeight);
+    const height = parseFloat(memberSetupHeight);
+
+    if (isNaN(weight) || weight <= 0 || weight > 300) {
+      setMemberSetupError("Unesi validnu težinu (1-300 kg)");
+      return;
+    }
+
+    if (isNaN(height) || height <= 0 || height > 250) {
+      setMemberSetupError("Unesi validnu visinu (1-250 cm)");
+      return;
+    }
+
+    setMemberSetupLoading(true);
+    setMemberSetupError("");
+
+    try {
+      const response = await fetch("/api/staff/member-account", {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          action: "create",
+          goal: memberSetupGoal,
+          weight: weight,
+          height: height,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (!response.ok) {
+        setMemberSetupError(result.error || "Greška pri kreiranju naloga");
+        return;
+      }
+
+      // Success - update linked member and redirect
+      setLinkedMember(result.member);
+      setShowMemberSetup(false);
+      setToast({ message: "Nalog kreiran! Preusmerjavanje..." });
+      setTimeout(() => {
+        router.push("/home");
+      }, 1500);
+    } catch {
+      setMemberSetupError("Greška u povezivanju. Pokušaj ponovo.");
+    } finally {
+      setMemberSetupLoading(false);
+    }
+  };
+
   if (loading) {
     return (
       <div className="min-h-screen bg-background flex items-center justify-center">
@@ -265,21 +314,45 @@ export default function CoachDashboard() {
       {/* Header */}
       <header className="px-6 pt-12 pb-6 flex items-center justify-between">
         <div>
-          <p className="text-foreground-muted text-sm">
-            {data.isCoach ? "Tvoji klijenti" : "Kontrolna tabla"}
-          </p>
+          <p className="text-foreground-muted text-sm">Tvoji klijenti</p>
           <h1 className="text-2xl font-bold text-foreground">
             {data.coachName}
           </h1>
         </div>
-        <button
-          onClick={handleLogout}
-          className="p-2 text-foreground-muted hover:text-foreground"
-        >
-          <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
-          </svg>
-        </button>
+        <div className="flex items-center gap-2">
+          {/* Member mode toggle */}
+          {linkedMember ? (
+            <button
+              onClick={() => router.push("/home")}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-accent/10 border border-accent/20 text-accent hover:bg-accent/20 transition-colors"
+              title="Prebaci na lični nalog"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
+              </svg>
+              <span className="text-sm font-medium hidden sm:inline">Moj nalog</span>
+            </button>
+          ) : (
+            <button
+              onClick={() => setShowMemberSetup(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-xl bg-background-secondary border border-border text-foreground-muted hover:text-foreground hover:border-accent/30 transition-colors"
+              title="Prati svoj napredak"
+            >
+              <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 4v16m8-8H4" />
+              </svg>
+              <span className="text-sm font-medium hidden sm:inline">Moj nalog</span>
+            </button>
+          )}
+          <button
+            onClick={handleLogout}
+            className="p-2 text-foreground-muted hover:text-foreground"
+          >
+            <svg className="w-6 h-6" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 16l4-4m0 0l-4-4m4 4H7m6 4v1a3 3 0 01-3 3H6a3 3 0 01-3-3V7a3 3 0 013-3h4a3 3 0 013 3v1" />
+            </svg>
+          </button>
+        </div>
       </header>
 
       <main className="px-6 space-y-6">
@@ -305,25 +378,57 @@ export default function CoachDashboard() {
           </div>
         </SlideUp>
 
-        {/* Admin Actions */}
-        {!data.isCoach && (
-          <SlideUp delay={150}>
+        {/* Expiring Subscriptions Alert */}
+        {data.expiringSubscriptions && (
+          data.expiringSubscriptions.expiredCount > 0 ||
+          data.expiringSubscriptions.expiringIn7Days > 0 ||
+          data.expiringSubscriptions.expiringIn30Days > 0
+        ) && (
+          <SlideUp delay={160}>
             <GlassCard
               hover
-              className="cursor-pointer"
-              onClick={() => router.push("/coaches")}
+              className={`cursor-pointer ${
+                data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
+                  ? "border-error/30 bg-error/5"
+                  : "border-warning/30 bg-warning/5"
+              }`}
+              onClick={() => router.push("/members?filter=expiring")}
             >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                    <span className="text-lg">👥</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Upravljanje osobljem</p>
-                    <p className="text-sm text-foreground-muted">Pregledaj i dodaj trenere</p>
+              <div className="flex items-start gap-3">
+                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                  data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
+                    ? "bg-error/20"
+                    : "bg-warning/20"
+                }`}>
+                  <span className="text-lg">💳</span>
+                </div>
+                <div className="flex-1">
+                  <p className={`font-medium ${
+                    data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
+                      ? "text-error"
+                      : "text-warning"
+                  }`}>
+                    Članarine
+                  </p>
+                  <div className="flex flex-wrap gap-2 mt-1">
+                    {data.expiringSubscriptions.expiredCount > 0 && (
+                      <span className="text-xs bg-error/20 text-error px-2 py-0.5 rounded-full">
+                        {data.expiringSubscriptions.expiredCount} isteklo
+                      </span>
+                    )}
+                    {data.expiringSubscriptions.expiringIn7Days > 0 && (
+                      <span className="text-xs bg-error/20 text-error px-2 py-0.5 rounded-full">
+                        {data.expiringSubscriptions.expiringIn7Days} ističe za 7 dana
+                      </span>
+                    )}
+                    {data.expiringSubscriptions.expiringIn30Days > 0 && (
+                      <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full">
+                        {data.expiringSubscriptions.expiringIn30Days} ističe za 30 dana
+                      </span>
+                    )}
                   </div>
                 </div>
-                <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className="w-5 h-5 text-foreground-muted flex-shrink-0 mt-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
@@ -331,95 +436,8 @@ export default function CoachDashboard() {
           </SlideUp>
         )}
 
-        {/* Pending Share Requests (for admins) */}
-        {!data.isCoach && pendingShares.length > 0 && (
-          <SlideUp delay={175}>
-            <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">🍽️</span>
-                <h2 className="font-semibold text-foreground">
-                  Zahtevi za deljenje obroka ({pendingShares.length})
-                </h2>
-              </div>
-              {pendingShares.map((share) => (
-                <GlassCard key={share.id} className="border-warning/20 bg-warning/5">
-                  <div className="space-y-3">
-                    {/* Meal info */}
-                    <div className="flex items-start gap-3">
-                      <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-6 h-6 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 6v6m0 0v6m0-6h6m-6 0H6" />
-                        </svg>
-                      </div>
-                      <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground">
-                          {share.name}
-                        </h3>
-                        <p className="text-sm text-foreground-muted">
-                          od {share.memberName} ({share.memberId})
-                        </p>
-                        <div className="flex flex-wrap gap-2 mt-2 text-xs text-foreground-muted">
-                          <span>{share.totalCalories} kcal</span>
-                          <span>•</span>
-                          <span>P: {share.totalProtein}g</span>
-                          <span>•</span>
-                          <span>U: {share.totalCarbs}g</span>
-                          <span>•</span>
-                          <span>M: {share.totalFats}g</span>
-                        </div>
-                      </div>
-                    </div>
-
-                    {/* Ingredients */}
-                    {share.ingredients.length > 0 && (
-                      <div className="bg-background-tertiary rounded-xl p-3">
-                        <p className="text-xs text-foreground-muted mb-2">
-                          Sastojci ({share.ingredientCount}):
-                        </p>
-                        <div className="flex flex-wrap gap-1">
-                          {share.ingredients.slice(0, 5).map((ing, i) => (
-                            <span
-                              key={i}
-                              className="text-xs bg-background-secondary px-2 py-0.5 rounded"
-                            >
-                              {ing.name} ({ing.portionSize}g)
-                            </span>
-                          ))}
-                          {share.ingredients.length > 5 && (
-                            <span className="text-xs text-foreground-muted">
-                              +{share.ingredients.length - 5}
-                            </span>
-                          )}
-                        </div>
-                      </div>
-                    )}
-
-                    {/* Action buttons */}
-                    <div className="flex gap-2">
-                      <button
-                        onClick={() => handleShareAction(share.id, "approve")}
-                        disabled={processingShare === share.id}
-                        className="flex-1 py-2.5 rounded-xl bg-success text-white font-medium hover:bg-success/90 transition-colors disabled:opacity-50"
-                      >
-                        {processingShare === share.id ? "..." : "Odobri"}
-                      </button>
-                      <button
-                        onClick={() => handleShareAction(share.id, "reject")}
-                        disabled={processingShare === share.id}
-                        className="flex-1 py-2.5 rounded-xl bg-background-tertiary text-foreground-muted font-medium hover:bg-background-secondary transition-colors disabled:opacity-50"
-                      >
-                        Odbij
-                      </button>
-                    </div>
-                  </div>
-                </GlassCard>
-              ))}
-            </div>
-          </SlideUp>
-        )}
-
-        {/* Member Requests Section (for coaches) */}
-        {data.isCoach && memberRequests.length > 0 && (
+        {/* Member Requests Section */}
+        {memberRequests.length > 0 && (
           <SlideUp delay={150}>
             <div className="space-y-3">
               <div className="flex items-center gap-2">
@@ -495,31 +513,29 @@ export default function CoachDashboard() {
           </SlideUp>
         )}
 
-        {/* Discover Members Button (for coaches) */}
-        {data.isCoach && (
-          <SlideUp delay={175}>
-            <GlassCard
-              hover
-              className="cursor-pointer border-accent/20"
-              onClick={() => router.push("/register")}
-            >
-              <div className="flex items-center justify-between">
-                <div className="flex items-center gap-3">
-                  <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                    <span className="text-lg">🔍</span>
-                  </div>
-                  <div>
-                    <p className="font-medium text-foreground">Pronađi članove</p>
-                    <p className="text-sm text-foreground-muted">Pregledaj članove teretane i pošalji zahtev</p>
-                  </div>
+        {/* Discover Members Button */}
+        <SlideUp delay={175}>
+          <GlassCard
+            hover
+            className="cursor-pointer border-accent/20"
+            onClick={() => router.push("/register")}
+          >
+            <div className="flex items-center justify-between">
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
+                  <span className="text-lg">🔍</span>
                 </div>
-                <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
+                <div>
+                  <p className="font-medium text-foreground">Pronađi članove</p>
+                  <p className="text-sm text-foreground-muted">Pregledaj članove teretane i pošalji zahtev</p>
+                </div>
               </div>
-            </GlassCard>
-          </SlideUp>
-        )}
+              <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </div>
+          </GlassCard>
+        </SlideUp>
 
         {/* Needs Attention Alert */}
         {data.stats.needsAttention > 0 && (
@@ -676,7 +692,7 @@ export default function CoachDashboard() {
         </SlideUp>
       </main>
 
-      {/* Add Member Button */}
+      {/* Assign Member Button */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent">
         <FadeIn delay={500}>
           <Button
@@ -684,7 +700,7 @@ export default function CoachDashboard() {
             size="lg"
             onClick={() => router.push("/register")}
           >
-            Registruj novog člana
+            Dodeli novog člana
           </Button>
         </FadeIn>
       </div>
@@ -723,6 +739,80 @@ export default function CoachDashboard() {
           </div>
         </div>
       )}
+
+      {/* Member Account Setup Modal */}
+      <Modal
+        isOpen={showMemberSetup}
+        onClose={() => setShowMemberSetup(false)}
+        title="Kreiraj lični nalog"
+      >
+        <div className="space-y-6">
+          <p className="text-foreground-muted text-sm">
+            Prati svoj napredak kao i tvoji klijenti. Koristiš isti PIN kao tvoj trenerski nalog.
+          </p>
+
+          {/* Goal selection */}
+          <div>
+            <label className="block text-sm font-medium text-foreground mb-3">
+              Tvoj cilj
+            </label>
+            <div className="space-y-2">
+              {[
+                { value: "fat_loss", label: "Gubitak masnoće", icon: "🔥" },
+                { value: "muscle_gain", label: "Rast mišića", icon: "💪" },
+                { value: "recomposition", label: "Rekompozicija", icon: "⚖️" },
+              ].map((goal) => (
+                <button
+                  key={goal.value}
+                  type="button"
+                  onClick={() => setMemberSetupGoal(goal.value)}
+                  className={`w-full flex items-center gap-3 p-3 rounded-xl border-2 transition-all ${
+                    memberSetupGoal === goal.value
+                      ? "border-accent bg-accent/10"
+                      : "border-border hover:border-accent/30"
+                  }`}
+                >
+                  <span className="text-xl">{goal.icon}</span>
+                  <span className="font-medium text-foreground">{goal.label}</span>
+                </button>
+              ))}
+            </div>
+          </div>
+
+          {/* Weight and Height inputs */}
+          <div className="grid grid-cols-2 gap-3">
+            <Input
+              label="Težina (kg) *"
+              type="number"
+              placeholder="85"
+              value={memberSetupWeight}
+              onChange={(e) => setMemberSetupWeight(e.target.value)}
+              required
+            />
+            <Input
+              label="Visina (cm) *"
+              type="number"
+              placeholder="180"
+              value={memberSetupHeight}
+              onChange={(e) => setMemberSetupHeight(e.target.value)}
+              required
+            />
+          </div>
+
+          {memberSetupError && (
+            <p className="text-sm text-error text-center">{memberSetupError}</p>
+          )}
+
+          <Button
+            onClick={handleCreateMemberAccount}
+            loading={memberSetupLoading}
+            disabled={memberSetupLoading}
+            className="w-full"
+          >
+            Kreiraj nalog
+          </Button>
+        </div>
+      </Modal>
     </div>
   );
 }

@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // GET - Get meals for the logged-in member (own + coach + shared from gym)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Get member's gymId
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -30,12 +33,12 @@ export async function GET(request: NextRequest) {
     let whereClause;
     if (type === "own") {
       whereClause = {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         createdByCoachId: null, // Only meals created by member themselves
       };
     } else if (type === "coach") {
       whereClause = {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         createdByCoachId: { not: null }, // Only meals created by coach
       };
     } else if (type === "shared") {
@@ -43,13 +46,13 @@ export async function GET(request: NextRequest) {
         gymId: member.gymId,
         isShared: true,
         shareApproved: true, // Only approved shared meals
-        memberId: { not: session.userId }, // Exclude own meals from shared
+        memberId: { not: authResult.memberId }, // Exclude own meals from shared
       };
     } else {
       // "all" - own meals + coach meals + approved shared meals from gym
       whereClause = {
         OR: [
-          { memberId: session.userId },
+          { memberId: authResult.memberId },
           { gymId: member.gymId, isShared: true, shareApproved: true },
         ],
       };
@@ -74,13 +77,13 @@ export async function GET(request: NextRequest) {
 
     // Separate own, coach, and shared meals
     const ownMeals = meals.filter(
-      (m) => m.memberId === session.userId && !m.createdByCoachId
+      (m) => m.memberId === authResult.memberId && !m.createdByCoachId
     );
     const coachMeals = meals.filter(
-      (m) => m.memberId === session.userId && m.createdByCoachId
+      (m) => m.memberId === authResult.memberId && m.createdByCoachId
     );
     const sharedMeals = meals.filter(
-      (m) => m.memberId !== session.userId && m.isShared && m.shareApproved
+      (m) => m.memberId !== authResult.memberId && m.isShared && m.shareApproved
     );
 
     return NextResponse.json({
@@ -139,10 +142,13 @@ export async function GET(request: NextRequest) {
 // POST - Create a new meal with ingredients
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -184,7 +190,7 @@ export async function POST(request: NextRequest) {
 
     // Get member's gymId
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -225,7 +231,7 @@ export async function POST(request: NextRequest) {
     // Create meal with ingredients in a transaction
     const meal = await prisma.customMeal.create({
       data: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         gymId: member.gymId,
         name: name.trim(),
         ...finalTotals,

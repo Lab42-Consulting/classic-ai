@@ -1,19 +1,22 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // GET - Get ingredients for the logged-in member (own + shared from gym)
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Get member's gymId
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -29,18 +32,18 @@ export async function GET(request: NextRequest) {
     // Build where clause based on type
     let whereClause;
     if (type === "own") {
-      whereClause = { memberId: session.userId };
+      whereClause = { memberId: authResult.memberId };
     } else if (type === "shared") {
       whereClause = {
         gymId: member.gymId,
         isShared: true,
-        memberId: { not: session.userId },
+        memberId: { not: authResult.memberId },
       };
     } else {
       // "all" - own ingredients + shared ingredients from gym
       whereClause = {
         OR: [
-          { memberId: session.userId },
+          { memberId: authResult.memberId },
           { gymId: member.gymId, isShared: true },
         ],
       };
@@ -73,9 +76,9 @@ export async function GET(request: NextRequest) {
     });
 
     // Separate own and shared ingredients
-    const ownIngredients = ingredients.filter((i) => i.memberId === session.userId);
+    const ownIngredients = ingredients.filter((i) => i.memberId === authResult.memberId);
     const sharedIngredients = ingredients.filter(
-      (i) => i.memberId !== session.userId && i.isShared
+      (i) => i.memberId !== authResult.memberId && i.isShared
     );
 
     return NextResponse.json({
@@ -115,10 +118,13 @@ export async function GET(request: NextRequest) {
 // POST - Save a new ingredient to the library
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -156,7 +162,7 @@ export async function POST(request: NextRequest) {
 
     // Get member's gymId
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -167,7 +173,7 @@ export async function POST(request: NextRequest) {
     // Create the ingredient
     const ingredient = await prisma.savedIngredient.create({
       data: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         gymId: member.gymId,
         name: name.trim(),
         defaultPortion: defaultPortion.trim(),

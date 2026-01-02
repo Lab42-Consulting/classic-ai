@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 interface RouteParams {
@@ -9,10 +9,13 @@ interface RouteParams {
 // PATCH - Update an ingredient (only own ingredients)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
@@ -27,7 +30,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
     }
 
-    if (existingIngredient.memberId !== session.userId) {
+    if (existingIngredient.memberId !== authResult.memberId) {
       return NextResponse.json(
         { error: "You can only edit your own ingredients" },
         { status: 403 }
@@ -114,10 +117,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE - Delete an ingredient (only own ingredients)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
@@ -131,7 +137,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Ingredient not found" }, { status: 404 });
     }
 
-    if (ingredient.memberId !== session.userId) {
+    if (ingredient.memberId !== authResult.memberId) {
       return NextResponse.json(
         { error: "You can only delete your own ingredients" },
         { status: 403 }

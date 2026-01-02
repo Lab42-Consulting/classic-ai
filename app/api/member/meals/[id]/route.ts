@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 interface RouteParams {
@@ -9,17 +9,20 @@ interface RouteParams {
 // GET - Get a single meal by ID
 export async function GET(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
 
     // Get member's gymId for access check
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -44,7 +47,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
     }
 
     // Check access: own meal OR shared meal from same gym
-    const isOwnMeal = meal.memberId === session.userId;
+    const isOwnMeal = meal.memberId === authResult.memberId;
     const isAccessibleShared = meal.isShared && meal.gymId === member.gymId;
 
     if (!isOwnMeal && !isAccessibleShared) {
@@ -80,10 +83,13 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
 // PATCH - Update a meal (only own meals, NOT coach-created meals)
 export async function PATCH(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
@@ -99,7 +105,7 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       return NextResponse.json({ error: "Meal not found" }, { status: 404 });
     }
 
-    if (existingMeal.memberId !== session.userId) {
+    if (existingMeal.memberId !== authResult.memberId) {
       return NextResponse.json(
         { error: "You can only edit your own meals" },
         { status: 403 }
@@ -292,10 +298,13 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
 // DELETE - Delete a meal (own meals AND coach-created meals assigned to member)
 export async function DELETE(request: NextRequest, { params }: RouteParams) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { id } = await params;
@@ -311,7 +320,7 @@ export async function DELETE(request: NextRequest, { params }: RouteParams) {
     }
 
     // Member can delete any meal assigned to them (own or coach-created)
-    if (meal.memberId !== session.userId) {
+    if (meal.memberId !== authResult.memberId) {
       return NextResponse.json(
         { error: "You can only delete meals assigned to you" },
         { status: 403 }

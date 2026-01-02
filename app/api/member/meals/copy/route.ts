@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // POST - Copy a shared meal to member's own saved meals
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -23,7 +26,7 @@ export async function POST(request: NextRequest) {
 
     // Get member's gymId
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: { gymId: true },
     });
 
@@ -38,7 +41,7 @@ export async function POST(request: NextRequest) {
         gymId: member.gymId,
         isShared: true,
         shareApproved: true,
-        memberId: { not: session.userId }, // Can't copy own meal
+        memberId: { not: authResult.memberId }, // Can't copy own meal
       },
       include: {
         ingredients: true,
@@ -55,7 +58,7 @@ export async function POST(request: NextRequest) {
     // Create a copy of the meal for this member
     const copiedMeal = await prisma.customMeal.create({
       data: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         gymId: member.gymId,
         name: sharedMeal.name,
         totalCalories: sharedMeal.totalCalories,

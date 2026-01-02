@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST, GET } from '@/app/api/ai/deduce-ingredient/route'
 import prisma from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, getMemberFromSession } from '@/lib/auth'
 import {
   mockMember,
-  mockStaffCoach,
+  mockMemberAuthResult,
+  mockNoSessionError,
   mockMemberSession,
   mockStaffSession,
   mockAIUsageDaily,
@@ -26,7 +27,9 @@ describe('AI Deduce Ingredient API', () => {
   // =========================================================================
   describe('POST /api/ai/deduce-ingredient - Deduce Nutrition', () => {
     beforeEach(() => {
+      // This endpoint uses getSession for staff detection, then getMemberFromSession for members
       vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
       vi.mocked(prisma.member.findUnique).mockResolvedValue(mockMember as never)
       vi.mocked(lookupIngredient).mockReturnValue({ found: false } as never)
       vi.mocked(searchIngredients).mockReturnValue([])

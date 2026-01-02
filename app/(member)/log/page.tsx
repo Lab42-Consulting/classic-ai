@@ -2,7 +2,7 @@
 
 import { useState, useEffect, useCallback, Suspense } from "react";
 import { useRouter, useSearchParams } from "next/navigation";
-import { Button, GlassCard, Input, Modal, SlideUp, FadeIn } from "@/components/ui";
+import { Button, GlassCard, Input, Modal, SlideUp, FadeIn, useToast } from "@/components/ui";
 import { getTranslations } from "@/lib/i18n";
 import { estimateMealMacros, Goal, MealSize as MealSizeType } from "@/lib/calculations";
 
@@ -26,6 +26,7 @@ const t = getTranslations("sr");
 function LogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
+  const { showToast } = useToast();
   const preselectedMealId = searchParams.get("mealId");
 
   const [selectedType, setSelectedType] = useState<LogType>(preselectedMealId ? "meal" : null);
@@ -194,9 +195,12 @@ function LogPageContent() {
           router.push("/home");
           router.refresh();
         }, 1000);
+      } else {
+        const data = await response.json();
+        showToast(data.error || "Greška pri čuvanju obroka", "error");
       }
     } catch {
-      // Handle error silently
+      showToast("Greška pri komunikaciji sa serverom", "error");
     } finally {
       setLoading(false);
     }
@@ -218,9 +222,12 @@ function LogPageContent() {
           router.push("/home");
           router.refresh();
         }, 800);
+      } else {
+        const data = await response.json();
+        showToast(data.error || "Greška pri čuvanju aktivnosti", "error");
       }
     } catch {
-      // Handle error silently
+      showToast("Greška pri komunikaciji sa serverom", "error");
     } finally {
       setLoading(false);
     }

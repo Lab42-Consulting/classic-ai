@@ -1,5 +1,5 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import {
   calculateDailyTargets,
@@ -10,14 +10,17 @@ import {
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       include: {
         coachAssignment: true,
       },
@@ -31,7 +34,7 @@ export async function GET() {
     const sevenDaysAgo = new Date(Date.now() - 7 * 24 * 60 * 60 * 1000);
     const last7DaysLogs = await prisma.dailyLog.findMany({
       where: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         date: { gte: sevenDaysAgo },
       },
       select: {
@@ -102,7 +105,7 @@ export async function GET() {
 
     // Get all weekly check-ins, ordered by date
     const checkins = await prisma.weeklyCheckin.findMany({
-      where: { memberId: session.userId },
+      where: { memberId: authResult.memberId },
       orderBy: [{ year: "asc" }, { weekNumber: "asc" }],
       select: {
         weight: true,

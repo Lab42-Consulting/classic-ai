@@ -1,18 +1,21 @@
 import { NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Fetch member with their gym's subscription status
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: {
         goal: true,
         subscribedAt: true,
@@ -50,7 +53,7 @@ export async function GET() {
     if (subscriptionStatus === "active" && member.subscribedUntil && now > member.subscribedUntil) {
       subscriptionStatus = "expired";
       await prisma.member.update({
-        where: { id: session.userId },
+        where: { id: authResult.memberId },
         data: { subscriptionStatus: "expired" },
       });
     }

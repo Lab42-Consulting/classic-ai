@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import {
   generateAgentResponse,
@@ -30,15 +30,18 @@ export async function POST(
       );
     }
 
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Get member with gym and coach assignment
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       include: {
         gym: true,
         coachAssignment: {
@@ -65,7 +68,7 @@ export async function POST(
 
     // Check rate limit
     const rateLimit = await checkRateLimit(
-      session.userId,
+      authResult.memberId,
       member.subscriptionStatus
     );
     if (!rateLimit.allowed) {
@@ -130,13 +133,13 @@ export async function POST(
     const [todayLogs, last7DaysLogs] = await Promise.all([
       prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: { gte: today },
         },
       }),
       prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: { gte: sevenDaysAgo },
         },
         select: {
@@ -226,24 +229,24 @@ export async function POST(
     // Track usage and costs
     if (!aiResponse.error) {
       await Promise.all([
-        incrementUsage(session.userId),
+        incrementUsage(authResult.memberId),
         trackAIUsage(member.gymId, aiResponse.tokensIn, aiResponse.tokensOut),
       ]);
     } else {
-      await incrementUsage(session.userId);
+      await incrementUsage(authResult.memberId);
     }
 
     // Save to chat history with agent type
     await prisma.chatMessage.createMany({
       data: [
         {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           role: "user",
           content: message,
           agentType,
         },
         {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           role: "assistant",
           content: aiResponse.text,
           agentType,

@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { getWeekNumber } from "@/lib/calculations";
 
@@ -7,10 +7,13 @@ const MINIMUM_DAYS_BETWEEN_CHECKINS = 7;
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Weekly check-in is only available on Sunday (end of week)
@@ -50,7 +53,7 @@ export async function POST(request: NextRequest) {
     const existingCheckin = await prisma.weeklyCheckin.findUnique({
       where: {
         memberId_weekNumber_year: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           weekNumber: week,
           year,
         },
@@ -66,7 +69,7 @@ export async function POST(request: NextRequest) {
 
     // Check if 7 days have passed since last check-in
     const lastCheckin = await prisma.weeklyCheckin.findFirst({
-      where: { memberId: session.userId },
+      where: { memberId: authResult.memberId },
       orderBy: { createdAt: "desc" },
     });
 
@@ -89,7 +92,7 @@ export async function POST(request: NextRequest) {
 
     const checkin = await prisma.weeklyCheckin.create({
       data: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         weight,
         feeling,
         weekNumber: week,
@@ -99,7 +102,7 @@ export async function POST(request: NextRequest) {
 
     // Update member's current weight
     await prisma.member.update({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       data: { weight },
     });
 
@@ -115,10 +118,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { week, year } = getWeekNumber(new Date());
@@ -127,7 +133,7 @@ export async function GET() {
     const currentWeekCheckin = await prisma.weeklyCheckin.findUnique({
       where: {
         memberId_weekNumber_year: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           weekNumber: week,
           year,
         },
@@ -136,13 +142,13 @@ export async function GET() {
 
     // Get last check-in (for 7-day calculation)
     const lastCheckin = await prisma.weeklyCheckin.findFirst({
-      where: { memberId: session.userId },
+      where: { memberId: authResult.memberId },
       orderBy: { createdAt: "desc" },
     });
 
     // Get recent check-ins for history
     const recentCheckins = await prisma.weeklyCheckin.findMany({
-      where: { memberId: session.userId },
+      where: { memberId: authResult.memberId },
       orderBy: [{ year: "desc" }, { weekNumber: "desc" }],
       take: 12,
     });

@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { GET, PATCH } from '@/app/api/member/profile/route'
 import prisma from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getMemberFromSession } from '@/lib/auth'
 import {
   mockMember,
-  mockMemberSession,
-  mockStaffSession,
+  mockMemberAuthResult,
+  mockNoSessionError,
+  mockStaffNoLinkedMemberError,
   mockCoachAssignment,
   createMockRequest,
 } from '../mocks/fixtures'
@@ -16,28 +17,28 @@ describe('Member Profile API', () => {
   // =========================================================================
   describe('GET /api/member/profile', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
     })
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const response = await GET()
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
 
-      it('should return 401 if session is not member type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 401 if staff without linked member', async () => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockStaffNoLinkedMemberError)
 
         const response = await GET()
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('STAFF_NO_LINKED_MEMBER')
       })
     })
 
@@ -96,30 +97,30 @@ describe('Member Profile API', () => {
   // =========================================================================
   describe('PATCH /api/member/profile', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
     })
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockRequest({ goal: 'muscle_gain' }, 'PATCH')
         const response = await PATCH(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
 
-      it('should return 401 if session is not member type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 401 if staff without linked member', async () => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockStaffNoLinkedMemberError)
 
         const request = createMockRequest({ goal: 'muscle_gain' }, 'PATCH')
         const response = await PATCH(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('STAFF_NO_LINKED_MEMBER')
       })
     })
 
@@ -137,7 +138,7 @@ describe('Member Profile API', () => {
         expect(response.status).toBe(200)
         expect(data.success).toBe(true)
         expect(prisma.member.update).toHaveBeenCalledWith({
-          where: { id: mockMemberSession.userId },
+          where: { id: mockMemberAuthResult.memberId },
           data: { goal: 'fat_loss' },
           select: expect.any(Object),
         })
@@ -285,7 +286,7 @@ describe('Member Profile API', () => {
         expect(response.status).toBe(200)
         expect(data.success).toBe(true)
         expect(prisma.member.update).toHaveBeenCalledWith({
-          where: { id: mockMemberSession.userId },
+          where: { id: mockMemberAuthResult.memberId },
           data: expect.objectContaining({
             goal: 'muscle_gain',
             weight: 80,

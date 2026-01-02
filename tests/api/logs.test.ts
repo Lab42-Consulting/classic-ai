@@ -1,11 +1,12 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST, GET } from '@/app/api/logs/route'
 import prisma from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getMemberFromSession } from '@/lib/auth'
 import {
   mockMember,
-  mockMemberSession,
-  mockStaffSession,
+  mockMemberAuthResult,
+  mockNoSessionError,
+  mockStaffNoLinkedMemberError,
   mockMealLog,
   mockTrainingLog,
   mockWaterLog,
@@ -22,7 +23,7 @@ describe('Logs API', () => {
   // =========================================================================
   describe('POST /api/logs - Create Log', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
       vi.mocked(prisma.member.findUnique).mockResolvedValue(mockMember as never)
     })
 
@@ -31,25 +32,25 @@ describe('Logs API', () => {
     // -------------------------------------------------------------------------
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockRequest({ type: 'meal', mealSize: 'medium' })
         const response = await POST(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
 
-      it('should return 401 if session is not member type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 401 if staff without linked member', async () => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockStaffNoLinkedMemberError)
 
         const request = createMockRequest({ type: 'meal', mealSize: 'medium' })
         const response = await POST(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('STAFF_NO_LINKED_MEMBER')
       })
     })
 
@@ -425,19 +426,19 @@ describe('Logs API', () => {
   // =========================================================================
   describe('GET /api/logs - Get Logs', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
     })
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockGetRequest()
         const response = await GET(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
     })
 
@@ -478,7 +479,7 @@ describe('Logs API', () => {
         expect(prisma.dailyLog.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
-              memberId: mockMemberSession.userId,
+              memberId: mockMemberAuthResult.memberId,
             }),
           })
         )

@@ -44,3 +44,6 @@ export { AgentAvatar, agentMeta } from "./agent-avatar";
 export type { AgentAvatarProps, AgentType } from "./agent-avatar";
 
 export { ImageCropper } from "./image-cropper";
+
+export { ToastProvider, useToast } from "./toast";
+export type { ToastType } from "./toast";

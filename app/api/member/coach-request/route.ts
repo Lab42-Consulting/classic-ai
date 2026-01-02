@@ -1,22 +1,25 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // GET /api/member/coach-request - Get pending coach request for current member
 // Only returns coach-initiated requests (with a plan), not member interest signals
 export async function GET() {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Only return coach-initiated requests (requests with a plan)
     // Member-initiated requests are just interest signals, not actionable here
     const coachRequest = await prisma.coachRequest.findFirst({
       where: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         initiatedBy: "coach",
       },
       include: {
@@ -59,10 +62,13 @@ export async function GET() {
 // Body: { action: "accept" | "decline" }
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -80,7 +86,7 @@ export async function POST(request: NextRequest) {
     // Member-initiated requests are just interest signals handled by the coach
     const coachRequest = await prisma.coachRequest.findFirst({
       where: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         initiatedBy: "coach",
       },
       include: {
@@ -135,13 +141,13 @@ export async function POST(request: NextRequest) {
 
       // 3. Full reset: Delete all member's daily logs
       await tx.dailyLog.deleteMany({
-        where: { memberId: session.userId },
+        where: { memberId: authResult.memberId },
       });
 
       // 4. Update member's goal if coach specified a custom one
       if (coachRequest.customGoal) {
         await tx.member.update({
-          where: { id: session.userId },
+          where: { id: authResult.memberId },
           data: { goal: coachRequest.customGoal },
         });
       }

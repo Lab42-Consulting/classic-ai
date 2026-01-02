@@ -118,6 +118,19 @@ vi.mock('@/lib/db', () => ({
 // Mock auth module
 vi.mock('@/lib/auth', () => ({
   getSession: vi.fn(),
+  getMemberFromSession: vi.fn(),
+  getMemberAuthErrorMessage: vi.fn().mockImplementation((error: string) => {
+    switch (error) {
+      case 'NO_SESSION':
+        return 'Niste prijavljeni. Molimo prijavite se ponovo.'
+      case 'STAFF_NO_LINKED_MEMBER':
+        return 'Nemate povezan članski nalog. Kreirajte ga u podešavanjima.'
+      case 'INVALID_USER_TYPE':
+        return 'Nemate pristup ovoj funkciji.'
+      default:
+        return 'Došlo je do greške pri autorizaciji.'
+    }
+  }),
   createSession: vi.fn(),
   verifySession: vi.fn(),
   setSessionCookie: vi.fn(),

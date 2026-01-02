@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getSession, getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { lookupIngredient, searchIngredients } from "@/lib/nutrition/ingredient-lookup";
@@ -150,10 +150,26 @@ async function callAI(name: string, portionSize: string): Promise<DeducedNutriti
 // POST - Deduce ingredient nutrition from name + portion
 export async function POST(request: NextRequest) {
   try {
+    // Check session first for staff detection
     const session = await getSession();
 
     if (!session || (session.userType !== "member" && session.userType !== "staff")) {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    }
+
+    const isStaff = session.userType === "staff";
+
+    // For members (including staff with linked member accounts), resolve member ID
+    let memberId: string | null = null;
+    if (!isStaff) {
+      const authResult = await getMemberFromSession();
+      if ("error" in authResult) {
+        return NextResponse.json(
+          { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+          { status: 401 }
+        );
+      }
+      memberId = authResult.memberId;
     }
 
     const body = await request.json();
@@ -191,12 +207,10 @@ export async function POST(request: NextRequest) {
     const suggestions = searchIngredients(name.trim(), 3);
 
     // Step 3: Fall back to AI (requires rate limit check for members, not for staff)
-    const isStaff = session.userType === "staff";
-
-    if (!isStaff) {
+    if (!isStaff && memberId) {
       // Member flow with rate limiting
       const member = await prisma.member.findUnique({
-        where: { id: session.userId },
+        where: { id: memberId },
         select: { subscriptionStatus: true },
       });
 
@@ -205,7 +219,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Check rate limit
-      const rateLimit = await checkRateLimit(session.userId, member.subscriptionStatus);
+      const rateLimit = await checkRateLimit(memberId, member.subscriptionStatus);
 
       if (!rateLimit.allowed) {
         return NextResponse.json(
@@ -239,7 +253,7 @@ export async function POST(request: NextRequest) {
       }
 
       // Increment usage counter
-      await incrementUsage(session.userId);
+      await incrementUsage(memberId);
 
       // Return AI result
       return NextResponse.json({

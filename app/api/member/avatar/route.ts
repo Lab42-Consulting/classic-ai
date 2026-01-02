@@ -1,6 +1,5 @@
 import { NextResponse } from "next/server";
-import { cookies } from "next/headers";
-import { verifySession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import { prisma } from "@/lib/db";
 
 // Maximum avatar size: 500KB (base64 encoded images can be large)
@@ -8,16 +7,13 @@ const MAX_AVATAR_SIZE = 500 * 1024;
 
 export async function PATCH(request: Request) {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("gym-session")?.value;
+    const authResult = await getMemberFromSession();
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifySession(token);
-    if (!payload || payload.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -60,7 +56,7 @@ export async function PATCH(request: Request) {
 
     // Update member avatar
     const updatedMember = await prisma.member.update({
-      where: { id: payload.userId },
+      where: { id: authResult.memberId },
       data: { avatarUrl: avatarUrl || null },
       select: { avatarUrl: true },
     });
@@ -81,20 +77,17 @@ export async function PATCH(request: Request) {
 // DELETE endpoint to remove avatar
 export async function DELETE() {
   try {
-    const cookieStore = await cookies();
-    const token = cookieStore.get("gym-session")?.value;
+    const authResult = await getMemberFromSession();
 
-    if (!token) {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
-    }
-
-    const payload = await verifySession(token);
-    if (!payload || payload.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     await prisma.member.update({
-      where: { id: payload.userId },
+      where: { id: authResult.memberId },
       data: { avatarUrl: null },
     });
 

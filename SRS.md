@@ -2,8 +2,26 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.3
-**Last Updated:** December 2024
+**Version:** 1.5
+**Last Updated:** January 2025
+
+**Changelog v1.5:**
+- Added Member Custom Targets feature (calories, protein, carbs, fats)
+- Members without a coach can manually adjust their daily nutrition targets
+- Added target priority: Coach targets > Member custom targets > Auto-calculated
+- Members with assigned coach cannot modify targets (coach controls)
+- Added target adjustment UI in profile page
+- Updated staff login response to include linkedMember field
+
+**Changelog v1.4:**
+- Added Gym Portal (B2B admin panel) at `/gym-portal/manage`
+- Separated Admin and Coach experiences (different dashboards)
+- Admins use desktop-first Gym Portal, Coaches use mobile-first Dashboard
+- Added Gym Branding system (custom logo, primary color)
+- Added Member Subscription Management (extend, track status)
+- Added Staff Management in Gym Portal
+- Branding colors apply only after login (login pages use defaults)
+- Staff login redirects based on role (admin → gym-portal, coach → dashboard)
 
 **Changelog v1.3:**
 - Added Custom Meal System with ingredients and nutritional tracking
@@ -80,45 +98,55 @@ The system provides:
 
 ### 2.1 User Roles
 
-| Role | Description | Access Level |
-|------|-------------|--------------|
-| Member | Gym member using the app | Member pages only |
-| Staff/Coach | Gym employee | Staff dashboard, member management |
-| Admin | System administrator | Full access including settings |
+| Role | Description | Access Level | Primary Interface |
+|------|-------------|--------------|-------------------|
+| Member | Gym member using the app | Member pages only | `/home` (mobile-first) |
+| Coach | Gym trainer/coach | Assigned members, nudges, AI knowledge | `/dashboard` (mobile-first) |
+| Admin | Gym administrator | Full gym management, staff, branding | `/gym-portal/manage` (desktop-first) |
+
+**Role Separation:**
+- **Coaches** are redirected to `/dashboard` after login - mobile-first interface for day-to-day member coaching
+- **Admins** are redirected to `/gym-portal/manage` after login - desktop-first interface for gym management
+- Admins cannot access `/dashboard` (redirected to gym portal)
+- Coaches cannot access `/gym-portal/manage` (redirected to dashboard)
 
 ### 2.2 System Architecture
 
 ```
-┌─────────────────────────────────────────────────────────────┐
-│                     Client (Browser/PWA)                     │
-├─────────────────────────────────────────────────────────────┤
-│                    Next.js App Router                        │
-│  ┌─────────────┐  ┌─────────────┐  ┌─────────────────────┐  │
-│  │ (auth)      │  │ (member)    │  │ (staff)             │  │
-│  │ - login     │  │ - home      │  │ - dashboard         │  │
-│  │ - staff-login│ │ - log       │  │ - members           │  │
-│  │             │  │ - chat      │  │ - register          │  │
-│  │             │  │ - checkin   │  │ - members/[id]      │  │
-│  │             │  │ - history   │  │                     │  │
-│  │             │  │ - profile   │  │                     │  │
-│  │             │  │ - goal      │  │                     │  │
-│  │             │  │ - progress  │  │                     │  │
-│  │             │  │ - subscription│ │                    │  │
-│  │             │  │ - supplements│ │                     │  │
-│  └─────────────┘  └─────────────┘  └─────────────────────┘  │
-├─────────────────────────────────────────────────────────────┤
-│                      API Routes (/api)                       │
-│  - auth/login, auth/logout, auth/staff-login                │
-│  - logs, checkins                                           │
-│  - member/profile, member/subscription, member/nudges       │
-│  - members, members/[id]                                    │
-│  - coach/assignments, coach/nudges, coach/knowledge         │
-│  - ai/agents/[type]/chat (nutrition, supplements, training) │
-├─────────────────────────────────────────────────────────────┤
-│                    Prisma ORM Layer                          │
-├─────────────────────────────────────────────────────────────┤
-│                    PostgreSQL Database                       │
-└─────────────────────────────────────────────────────────────┘
+┌──────────────────────────────────────────────────────────────────────────┐
+│                          Client (Browser/PWA)                             │
+├──────────────────────────────────────────────────────────────────────────┤
+│                         Next.js App Router                                │
+│  ┌────────────┐  ┌────────────┐  ┌────────────┐  ┌────────────────────┐  │
+│  │ (auth)     │  │ (member)   │  │ (staff)    │  │ gym-portal         │  │
+│  │ - login    │  │ - home     │  │ - dashboard│  │ - page (landing)   │  │
+│  │ - staff-   │  │ - log      │  │ - register │  │ - gym-signup       │  │
+│  │   login    │  │ - chat     │  │            │  │ - manage/          │  │
+│  │            │  │ - checkin  │  │ Coach-only │  │   - page (dash)    │  │
+│  │ No theme   │  │ - history  │  │ Mobile-    │  │   - members        │  │
+│  │ (defaults) │  │ - profile  │  │ first      │  │   - members/new    │  │
+│  │            │  │ - goal     │  │            │  │   - members/[id]   │  │
+│  │            │  │ - progress │  │            │  │   - staff          │  │
+│  │            │  │ - meals    │  │            │  │   - branding       │  │
+│  │            │  │ - coaches  │  │            │  │                    │  │
+│  │            │  │            │  │            │  │ Admin-only         │  │
+│  │            │  │ Gym theme  │  │ Gym theme  │  │ Desktop-first      │  │
+│  └────────────┘  └────────────┘  └────────────┘  └────────────────────┘  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                           API Routes (/api)                               │
+│  - auth/login, auth/logout, auth/staff-login                             │
+│  - logs, checkins                                                        │
+│  - member/profile, member/subscription, member/nudges, member/meals      │
+│  - members, members/[id], members/[id]/subscription/extend               │
+│  - coach/assignments, coach/nudges, coach/knowledge, coach/dashboard     │
+│  - ai/agents/[type]/chat (nutrition, supplements, training)              │
+│  - gym/settings, gym/branding                                            │
+│  - staff (list, create staff)                                            │
+├──────────────────────────────────────────────────────────────────────────┤
+│                         Prisma ORM Layer                                  │
+├──────────────────────────────────────────────────────────────────────────┤
+│                         PostgreSQL Database                               │
+└──────────────────────────────────────────────────────────────────────────┘
 ```
 
 ---
@@ -136,7 +164,10 @@ The system provides:
 #### FR-AUTH-002: Staff Login
 - **Input:** Staff ID, PIN (4 digits)
 - **Process:** Validate credentials, check role
-- **Output:** Redirect to `/dashboard` on success
+- **Output:** Role-based redirect:
+  - **Admin role:** Redirect to `/gym-portal/manage`
+  - **Coach role:** Redirect to `/dashboard`
+- **Note:** Each role is restricted to their respective interface
 
 #### FR-AUTH-003: Logout
 - **Process:** Clear session cookie, invalidate token
@@ -351,6 +382,24 @@ The home dashboard displays **daily metrics only** for a focused, simplified vie
 - **Button:** "Odjavi se"
 - **Action:** Clear session, redirect to login
 
+#### FR-PROF-004: Custom Nutrition Targets
+- **Purpose:** Allow members to manually adjust their daily nutrition targets
+- **Location:** Profile page → "Daily Targets" section
+- **Fields:**
+  - Custom Calories (kcal) - range: 800-10000
+  - Custom Protein (g) - range: 0-500
+  - Custom Carbs (g) - range: 0-1000
+  - Custom Fats (g) - range: 0-500
+- **Behavior:**
+  - Members without a coach can edit targets via modal
+  - Members with an assigned coach cannot edit (coach controls targets)
+  - Targets can be reset to "Auto" (calculated from weight and goal)
+  - Empty fields use auto-calculated values
+- **Target Priority:**
+  1. Coach-assigned targets (highest priority)
+  2. Member custom targets
+  3. Auto-calculated targets (based on weight and goal)
+
 ### 3.10 Weekly Check-In
 
 #### FR-CHECK-001: Check-In Form
@@ -469,10 +518,12 @@ Coaches can customize AI behavior per member:
 - Max 2000 characters per agent
 - Guidelines injected into AI prompts for that member
 
-### 3.12 Staff Dashboard
+### 3.12 Coach Dashboard (Mobile-First)
 
-#### FR-STAFF-001: Member Overview
-- **List:** All gym members
+The coach dashboard at `/dashboard` is designed for day-to-day member coaching on mobile devices.
+
+#### FR-STAFF-001: Assigned Members Overview
+- **List:** Only members assigned to the logged-in coach
 - **Filters:** Active, Slipping, Inactive
 - **Search:** By name or member ID
 
@@ -483,13 +534,69 @@ Coaches can customize AI behavior per member:
 - AI summaries
 - Staff notes
 
-#### FR-STAFF-003: Member Registration
+#### FR-STAFF-003: Member Assignment (Coach)
+- Coach can discover and assign unassigned members
+- Quick assignment flow from dashboard
+
+### 3.13 Gym Portal Admin Panel (Desktop-First)
+
+The Gym Portal at `/gym-portal/manage` provides comprehensive gym management for administrators.
+
+#### FR-ADMIN-001: Admin Dashboard
+- **Location:** `/gym-portal/manage`
+- **Access:** Admin role only (coaches redirected to `/dashboard`)
+- **Display:**
+  - Gym subscription status
+  - Total members count
+  - Active members count
+  - Total staff count
+  - Coach count
+- **Quick Actions:** Members, Staff, Branding
+
+#### FR-ADMIN-002: Member Management
+- **Location:** `/gym-portal/manage/members`
+- **Features:**
+  - Full member list with search and filters
+  - Filter by goal, activity status, subscription status
+  - Subscription status display (active, expired, expiring)
+  - Click to view member details
+
+#### FR-ADMIN-003: Member Registration (Admin)
+- **Location:** `/gym-portal/manage/members/new`
 - **Auto-generated:**
   - Member ID (6 characters)
   - PIN (4 digits)
   - QR code
 - **Required fields:** Name, Goal
 - **Optional fields:** Height, Weight, Gender
+- **Output:** Credentials display with QR code
+
+#### FR-ADMIN-004: Member Subscription Management
+- **Location:** `/gym-portal/manage/members/[id]`
+- **Features:**
+  - View current subscription status
+  - Extend subscription (1, 3, 6, 12 months)
+  - View subscription history
+  - Manual date picker for custom extensions
+
+#### FR-ADMIN-005: Staff Management
+- **Location:** `/gym-portal/manage/staff`
+- **Features:**
+  - List all gym staff (admins and coaches)
+  - View assigned members per coach
+  - Add new staff member (coach or admin role)
+  - Auto-generated Staff ID and PIN
+
+#### FR-ADMIN-006: Gym Branding
+- **Location:** `/gym-portal/manage/branding`
+- **Features:**
+  - Upload gym logo (base64, max 2MB)
+  - Set primary accent color (color picker)
+  - Live preview of branding changes
+- **Behavior:**
+  - Branding colors apply to members and coaches after login
+  - Login pages always use default colors (no gym-specific theming)
+  - Colors stored in `gym.primaryColor` field
 
 ### 3.13 Coach Features
 
@@ -598,6 +705,12 @@ model Member {
   gender              String?
   goal                String          // fat_loss | muscle_gain | recomposition
   status              String          @default("active")
+
+  // Custom targets (member can set if no coach)
+  customCalories      Int?            // Custom daily calorie target
+  customProtein       Int?            // Custom protein target (grams)
+  customCarbs         Int?            // Custom carbs target (grams)
+  customFats          Int?            // Custom fats target (grams)
 
   // Subscription
   trialStartDate      DateTime        @default(now())
@@ -869,20 +982,45 @@ All pages follow mobile-first design with:
   "weight": 85,
   "height": 180,
   "requireExactMacros": false,  // From coach assignment
-  "coachAssignment": {          // Optional, present if assigned
-    "customGoal": null,
-    "customCalories": 1800,
-    "customProtein": 150,
-    "customCarbs": null,
-    "customFats": null
-  }
+  // Member's custom targets (if set)
+  "customCalories": 2000,       // null if not set
+  "customProtein": 160,         // null if not set
+  "customCarbs": null,          // null if not set
+  "customFats": null,           // null if not set
+  // Coach info
+  "hasCoach": true,
+  "coachName": "Coach Marko",
+  // Coach-assigned targets (if assigned)
+  "coachCalories": 1800,
+  "coachProtein": 150,
+  "coachCarbs": null,
+  "coachFats": null
 }
 ```
 
 #### PATCH /api/member/profile
 ```json
-// Request
+// Request - Update goal
 { "goal": "muscle_gain" }
+
+// Request - Update custom targets
+{
+  "customCalories": 2200,
+  "customProtein": 180,
+  "customCarbs": 250,
+  "customFats": 70
+}
+
+// Request - Reset to auto-calculated
+{
+  "customCalories": null,
+  "customProtein": null,
+  "customCarbs": null,
+  "customFats": null
+}
+
+// Response (403) - Has coach
+{ "error": "Cannot modify targets while assigned to a coach" }
 
 // Response (200)
 { "success": true }
@@ -1095,35 +1233,52 @@ interface Translations {
 ```
 /app
   /(auth)
-    /login/page.tsx
-    /staff-login/page.tsx
+    /login/page.tsx              # Member login (no gym theming)
+    /staff-login/page.tsx        # Staff login (no gym theming)
+    /layout.tsx                  # No ThemeProvider - uses default colors
   /(member)
     /home/page.tsx, home-client.tsx
     /log/page.tsx
-    /chat/page.tsx              # Agent selection
-    /chat/[agent]/page.tsx      # Per-agent chat (nutrition, supplements, training)
+    /chat/page.tsx               # Agent selection
+    /chat/[agent]/page.tsx       # Per-agent chat (nutrition, supplements, training)
     /checkin/page.tsx
     /history/page.tsx
     /profile/page.tsx
     /goal/page.tsx
-    /progress/page.tsx          # Calorie ring, macros, consistency score
+    /progress/page.tsx           # Calorie ring, macros, consistency score
     /subscription/page.tsx
     /supplements/page.tsx
+    /meals/page.tsx              # Custom meal management
+    /coaches/page.tsx            # Browse and request coaches
+    /layout.tsx                  # ThemeProvider with gym colors
   /(staff)
-    /dashboard/page.tsx
-    /members/page.tsx
-    /members/[id]/page.tsx
-    /register/page.tsx          # Includes coach assignment with custom targets
+    /dashboard/page.tsx          # Coach-only, redirects admins to gym-portal
+    /register/page.tsx           # Coach member assignment
+    /layout.tsx                  # ThemeProvider with gym colors
+  /gym-portal
+    /page.tsx                    # Public landing page (no auth)
+    /gym-signup/page.tsx         # Gym registration
+    /layout.tsx                  # Minimal layout (no ThemeProvider)
+    /manage
+      /page.tsx                  # Admin dashboard
+      /layout.tsx                # Admin layout with auth check
+      /members/page.tsx          # Member list
+      /members/new/page.tsx      # Register new member
+      /members/[id]/page.tsx     # Member details + subscription
+      /staff/page.tsx            # Staff management
+      /branding/page.tsx         # Gym branding (logo, colors)
   /api
     /auth/login, logout, staff-login
-    /logs/route.ts              # Supports exact macros mode
+    /logs/route.ts               # Supports exact macros mode
     /checkins/route.ts
-    /member/profile, subscription, nudges
+    /member/profile, subscription, nudges, meals, coaches
     /members/route.ts, [id]/route.ts
-    /coach/assignments/route.ts   # Coach assignment management
-    /coach/nudges/route.ts        # Coach nudge sending
-    /coach/knowledge/route.ts     # Per-member AI knowledge
+    /members/[id]/subscription/extend/route.ts  # Extend subscription
+    /coach/assignments, nudges, knowledge, dashboard, member-requests
     /ai/agents/[type]/chat/route.ts  # Specialized AI agents
+    /gym/settings/route.ts       # Gym settings + branding colors
+    /gym/branding/route.ts       # Branding CRUD
+    /staff/route.ts              # Staff list and creation
 /components
   /ui/index.ts (GlassCard, Button, Modal, ProgressRing, Input, etc.)
 /lib
@@ -1131,8 +1286,10 @@ interface Translations {
   /db.ts
   /i18n.ts
   /calculations/index.ts
+  /theme-context.tsx             # Gym theming (colors from primaryColor)
+  /types/gym.ts                  # GymSettings, color utilities
 /prisma
-  /schema.prisma               # Includes CoachAssignment, CoachNudge models
+  /schema.prisma                 # Includes Gym branding fields
   /seed.ts
 ```
 

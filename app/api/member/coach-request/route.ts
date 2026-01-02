@@ -3,6 +3,7 @@ import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 // GET /api/member/coach-request - Get pending coach request for current member
+// Only returns coach-initiated requests (with a plan), not member interest signals
 export async function GET() {
   try {
     const session = await getSession();
@@ -11,8 +12,13 @@ export async function GET() {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
 
-    const coachRequest = await prisma.coachRequest.findUnique({
-      where: { memberId: session.userId },
+    // Only return coach-initiated requests (requests with a plan)
+    // Member-initiated requests are just interest signals, not actionable here
+    const coachRequest = await prisma.coachRequest.findFirst({
+      where: {
+        memberId: session.userId,
+        initiatedBy: "coach",
+      },
       include: {
         staff: {
           select: {
@@ -69,9 +75,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Get the pending request
-    const coachRequest = await prisma.coachRequest.findUnique({
-      where: { memberId: session.userId },
+    // Get the pending coach-initiated request
+    // Members can only accept/decline coach-initiated requests (with plans)
+    // Member-initiated requests are just interest signals handled by the coach
+    const coachRequest = await prisma.coachRequest.findFirst({
+      where: {
+        memberId: session.userId,
+        initiatedBy: "coach",
+      },
       include: {
         staff: {
           select: { name: true },

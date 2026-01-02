@@ -1,9 +1,10 @@
 "use client";
 
 import { useState, useEffect } from "react";
-import { useRouter } from "next/navigation";
+import { useRouter, useSearchParams } from "next/navigation";
 import Image from "next/image";
 import { Button, GlassCard, Input, PinInput } from "@/components/ui";
+import { Suspense } from "react";
 
 interface Gym {
   id: string;
@@ -11,8 +12,11 @@ interface Gym {
   logo: string | null;
 }
 
-export default function StaffLoginPage() {
+function StaffLoginContent() {
   const router = useRouter();
+  const searchParams = useSearchParams();
+  const redirectUrl = searchParams.get("redirect") || "/dashboard";
+
   const [staffId, setStaffId] = useState("");
   const [gymId, setGymId] = useState("");
   const [gyms, setGyms] = useState<Gym[]>([]);
@@ -70,7 +74,15 @@ export default function StaffLoginPage() {
         return;
       }
 
-      router.push("/dashboard");
+      // Redirect based on role: admins go to gym portal, coaches go to dashboard
+      const isAdmin = data.user?.role?.toLowerCase() === "admin";
+      if (isAdmin) {
+        router.push("/gym-portal/manage");
+      } else {
+        // Validate redirect URL to prevent open redirect
+        const safeRedirect = redirectUrl.startsWith("/") ? redirectUrl : "/dashboard";
+        router.push(safeRedirect);
+      }
     } catch {
       setError("Greška u povezivanju. Pokušaj ponovo.");
     } finally {
@@ -252,27 +264,67 @@ export default function StaffLoginPage() {
             <div className="h-px w-12 bg-border" />
           </div>
 
-          <a
-            href="/login"
-            className="inline-flex items-center gap-2 text-sm text-foreground-muted hover:text-accent transition-colors"
-          >
-            <svg
-              className="w-4 h-4"
-              fill="none"
-              viewBox="0 0 24 24"
-              stroke="currentColor"
+          <div className="flex items-center justify-center gap-4">
+            <a
+              href="/login"
+              className="inline-flex items-center gap-2 text-sm text-foreground-muted hover:text-accent transition-colors"
             >
-              <path
-                strokeLinecap="round"
-                strokeLinejoin="round"
-                strokeWidth={2}
-                d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
-              />
-            </svg>
-            Prijava člana
-          </a>
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0z"
+                />
+              </svg>
+              Prijava člana
+            </a>
+
+            <span className="text-border">|</span>
+
+            <a
+              href="/gym-portal"
+              className="inline-flex items-center gap-2 text-sm text-foreground-muted hover:text-accent transition-colors"
+            >
+              <svg
+                className="w-4 h-4"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4"
+                />
+              </svg>
+              Registruj teretanu
+            </a>
+          </div>
         </div>
       </div>
     </div>
+  );
+}
+
+function LoadingFallback() {
+  return (
+    <div className="min-h-screen flex items-center justify-center bg-background">
+      <div className="w-12 h-12 border-4 border-accent border-t-transparent rounded-full animate-spin" />
+    </div>
+  );
+}
+
+export default function StaffLoginPage() {
+  return (
+    <Suspense fallback={<LoadingFallback />}>
+      <StaffLoginContent />
+    </Suspense>
   );
 }

@@ -53,7 +53,8 @@ tests/
     ├── checkins.test.ts     # Weekly check-in tests
     ├── member-profile.test.ts # Member profile tests
     ├── members.test.ts      # Staff member management tests
-    └── coach.test.ts        # Coach features tests
+    ├── coach.test.ts        # Coach features tests
+    └── gym.test.ts          # Gym settings and branding tests
 ```
 
 ### Writing New Tests
@@ -384,6 +385,71 @@ The seed script creates the following test accounts:
 
 ---
 
+#### Test M14: Custom Nutrition Targets
+
+**Objective:** Verify members can adjust their daily nutrition targets
+
+**Prerequisite:** Member without assigned coach
+
+**Steps:**
+1. Navigate to `/profile`
+2. Find "Dnevni ciljevi" (Daily Targets) section
+3. Click "Izmeni" (Edit) button
+4. Enter custom values:
+   - Calories: `2200`
+   - Protein: `180`
+   - Carbs: `250`
+   - Fats: `70`
+5. Click "Sačuvaj" (Save)
+6. Verify targets updated in the section
+
+**Expected Results:**
+- [ ] Edit button visible for members without coach
+- [ ] Modal opens with input fields
+- [ ] Validation works (800-10000 cal, 0-500g protein, etc.)
+- [ ] Targets update after saving
+- [ ] Changes persist after page refresh
+
+**Reset to Auto:**
+1. Open target modal again
+2. Click "Vrati na automatski izračunato"
+3. Verify targets show "Automatski"
+
+**Expected Results:**
+- [ ] Custom targets cleared
+- [ ] Display shows "Automatski" for all fields
+- [ ] System uses calculated values based on weight/goal
+
+---
+
+#### Test M15: Custom Targets with Coach
+
+**Objective:** Verify members with coach cannot modify targets
+
+**Prerequisite:** Member with assigned coach
+
+**Steps:**
+1. Login as member with assigned coach
+2. Navigate to `/profile`
+3. Find "Dnevni ciljevi" section
+
+**Expected Results:**
+- [ ] No "Izmeni" button visible
+- [ ] Coach notice banner displayed: "👨‍🏫 Managed by [Coach Name]"
+- [ ] Message: "Contact your coach to adjust targets"
+- [ ] Targets display coach-assigned values
+
+**API Test:**
+1. Try PATCH `/api/member/profile` with custom targets
+2. Should return 403 error
+
+**Expected Response:**
+```json
+{ "error": "Cannot modify targets while assigned to a coach" }
+```
+
+---
+
 ### Staff/Coach Role Testing
 
 #### Test S1: Staff Login
@@ -558,6 +624,45 @@ The seed script creates the following test accounts:
 
 ---
 
+#### Test A3: Gym Branding Management
+
+**Objective:** Verify admin can manage gym branding
+
+**Steps:**
+1. Login as Admin (`S-ADMIN`)
+2. Navigate to Gym Settings/Branding page
+3. Upload a logo (under 2MB)
+4. Set primary color using color picker
+5. Set secondary color
+6. Save changes
+
+**Expected Results:**
+- [ ] Logo preview shows uploaded image
+- [ ] Color pickers work correctly
+- [ ] Branding saved successfully
+- [ ] Member app reflects new branding
+
+**Edge Cases to Test:**
+- Logo over 2MB → Error "Logo too large (max 2MB)"
+- Invalid hex color → Error "Invalid color format"
+- Coach trying to access → Error "Admin access required"
+
+---
+
+#### Test A4: Coach Cannot Access Branding
+
+**Objective:** Verify branding is admin-only
+
+**Steps:**
+1. Login as Coach (`S-COACH`)
+2. Try to access `/api/gym/branding` directly
+
+**Expected Results:**
+- [ ] 403 Forbidden
+- [ ] Error: "Admin access required"
+
+---
+
 ## API Testing Reference
 
 ### Authentication Endpoints
@@ -576,8 +681,8 @@ The seed script creates the following test accounts:
 | `/api/logs` | GET | Today's logs, date range, history aggregation |
 | `/api/checkins` | POST | Valid check-in, not Sunday, already done, too soon |
 | `/api/checkins` | GET | Status, can check-in, recent history |
-| `/api/member/profile` | GET | Profile data, coach settings |
-| `/api/member/profile` | PATCH | Goal change, locale, weight |
+| `/api/member/profile` | GET | Profile data, coach settings, custom targets, coach info |
+| `/api/member/profile` | PATCH | Goal change, locale, weight, custom targets, 403 if has coach |
 | `/api/member/subscription` | GET | Trial, active, expired status |
 | `/api/member/nudges` | GET | Unread nudges |
 
@@ -588,6 +693,14 @@ The seed script creates the following test accounts:
 | `/api/members` | POST | Register with required fields, all fields, ID collision |
 | `/api/members` | GET | List with activity status |
 | `/api/members/[id]` | GET | Member detail |
+
+### Gym Endpoints (Admin Only)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/gym/settings` | GET | Unauthenticated (empty), member (branding only), staff (full stats) |
+| `/api/gym/branding` | GET | Auth required, admin only (403 for coach), returns branding |
+| `/api/gym/branding` | PUT | Color validation, logo size limit, successful update |
 
 ### Coach Endpoints
 
@@ -687,4 +800,6 @@ npm run test:coverage
 
 ---
 
-*Last Updated: December 2024*
+*Last Updated: January 2025*
+*Added: Custom nutrition targets tests (M14, M15)*
+*Updated: Member profile API test cases for custom targets*

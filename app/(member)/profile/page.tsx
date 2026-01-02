@@ -15,6 +15,18 @@ interface ProfileData {
   height: number | null;
   locale: string;
   loading: boolean;
+  // Custom targets
+  customCalories: number | null;
+  customProtein: number | null;
+  customCarbs: number | null;
+  customFats: number | null;
+  // Coach info
+  hasCoach: boolean;
+  coachName: string | null;
+  coachCalories: number | null;
+  coachProtein: number | null;
+  coachCarbs: number | null;
+  coachFats: number | null;
 }
 
 type CredentialModalType = "id" | "pin" | null;
@@ -44,6 +56,16 @@ export default function ProfilePage() {
     height: null,
     locale: "sr",
     loading: true,
+    customCalories: null,
+    customProtein: null,
+    customCarbs: null,
+    customFats: null,
+    hasCoach: false,
+    coachName: null,
+    coachCalories: null,
+    coachProtein: null,
+    coachCarbs: null,
+    coachFats: null,
   });
   const [loggingOut, setLoggingOut] = useState(false);
   const [updatingLocale, setUpdatingLocale] = useState(false);
@@ -59,6 +81,15 @@ export default function ProfilePage() {
   const [credentialError, setCredentialError] = useState("");
   const [credentialSuccess, setCredentialSuccess] = useState("");
   const [savingCredential, setSavingCredential] = useState(false);
+
+  // Target adjustment state
+  const [showTargetModal, setShowTargetModal] = useState(false);
+  const [targetCalories, setTargetCalories] = useState("");
+  const [targetProtein, setTargetProtein] = useState("");
+  const [targetCarbs, setTargetCarbs] = useState("");
+  const [targetFats, setTargetFats] = useState("");
+  const [savingTargets, setSavingTargets] = useState(false);
+  const [targetError, setTargetError] = useState("");
 
   useEffect(() => {
     fetchProfile();
@@ -193,6 +224,86 @@ export default function ProfilePage() {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  const openTargetModal = () => {
+    // Pre-fill with current values
+    setTargetCalories(data.customCalories?.toString() || "");
+    setTargetProtein(data.customProtein?.toString() || "");
+    setTargetCarbs(data.customCarbs?.toString() || "");
+    setTargetFats(data.customFats?.toString() || "");
+    setTargetError("");
+    setShowTargetModal(true);
+  };
+
+  const handleSaveTargets = async () => {
+    setSavingTargets(true);
+    setTargetError("");
+
+    try {
+      const response = await fetch("/api/member/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customCalories: targetCalories ? parseInt(targetCalories) : null,
+          customProtein: targetProtein ? parseInt(targetProtein) : null,
+          customCarbs: targetCarbs ? parseInt(targetCarbs) : null,
+          customFats: targetFats ? parseInt(targetFats) : null,
+        }),
+      });
+
+      const result = await response.json();
+
+      if (response.ok) {
+        setData((prev) => ({
+          ...prev,
+          customCalories: result.member.customCalories,
+          customProtein: result.member.customProtein,
+          customCarbs: result.member.customCarbs,
+          customFats: result.member.customFats,
+        }));
+        setShowTargetModal(false);
+      } else {
+        setTargetError(result.error || (locale === "en" ? "Failed to save" : "Greška pri čuvanju"));
+      }
+    } catch {
+      setTargetError(locale === "en" ? "Connection error" : "Greška u konekciji");
+    } finally {
+      setSavingTargets(false);
+    }
+  };
+
+  const resetTargets = async () => {
+    setSavingTargets(true);
+    setTargetError("");
+
+    try {
+      const response = await fetch("/api/member/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({
+          customCalories: null,
+          customProtein: null,
+          customCarbs: null,
+          customFats: null,
+        }),
+      });
+
+      if (response.ok) {
+        setData((prev) => ({
+          ...prev,
+          customCalories: null,
+          customProtein: null,
+          customCarbs: null,
+          customFats: null,
+        }));
+        setShowTargetModal(false);
+      }
+    } catch {
+      // Handle silently
+    } finally {
+      setSavingTargets(false);
+    }
   };
 
   const handleAvatarSave = async (croppedImageUrl: string) => {
@@ -352,6 +463,103 @@ export default function ProfilePage() {
                 </div>
               )}
             </div>
+          </GlassCard>
+        </SlideUp>
+
+        {/* Nutrition Targets Section */}
+        <SlideUp delay={225}>
+          <GlassCard>
+            <div className="flex items-center justify-between mb-4">
+              <h3 className="text-label">
+                {locale === "en" ? "Daily Targets" : "Dnevni ciljevi"}
+              </h3>
+              {!data.hasCoach && (
+                <button
+                  onClick={openTargetModal}
+                  className="px-3 py-1.5 text-sm text-accent hover:bg-accent/10 rounded-lg transition-colors"
+                >
+                  {locale === "en" ? "Edit" : "Izmeni"}
+                </button>
+              )}
+            </div>
+
+            {/* Coach notice */}
+            {data.hasCoach && (
+              <div className="mb-4 p-3 bg-accent/10 border border-accent/20 rounded-xl">
+                <div className="flex items-center gap-2 text-sm text-accent">
+                  <span>👨‍🏫</span>
+                  <span>
+                    {locale === "en"
+                      ? `Managed by ${data.coachName}`
+                      : `Upravlja ${data.coachName}`}
+                  </span>
+                </div>
+                <p className="text-xs text-foreground-muted mt-1">
+                  {locale === "en"
+                    ? "Contact your coach to adjust targets"
+                    : "Kontaktiraj trenera za promenu ciljeva"}
+                </p>
+              </div>
+            )}
+
+            <div className="space-y-3">
+              <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <span className="text-foreground-muted">
+                  {locale === "en" ? "Calories" : "Kalorije"}
+                </span>
+                <span className="text-foreground font-medium">
+                  {data.hasCoach && data.coachCalories
+                    ? `${data.coachCalories} kcal`
+                    : data.customCalories
+                    ? `${data.customCalories} kcal`
+                    : (locale === "en" ? "Auto" : "Automatski")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <span className="text-foreground-muted">
+                  {locale === "en" ? "Protein" : "Proteini"}
+                </span>
+                <span className="text-foreground font-medium">
+                  {data.hasCoach && data.coachProtein
+                    ? `${data.coachProtein}g`
+                    : data.customProtein
+                    ? `${data.customProtein}g`
+                    : (locale === "en" ? "Auto" : "Automatski")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2 border-b border-white/5">
+                <span className="text-foreground-muted">
+                  {locale === "en" ? "Carbs" : "Ugljeni hidrati"}
+                </span>
+                <span className="text-foreground font-medium">
+                  {data.hasCoach && data.coachCarbs
+                    ? `${data.coachCarbs}g`
+                    : data.customCarbs
+                    ? `${data.customCarbs}g`
+                    : (locale === "en" ? "Auto" : "Automatski")}
+                </span>
+              </div>
+              <div className="flex items-center justify-between py-2">
+                <span className="text-foreground-muted">
+                  {locale === "en" ? "Fats" : "Masti"}
+                </span>
+                <span className="text-foreground font-medium">
+                  {data.hasCoach && data.coachFats
+                    ? `${data.coachFats}g`
+                    : data.customFats
+                    ? `${data.customFats}g`
+                    : (locale === "en" ? "Auto" : "Automatski")}
+                </span>
+              </div>
+            </div>
+
+            {!data.hasCoach && !data.customCalories && !data.customProtein && !data.customCarbs && !data.customFats && (
+              <p className="text-xs text-foreground-muted mt-3 text-center">
+                {locale === "en"
+                  ? "Targets are calculated based on your weight and goal"
+                  : "Ciljevi se računaju na osnovu težine i cilja"}
+              </p>
+            )}
           </GlassCard>
         </SlideUp>
 
@@ -593,6 +801,97 @@ export default function ProfilePage() {
         circularCrop={true}
         locale={locale as "sr" | "en"}
       />
+
+      {/* Target Adjustment Modal */}
+      <Modal
+        isOpen={showTargetModal}
+        onClose={() => setShowTargetModal(false)}
+        title={locale === "en" ? "Adjust Daily Targets" : "Podesi dnevne ciljeve"}
+      >
+        <div className="space-y-4">
+          {targetError && (
+            <div className="p-3 bg-error/10 border border-error/20 rounded-xl">
+              <p className="text-sm text-error">{targetError}</p>
+            </div>
+          )}
+
+          <Input
+            label={locale === "en" ? "Calories (kcal)" : "Kalorije (kcal)"}
+            type="number"
+            inputMode="numeric"
+            value={targetCalories}
+            onChange={(e) => setTargetCalories(e.target.value)}
+            placeholder={locale === "en" ? "e.g. 2000" : "npr. 2000"}
+            disabled={savingTargets}
+          />
+
+          <Input
+            label={locale === "en" ? "Protein (g)" : "Proteini (g)"}
+            type="number"
+            inputMode="numeric"
+            value={targetProtein}
+            onChange={(e) => setTargetProtein(e.target.value)}
+            placeholder={locale === "en" ? "e.g. 150" : "npr. 150"}
+            disabled={savingTargets}
+          />
+
+          <Input
+            label={locale === "en" ? "Carbs (g)" : "Ugljeni hidrati (g)"}
+            type="number"
+            inputMode="numeric"
+            value={targetCarbs}
+            onChange={(e) => setTargetCarbs(e.target.value)}
+            placeholder={locale === "en" ? "e.g. 200" : "npr. 200"}
+            disabled={savingTargets}
+          />
+
+          <Input
+            label={locale === "en" ? "Fats (g)" : "Masti (g)"}
+            type="number"
+            inputMode="numeric"
+            value={targetFats}
+            onChange={(e) => setTargetFats(e.target.value)}
+            placeholder={locale === "en" ? "e.g. 70" : "npr. 70"}
+            disabled={savingTargets}
+          />
+
+          <p className="text-xs text-foreground-muted">
+            {locale === "en"
+              ? "Leave empty to use auto-calculated values based on your weight and goal."
+              : "Ostavi prazno da koristiš automatski izračunate vrednosti na osnovu težine i cilja."}
+          </p>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setShowTargetModal(false)}
+              disabled={savingTargets}
+            >
+              {locale === "en" ? "Cancel" : "Otkaži"}
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleSaveTargets}
+              disabled={savingTargets}
+            >
+              {savingTargets
+                ? (locale === "en" ? "Saving..." : "Čuvam...")
+                : (locale === "en" ? "Save" : "Sačuvaj")}
+            </Button>
+          </div>
+
+          {(data.customCalories || data.customProtein || data.customCarbs || data.customFats) && (
+            <button
+              onClick={resetTargets}
+              disabled={savingTargets}
+              className="w-full text-sm text-foreground-muted hover:text-foreground transition-colors py-2"
+            >
+              {locale === "en" ? "Reset to auto-calculated" : "Vrati na automatski izračunato"}
+            </button>
+          )}
+        </div>
+      </Modal>
     </div>
   );
 }

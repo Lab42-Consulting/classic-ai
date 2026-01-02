@@ -16,12 +16,6 @@ const goalLabels: Record<string, string> = {
   recomposition: "Rekompozicija",
 };
 
-interface Credentials {
-  memberId: string;
-  pin: string;
-  qrCode: string;
-}
-
 interface UnassignedMember {
   id: string;
   memberId: string;
@@ -45,27 +39,16 @@ function getInitials(name: string): string {
     .slice(0, 2);
 }
 
-export default function RegisterMemberPage() {
+export default function AssignMemberPage() {
   const router = useRouter();
-  const [isCoach, setIsCoach] = useState<boolean | null>(null);
   const [loading, setLoading] = useState(true);
-
-  // Admin registration state
-  const [step, setStep] = useState<"form" | "success">("form");
-  const [name, setName] = useState("");
-  const [height, setHeight] = useState("");
-  const [weight, setWeight] = useState("");
-  const [gender, setGender] = useState<string | null>(null);
-  const [goal, setGoal] = useState<string | null>(null);
-  const [submitting, setSubmitting] = useState(false);
-  const [error, setError] = useState("");
-  const [credentials, setCredentials] = useState<Credentials | null>(null);
 
   // Coach assignment state
   const [unassignedMembers, setUnassignedMembers] = useState<UnassignedMember[]>([]);
   const [selectedMember, setSelectedMember] = useState<UnassignedMember | null>(null);
-  const [coachStep, setCoachStep] = useState<"select" | "setup" | "success">("select");
+  const [step, setStep] = useState<"select" | "setup" | "success">("select");
   const [searchQuery, setSearchQuery] = useState("");
+  const [goal, setGoal] = useState<string | null>(null);
   const [customCalories, setCustomCalories] = useState("");
   const [customProtein, setCustomProtein] = useState("");
   const [customCarbs, setCustomCarbs] = useState("");
@@ -73,6 +56,8 @@ export default function RegisterMemberPage() {
   const [caloriesManuallySet, setCaloriesManuallySet] = useState(false);
   const [notes, setNotes] = useState("");
   const [requireExactMacros, setRequireExactMacros] = useState(false);
+  const [submitting, setSubmitting] = useState(false);
+  const [error, setError] = useState("");
 
   // Auto-calculate calories from macros
   const calculateCaloriesFromMacros = (protein: string, carbs: string, fats: string) => {
@@ -106,22 +91,12 @@ export default function RegisterMemberPage() {
   };
 
   useEffect(() => {
-    const checkRoleAndFetchData = async () => {
+    const fetchUnassignedMembers = async () => {
       try {
-        // First check if user is coach
-        const dashboardRes = await fetch("/api/coach/dashboard");
-        if (dashboardRes.ok) {
-          const data = await dashboardRes.json();
-          setIsCoach(data.isCoach);
-
-          // If coach, fetch unassigned members
-          if (data.isCoach) {
-            const membersRes = await fetch("/api/coach/unassigned-members");
-            if (membersRes.ok) {
-              const membersData = await membersRes.json();
-              setUnassignedMembers(membersData.members);
-            }
-          }
+        const membersRes = await fetch("/api/coach/unassigned-members");
+        if (membersRes.ok) {
+          const membersData = await membersRes.json();
+          setUnassignedMembers(membersData.members);
         }
       } catch {
         // Handle error silently
@@ -130,49 +105,11 @@ export default function RegisterMemberPage() {
       }
     };
 
-    checkRoleAndFetchData();
+    fetchUnassignedMembers();
   }, []);
 
-  // Admin registration submit
-  const handleAdminSubmit = async () => {
-    if (!name.trim() || !goal) {
-      setError("Ime i cilj su obavezni");
-      return;
-    }
-
-    setSubmitting(true);
-    setError("");
-
-    try {
-      const response = await fetch("/api/members", {
-        method: "POST",
-        headers: { "Content-Type": "application/json" },
-        body: JSON.stringify({
-          name: name.trim(),
-          height: height || undefined,
-          weight: weight || undefined,
-          gender: gender || undefined,
-          goal,
-        }),
-      });
-
-      const data = await response.json();
-
-      if (response.ok) {
-        setCredentials(data.credentials);
-        setStep("success");
-      } else {
-        setError(data.error || "Registracija člana nije uspela");
-      }
-    } catch {
-      setError("Nije moguće povezivanje. Pokušaj ponovo.");
-    } finally {
-      setSubmitting(false);
-    }
-  };
-
   // Coach assignment submit
-  const handleCoachAssign = async () => {
+  const handleAssign = async () => {
     if (!selectedMember || !goal) {
       setError("Morate izabrati člana i cilj");
       return;
@@ -200,7 +137,7 @@ export default function RegisterMemberPage() {
       const data = await response.json();
 
       if (response.ok) {
-        setCoachStep("success");
+        setStep("success");
       } else {
         setError(data.error || "Dodeljivanje člana nije uspelo");
       }
@@ -226,8 +163,8 @@ export default function RegisterMemberPage() {
     );
   }
 
-  // ============= COACH SUCCESS VIEW =============
-  if (isCoach && coachStep === "success") {
+  // ============= SUCCESS VIEW =============
+  if (step === "success") {
     return (
       <div className="min-h-screen bg-background px-6 pt-12 pb-24">
         <header className="flex items-center justify-between mb-8">
@@ -266,7 +203,7 @@ export default function RegisterMemberPage() {
             <Button
               className="w-full"
               onClick={() => {
-                setCoachStep("select");
+                setStep("select");
                 setSelectedMember(null);
                 setGoal(null);
                 setCustomCalories("");
@@ -297,13 +234,13 @@ export default function RegisterMemberPage() {
     );
   }
 
-  // ============= COACH SETUP VIEW (after selecting member) =============
-  if (isCoach && coachStep === "setup" && selectedMember) {
+  // ============= SETUP VIEW (after selecting member) =============
+  if (step === "setup" && selectedMember) {
     return (
       <div className="min-h-screen bg-background pb-32">
         <header className="px-6 pt-12 pb-6 flex items-center justify-between">
           <button
-            onClick={() => setCoachStep("select")}
+            onClick={() => setStep("select")}
             className="p-2 -ml-2"
             aria-label="Go back"
           >
@@ -471,7 +408,7 @@ export default function RegisterMemberPage() {
           <Button
             className="w-full"
             size="lg"
-            onClick={handleCoachAssign}
+            onClick={handleAssign}
             disabled={!goal || submitting}
             loading={submitting}
           >
@@ -482,298 +419,24 @@ export default function RegisterMemberPage() {
     );
   }
 
-  // ============= COACH SELECT MEMBER VIEW =============
-  if (isCoach) {
-    // Filter members by search query
-    const filteredMembers = unassignedMembers.filter((member) => {
-      if (!searchQuery.trim()) return true;
-      const query = searchQuery.toLowerCase();
-      return (
-        member.name.toLowerCase().includes(query) ||
-        member.memberId.toLowerCase().includes(query)
-      );
-    });
-
-    // Limit displayed members for performance
-    const MAX_DISPLAY = 20;
-    const displayedMembers = filteredMembers.slice(0, MAX_DISPLAY);
-    const hasMore = filteredMembers.length > MAX_DISPLAY;
-
+  // ============= SELECT MEMBER VIEW =============
+  // Filter members by search query
+  const filteredMembers = unassignedMembers.filter((member) => {
+    if (!searchQuery.trim()) return true;
+    const query = searchQuery.toLowerCase();
     return (
-      <div className="min-h-screen bg-background pb-24">
-        <header className="px-6 pt-12 pb-6 flex items-center justify-between">
-          <button
-            onClick={() => router.back()}
-            className="p-2 -ml-2"
-            aria-label="Go back"
-          >
-            <svg className="w-6 h-6 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-            </svg>
-          </button>
-          <h1 className="text-xl font-bold text-foreground">Dodeli člana</h1>
-          <div className="w-10" />
-        </header>
-
-        <main className="px-6 space-y-4">
-          <SlideUp delay={100}>
-            <Card className="bg-accent/5 border-accent/20">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">👥</span>
-                <div>
-                  <p className="text-sm font-medium text-accent">
-                    {unassignedMembers.length} {unassignedMembers.length === 1 ? "član" : "članova"} bez trenera
-                  </p>
-                  <p className="text-xs text-foreground-muted">
-                    Izaberi člana da postaviš njegov plan
-                  </p>
-                </div>
-              </div>
-            </Card>
-          </SlideUp>
-
-          {unassignedMembers.length > 0 && (
-            <SlideUp delay={150}>
-              <div className="relative">
-                <svg
-                  className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-muted"
-                  fill="none"
-                  stroke="currentColor"
-                  viewBox="0 0 24 24"
-                >
-                  <path
-                    strokeLinecap="round"
-                    strokeLinejoin="round"
-                    strokeWidth={2}
-                    d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
-                  />
-                </svg>
-                <input
-                  type="text"
-                  placeholder="Pretraži po imenu ili ID-u..."
-                  value={searchQuery}
-                  onChange={(e) => setSearchQuery(e.target.value)}
-                  className="w-full pl-12 pr-4 py-3 bg-background-secondary border border-border rounded-xl text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent"
-                />
-                {searchQuery && (
-                  <button
-                    onClick={() => setSearchQuery("")}
-                    className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground"
-                  >
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
-                    </svg>
-                  </button>
-                )}
-              </div>
-            </SlideUp>
-          )}
-
-          {unassignedMembers.length === 0 ? (
-            <SlideUp delay={200}>
-              <Card className="text-center py-12">
-                <span className="text-4xl mb-4 block">🎉</span>
-                <p className="text-foreground-muted">
-                  Svi članovi teretane imaju dodeljenog trenera
-                </p>
-              </Card>
-            </SlideUp>
-          ) : filteredMembers.length === 0 ? (
-            <SlideUp delay={200}>
-              <Card className="text-center py-8">
-                <span className="text-3xl mb-3 block">🔍</span>
-                <p className="text-foreground-muted">
-                  Nema rezultata za &quot;{searchQuery}&quot;
-                </p>
-              </Card>
-            </SlideUp>
-          ) : (
-            <SlideUp delay={200}>
-              <div className="space-y-3">
-                {searchQuery && (
-                  <p className="text-sm text-foreground-muted">
-                    {filteredMembers.length} {filteredMembers.length === 1 ? "rezultat" : "rezultata"}
-                  </p>
-                )}
-                {displayedMembers.map((member, index) => (
-                  <SlideUp key={member.id} delay={250 + Math.min(index, 5) * 30}>
-                    <GlassCard
-                      hover={!member.pendingRequestFromMe}
-                      className={member.pendingRequestFromMe ? "opacity-75" : "cursor-pointer"}
-                      onClick={() => {
-                        if (member.pendingRequestFromMe) return;
-                        setSelectedMember(member);
-                        setGoal(member.goal); // Pre-fill with current goal
-                        setCoachStep("setup");
-                      }}
-                    >
-                      <div className="flex items-center gap-4">
-                        {member.avatarUrl ? (
-                          <img
-                            src={member.avatarUrl}
-                            alt={member.name}
-                            className={`w-12 h-12 rounded-full object-cover ${
-                              member.pendingRequestFromMe ? "opacity-75" : ""
-                            }`}
-                          />
-                        ) : (
-                          <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
-                            member.pendingRequestFromMe ? "bg-warning/20" : "bg-accent/20"
-                          }`}>
-                            <span className={`text-lg font-bold ${
-                              member.pendingRequestFromMe ? "text-warning" : "text-accent"
-                            }`}>
-                              {getInitials(member.name)}
-                            </span>
-                          </div>
-                        )}
-                        <div className="flex-1 min-w-0">
-                          <div className="flex items-center gap-2">
-                            <h3 className="font-medium text-foreground truncate">
-                              {member.name}
-                            </h3>
-                            <span className="text-xs bg-background-secondary text-foreground-muted px-2 py-0.5 rounded font-mono">
-                              {member.memberId}
-                            </span>
-                            {member.pendingRequestFromMe && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning rounded-full flex-shrink-0">
-                                Zahtev poslat
-                              </span>
-                            )}
-                            {member.hasPendingRequest && !member.pendingRequestFromMe && (
-                              <span className="px-2 py-0.5 text-xs font-medium bg-foreground-muted/20 text-foreground-muted rounded-full flex-shrink-0">
-                                {member.pendingRequestCoachName}
-                              </span>
-                            )}
-                          </div>
-                          <p className="text-sm text-foreground-muted">
-                            {goalLabels[member.goal] || member.goal}
-                          </p>
-                          {member.weight && (
-                            <p className="text-xs text-foreground-muted mt-1">
-                              ⚖️ {member.weight}kg
-                              {member.height && ` • 📏 ${member.height}cm`}
-                            </p>
-                          )}
-                        </div>
-                        {member.pendingRequestFromMe ? (
-                          <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                            <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
-                            </svg>
-                          </div>
-                        ) : (
-                          <svg className="w-5 h-5 text-foreground-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                          </svg>
-                        )}
-                      </div>
-                    </GlassCard>
-                  </SlideUp>
-                ))}
-                {hasMore && (
-                  <p className="text-center text-sm text-foreground-muted py-2">
-                    Prikazano {MAX_DISPLAY} od {filteredMembers.length} članova.
-                    Koristi pretragu za preciznije rezultate.
-                  </p>
-                )}
-              </div>
-            </SlideUp>
-          )}
-        </main>
-      </div>
+      member.name.toLowerCase().includes(query) ||
+      member.memberId.toLowerCase().includes(query)
     );
-  }
+  });
 
-  // ============= ADMIN SUCCESS VIEW =============
-  if (step === "success" && credentials) {
-    return (
-      <div className="min-h-screen bg-background px-6 pt-12 pb-24">
-        <header className="flex items-center justify-between mb-8">
-          <div className="w-10" />
-          <h1 className="text-xl font-bold text-foreground">Član registrovan</h1>
-          <div className="w-10" />
-        </header>
+  // Limit displayed members for performance
+  const MAX_DISPLAY = 20;
+  const displayedMembers = filteredMembers.slice(0, MAX_DISPLAY);
+  const hasMore = filteredMembers.length > MAX_DISPLAY;
 
-        <div className="space-y-6">
-          <Card className="text-center py-6">
-            <div className="w-16 h-16 bg-success rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <h2 className="text-xl font-semibold text-foreground mb-2">
-              {name} je registrovan/a!
-            </h2>
-            <p className="text-foreground-muted">
-              Podeli ove pristupne podatke
-            </p>
-          </Card>
-
-          <Card>
-            <h3 className="text-lg font-semibold text-foreground mb-4">Pristupni podaci</h3>
-            <div className="space-y-4">
-              <div className="flex justify-between items-center py-3 border-b border-border">
-                <span className="text-foreground-muted">Member ID</span>
-                <span className="text-xl font-mono font-bold text-foreground">
-                  {credentials.memberId}
-                </span>
-              </div>
-              <div className="flex justify-between items-center py-3">
-                <span className="text-foreground-muted">PIN</span>
-                <span className="text-xl font-mono font-bold text-foreground">
-                  {credentials.pin}
-                </span>
-              </div>
-            </div>
-          </Card>
-
-          <Card>
-            <h3 className="text-lg font-semibold text-foreground mb-4">QR kod za prijavu</h3>
-            <div className="flex justify-center">
-              <img
-                src={credentials.qrCode}
-                alt="Login QR Code"
-                className="w-48 h-48 rounded-lg"
-              />
-            </div>
-            <p className="text-sm text-foreground-muted text-center mt-4">
-              Skeniraj ovaj QR kod za brzu prijavu
-            </p>
-          </Card>
-
-          <div className="space-y-3">
-            <Button
-              className="w-full"
-              onClick={() => {
-                setStep("form");
-                setName("");
-                setHeight("");
-                setWeight("");
-                setGender(null);
-                setGoal(null);
-                setCredentials(null);
-              }}
-            >
-              Registruj još jednog člana
-            </Button>
-            <Button
-              variant="secondary"
-              className="w-full"
-              onClick={() => router.push("/dashboard")}
-            >
-              Nazad na kontrolnu tablu
-            </Button>
-          </div>
-        </div>
-      </div>
-    );
-  }
-
-  // ============= ADMIN REGISTRATION FORM =============
   return (
-    <div className="min-h-screen bg-background pb-32">
-      {/* Header */}
+    <div className="min-h-screen bg-background pb-24">
       <header className="px-6 pt-12 pb-6 flex items-center justify-between">
         <button
           onClick={() => router.back()}
@@ -784,108 +447,176 @@ export default function RegisterMemberPage() {
             <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
           </svg>
         </button>
-        <h1 className="text-xl font-bold text-foreground">Registruj člana</h1>
+        <h1 className="text-xl font-bold text-foreground">Dodeli člana</h1>
         <div className="w-10" />
       </header>
 
-      <main className="px-6 space-y-6">
-        {error && (
-          <div className="p-4 bg-error/10 border border-error/20 rounded-xl">
-            <p className="text-error text-sm">{error}</p>
-          </div>
-        )}
-
-        <Card>
-          <h3 className="text-lg font-semibold text-foreground mb-4">Osnovne informacije</h3>
-          <div className="space-y-4">
-            <Input
-              label="Ime ili nadimak *"
-              placeholder="npr. Marko"
-              value={name}
-              onChange={(e) => setName(e.target.value)}
-            />
-            <div className="grid grid-cols-2 gap-4">
-              <Input
-                label="Visina (cm)"
-                type="number"
-                placeholder="175"
-                value={height}
-                onChange={(e) => setHeight(e.target.value)}
-              />
-              <Input
-                label="Težina (kg)"
-                type="number"
-                placeholder="70"
-                value={weight}
-                onChange={(e) => setWeight(e.target.value)}
-              />
-            </div>
-            <div>
-              <label className="block text-sm font-medium text-foreground-muted mb-2">
-                Pol (opciono)
-              </label>
-              <div className="grid grid-cols-3 gap-3">
-                {[
-                  { value: "male", label: "Muški" },
-                  { value: "female", label: "Ženski" },
-                  { value: "other", label: "Drugo" },
-                ].map((g) => (
-                  <button
-                    key={g.value}
-                    onClick={() => setGender(g.value)}
-                    className={`
-                      py-3 rounded-xl border-2 transition-all
-                      ${gender === g.value
-                        ? "border-accent bg-accent/10"
-                        : "border-border hover:border-border-hover"
-                      }
-                    `}
-                  >
-                    <span className="text-sm font-medium text-foreground">{g.label}</span>
-                  </button>
-                ))}
+      <main className="px-6 space-y-4">
+        <SlideUp delay={100}>
+          <Card className="bg-accent/5 border-accent/20">
+            <div className="flex items-center gap-3">
+              <span className="text-2xl">👥</span>
+              <div>
+                <p className="text-sm font-medium text-accent">
+                  {unassignedMembers.length} {unassignedMembers.length === 1 ? "član" : "članova"} bez trenera
+                </p>
+                <p className="text-xs text-foreground-muted">
+                  Izaberi člana da postaviš njegov plan
+                </p>
               </div>
             </div>
-          </div>
-        </Card>
+          </Card>
+        </SlideUp>
 
-        <Card>
-          <h3 className="text-lg font-semibold text-foreground mb-4">Primarni cilj *</h3>
-          <div className="space-y-3">
-            {GOALS.map((g) => (
-              <button
-                key={g.value}
-                onClick={() => setGoal(g.value)}
-                className={`
-                  w-full text-left p-4 rounded-xl border-2 transition-all
-                  ${goal === g.value
-                    ? "border-accent bg-accent/10"
-                    : "border-border hover:border-border-hover"
-                  }
-                `}
+        {unassignedMembers.length > 0 && (
+          <SlideUp delay={150}>
+            <div className="relative">
+              <svg
+                className="absolute left-4 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-muted"
+                fill="none"
+                stroke="currentColor"
+                viewBox="0 0 24 24"
               >
-                <span className="block font-medium text-foreground">{g.label}</span>
-                <span className="block text-sm text-foreground-muted mt-1">
-                  {g.description}
-                </span>
-              </button>
-            ))}
-          </div>
-        </Card>
-      </main>
+                <path
+                  strokeLinecap="round"
+                  strokeLinejoin="round"
+                  strokeWidth={2}
+                  d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z"
+                />
+              </svg>
+              <input
+                type="text"
+                placeholder="Pretraži po imenu ili ID-u..."
+                value={searchQuery}
+                onChange={(e) => setSearchQuery(e.target.value)}
+                className="w-full pl-12 pr-4 py-3 bg-background-secondary border border-border rounded-xl text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent"
+              />
+              {searchQuery && (
+                <button
+                  onClick={() => setSearchQuery("")}
+                  className="absolute right-4 top-1/2 -translate-y-1/2 text-foreground-muted hover:text-foreground"
+                >
+                  <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              )}
+            </div>
+          </SlideUp>
+        )}
 
-      {/* Submit Button */}
-      <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent">
-        <Button
-          className="w-full"
-          size="lg"
-          onClick={handleAdminSubmit}
-          disabled={!name.trim() || !goal || submitting}
-          loading={submitting}
-        >
-          Registruj člana
-        </Button>
-      </div>
+        {unassignedMembers.length === 0 ? (
+          <SlideUp delay={200}>
+            <Card className="text-center py-12">
+              <span className="text-4xl mb-4 block">🎉</span>
+              <p className="text-foreground-muted">
+                Svi članovi teretane imaju dodeljenog trenera
+              </p>
+            </Card>
+          </SlideUp>
+        ) : filteredMembers.length === 0 ? (
+          <SlideUp delay={200}>
+            <Card className="text-center py-8">
+              <span className="text-3xl mb-3 block">🔍</span>
+              <p className="text-foreground-muted">
+                Nema rezultata za &quot;{searchQuery}&quot;
+              </p>
+            </Card>
+          </SlideUp>
+        ) : (
+          <SlideUp delay={200}>
+            <div className="space-y-3">
+              {searchQuery && (
+                <p className="text-sm text-foreground-muted">
+                  {filteredMembers.length} {filteredMembers.length === 1 ? "rezultat" : "rezultata"}
+                </p>
+              )}
+              {displayedMembers.map((member, index) => (
+                <SlideUp key={member.id} delay={250 + Math.min(index, 5) * 30}>
+                  <GlassCard
+                    hover={!member.pendingRequestFromMe}
+                    className={member.pendingRequestFromMe ? "opacity-75" : "cursor-pointer"}
+                    onClick={() => {
+                      if (member.pendingRequestFromMe) return;
+                      setSelectedMember(member);
+                      setGoal(member.goal); // Pre-fill with current goal
+                      setStep("setup");
+                    }}
+                  >
+                    <div className="flex items-center gap-4">
+                      {member.avatarUrl ? (
+                        <img
+                          src={member.avatarUrl}
+                          alt={member.name}
+                          className={`w-12 h-12 rounded-full object-cover ${
+                            member.pendingRequestFromMe ? "opacity-75" : ""
+                          }`}
+                        />
+                      ) : (
+                        <div className={`w-12 h-12 rounded-full flex items-center justify-center ${
+                          member.pendingRequestFromMe ? "bg-warning/20" : "bg-accent/20"
+                        }`}>
+                          <span className={`text-lg font-bold ${
+                            member.pendingRequestFromMe ? "text-warning" : "text-accent"
+                          }`}>
+                            {getInitials(member.name)}
+                          </span>
+                        </div>
+                      )}
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-center gap-2">
+                          <h3 className="font-medium text-foreground truncate">
+                            {member.name}
+                          </h3>
+                          <span className="text-xs bg-background-secondary text-foreground-muted px-2 py-0.5 rounded font-mono">
+                            {member.memberId}
+                          </span>
+                          {member.pendingRequestFromMe && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-warning/20 text-warning rounded-full flex-shrink-0">
+                              Zahtev poslat
+                            </span>
+                          )}
+                          {member.hasPendingRequest && !member.pendingRequestFromMe && (
+                            <span className="px-2 py-0.5 text-xs font-medium bg-foreground-muted/20 text-foreground-muted rounded-full flex-shrink-0">
+                              {member.pendingRequestCoachName}
+                            </span>
+                          )}
+                        </div>
+                        <p className="text-sm text-foreground-muted">
+                          {goalLabels[member.goal] || member.goal}
+                        </p>
+                        {member.weight && (
+                          <p className="text-xs text-foreground-muted mt-1">
+                            ⚖️ {member.weight}kg
+                            {member.height && ` • 📏 ${member.height}cm`}
+                          </p>
+                        )}
+                      </div>
+                      {member.pendingRequestFromMe ? (
+                        <div className="w-8 h-8 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                          <svg className="w-4 h-4 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+                          </svg>
+                        </div>
+                      ) : (
+                        <svg className="w-5 h-5 text-foreground-muted flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                        </svg>
+                      )}
+                    </div>
+                  </GlassCard>
+                </SlideUp>
+              ))}
+              {hasMore && (
+                <p className="text-center text-sm text-foreground-muted py-2">
+                  Prikazano {MAX_DISPLAY} od {filteredMembers.length} članova.
+                  Koristi pretragu za preciznije rezultate.
+                </p>
+              )}
+            </div>
+          </SlideUp>
+        )}
+      </main>
     </div>
   );
 }

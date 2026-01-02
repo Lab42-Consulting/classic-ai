@@ -13,8 +13,20 @@ export const mockGym = {
   logo: null,
   settings: {},
   aiMonthlyBudget: 100.0,
+  primaryColor: null,
+  secondaryColor: null,
+  subscriptionStatus: 'active',
+  subscribedAt: new Date('2024-01-01'),
+  subscribedUntil: new Date('2025-01-01'),
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
+}
+
+export const mockGymWithBranding = {
+  ...mockGym,
+  logo: 'data:image/png;base64,mockLogo',
+  primaryColor: '#3b82f6',
+  secondaryColor: '#10b981',
 }
 
 // =============================================================================
@@ -92,6 +104,9 @@ export const mockStaffCoach = {
   name: 'Coach Marko',
   role: 'COACH',
   locale: 'sr',
+  avatarUrl: null,
+  bio: null,
+  linkedMemberId: null,
   gymId: 'gym-test-001',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
@@ -104,9 +119,20 @@ export const mockStaffAdmin = {
   name: 'Admin User',
   role: 'ADMIN',
   locale: 'sr',
+  avatarUrl: null,
+  bio: null,
+  linkedMemberId: null,
   gymId: 'gym-test-001',
   createdAt: new Date('2024-01-01'),
   updatedAt: new Date('2024-01-01'),
+}
+
+export const mockStaffCoachWithLinkedMember = {
+  ...mockStaffCoach,
+  id: 'staff-test-003',
+  staffId: 'S-DUAL',
+  name: 'Dual-Role Coach',
+  linkedMemberId: 'member-test-006',
 }
 
 // =============================================================================
@@ -252,6 +278,11 @@ export const mockCoachRequest = {
   id: 'request-001',
   staffId: mockStaffCoach.id,
   memberId: mockMember.id,
+  initiatedBy: 'coach', // Coach-initiated request with a plan
+  memberFirstName: null,
+  memberLastName: null,
+  memberPhone: null,
+  memberMessage: null,
   customGoal: null,
   customCalories: 1800,
   customProtein: 150,
@@ -260,6 +291,20 @@ export const mockCoachRequest = {
   notes: 'Focus on fat loss with high protein',
   requireExactMacros: false,
   createdAt: new Date('2024-12-01'),
+}
+
+export const mockMemberInitiatedRequest = {
+  ...mockCoachRequest,
+  id: 'request-002',
+  initiatedBy: 'member', // Member interest signal (no plan)
+  memberFirstName: 'Marko',
+  memberLastName: 'Markovic',
+  memberPhone: '+381641234567',
+  memberMessage: 'Zelim da radim na gubitku masti',
+  customGoal: null,
+  customCalories: null,
+  customProtein: null,
+  notes: null,
 }
 
 export const mockCoachRequestWithStaffAndMember = {

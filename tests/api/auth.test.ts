@@ -203,6 +203,7 @@ describe('Authentication API', () => {
         id: mockStaffCoach.id,
         name: mockStaffCoach.name,
         role: mockStaffCoach.role,
+        linkedMember: null,
       })
     })
 

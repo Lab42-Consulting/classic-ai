@@ -10,6 +10,7 @@ vi.mock('@/lib/db', () => ({
       create: vi.fn(),
       update: vi.fn(),
       delete: vi.fn(),
+      count: vi.fn(),
     },
     staff: {
       findUnique: vi.fn(),
@@ -17,12 +18,14 @@ vi.mock('@/lib/db', () => ({
       findMany: vi.fn(),
       create: vi.fn(),
       update: vi.fn(),
+      count: vi.fn(),
     },
     gym: {
       findUnique: vi.fn(),
       findFirst: vi.fn(),
       findMany: vi.fn(),
       create: vi.fn(),
+      update: vi.fn(),
     },
     dailyLog: {
       findUnique: vi.fn(),

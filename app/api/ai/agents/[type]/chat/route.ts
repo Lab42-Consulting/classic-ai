@@ -148,17 +148,17 @@ export async function POST(
       }),
     ]);
 
-    // Use coach-set custom targets if available, otherwise auto-calculate
+    // Priority: Coach targets > Member custom targets > Auto-calculated
     const autoTargets = calculateDailyTargets(
       member.weight || 70,
       member.goal as Goal
     );
     const coachTargets = member.coachAssignment;
     const targets = {
-      calories: coachTargets?.customCalories || autoTargets.calories,
-      protein: coachTargets?.customProtein || autoTargets.protein,
-      carbs: coachTargets?.customCarbs || autoTargets.carbs,
-      fats: coachTargets?.customFats || autoTargets.fats,
+      calories: coachTargets?.customCalories || member.customCalories || autoTargets.calories,
+      protein: coachTargets?.customProtein || member.customProtein || autoTargets.protein,
+      carbs: coachTargets?.customCarbs || member.customCarbs || autoTargets.carbs,
+      fats: coachTargets?.customFats || member.customFats || autoTargets.fats,
     };
 
     const consumed = {

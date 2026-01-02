@@ -21,7 +21,16 @@ export async function POST(request: NextRequest) {
           gymId,
         }
       },
-      include: { gym: true },
+      include: {
+        gym: true,
+        linkedMember: {
+          select: {
+            id: true,
+            memberId: true,
+            name: true,
+          },
+        },
+      },
     });
 
     if (!staff) {
@@ -53,6 +62,12 @@ export async function POST(request: NextRequest) {
         id: staff.id,
         name: staff.name,
         role: staff.role,
+        linkedMember: staff.linkedMember
+          ? {
+              id: staff.linkedMember.id,
+              memberId: staff.linkedMember.memberId,
+            }
+          : null,
       },
     });
   } catch (error) {

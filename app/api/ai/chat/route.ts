@@ -1,5 +1,5 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { generateAIResponse, ChatMessage } from "@/lib/ai";
 import {
@@ -19,15 +19,18 @@ import {
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     // Get member with subscription status, gym, and coach assignment
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       include: { gym: true, coachAssignment: true },
     });
 
@@ -48,7 +51,7 @@ export async function POST(request: NextRequest) {
     }
 
     // Check rate limit based on subscription status (trial: 5/day, active: 20/day)
-    const rateLimit = await checkRateLimit(session.userId, member.subscriptionStatus);
+    const rateLimit = await checkRateLimit(authResult.memberId, member.subscriptionStatus);
     if (!rateLimit.allowed) {
       const message = member.subscriptionStatus === "trial"
         ? "Dostigao si dnevni limit poruka (5). Nadogradi članarinu za više poruka."
@@ -95,13 +98,13 @@ export async function POST(request: NextRequest) {
     const cachedResponse = await getCachedResponse(message);
     if (cachedResponse) {
       // Increment usage even for cached responses
-      await incrementUsage(session.userId);
+      await incrementUsage(authResult.memberId);
 
       // Save to chat history
       await prisma.chatMessage.createMany({
         data: [
-          { memberId: session.userId, role: "user", content: message },
-          { memberId: session.userId, role: "assistant", content: cachedResponse },
+          { memberId: authResult.memberId, role: "user", content: message },
+          { memberId: authResult.memberId, role: "assistant", content: cachedResponse },
         ],
       });
 
@@ -121,20 +124,20 @@ export async function POST(request: NextRequest) {
     const [todayLogs, last30DaysLogs, last7DaysLogs, weeklyCheckins] = await Promise.all([
       prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: { gte: today },
         },
       }),
       prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: { gte: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000) },
         },
         select: { date: true },
       }),
       prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: { gte: sevenDaysAgo },
         },
         select: {
@@ -145,7 +148,7 @@ export async function POST(request: NextRequest) {
         },
       }),
       prisma.weeklyCheckin.findMany({
-        where: { memberId: session.userId },
+        where: { memberId: authResult.memberId },
         orderBy: [{ year: "desc" }, { weekNumber: "desc" }],
         take: 4,
       }),
@@ -254,20 +257,20 @@ export async function POST(request: NextRequest) {
     // Track usage and costs (only if we actually called the API)
     if (!aiResponse.error) {
       await Promise.all([
-        incrementUsage(session.userId),
+        incrementUsage(authResult.memberId),
         trackAIUsage(member.gymId, aiResponse.tokensIn, aiResponse.tokensOut),
         cacheResponse(message, aiResponse.text),
       ]);
     } else {
       // Still increment usage on error to prevent abuse
-      await incrementUsage(session.userId);
+      await incrementUsage(authResult.memberId);
     }
 
     // Save to chat history
     await prisma.chatMessage.createMany({
       data: [
-        { memberId: session.userId, role: "user", content: message },
-        { memberId: session.userId, role: "assistant", content: aiResponse.text },
+        { memberId: authResult.memberId, role: "user", content: message },
+        { memberId: authResult.memberId, role: "assistant", content: aiResponse.text },
       ],
     });
 

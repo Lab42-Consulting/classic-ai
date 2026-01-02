@@ -1,17 +1,20 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
 export async function GET() {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       select: {
         id: true,
         memberId: true,
@@ -76,12 +79,15 @@ export async function GET() {
 
 export async function PATCH(request: NextRequest) {
   try {
-    const session = await getSession();
-    console.log("PATCH /api/member/profile - session:", session ? { userId: session.userId, userType: session.userType } : null);
+    const authResult = await getMemberFromSession();
+    console.log("PATCH /api/member/profile - authResult:", "error" in authResult ? authResult : { memberId: authResult.memberId, isStaffMember: authResult.isStaffMember });
 
-    if (!session || session.userType !== "member") {
-      console.log("PATCH /api/member/profile - Unauthorized: no valid member session");
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      console.log("PATCH /api/member/profile - Unauthorized:", authResult.error);
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -94,7 +100,7 @@ export async function PATCH(request: NextRequest) {
 
     if (isUpdatingTargets) {
       const existingMember = await prisma.member.findUnique({
-        where: { id: session.userId },
+        where: { id: authResult.memberId },
         select: { coachAssignment: { select: { id: true } } },
       });
 
@@ -197,10 +203,10 @@ export async function PATCH(request: NextRequest) {
     }
 
     console.log("PATCH /api/member/profile - updateData:", updateData);
-    console.log("PATCH /api/member/profile - updating member:", session.userId);
+    console.log("PATCH /api/member/profile - updating member:", authResult.memberId);
 
     const member = await prisma.member.update({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
       data: updateData,
       select: {
         id: true,

@@ -1,14 +1,17 @@
 import { NextRequest, NextResponse } from "next/server";
-import { getSession } from "@/lib/auth";
+import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { estimateMealMacros, Goal, MealSize } from "@/lib/calculations";
 
 export async function POST(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const body = await request.json();
@@ -22,7 +25,7 @@ export async function POST(request: NextRequest) {
     }
 
     const member = await prisma.member.findUnique({
-      where: { id: session.userId },
+      where: { id: authResult.memberId },
     });
 
     if (!member) {
@@ -39,7 +42,7 @@ export async function POST(request: NextRequest) {
       estimatedCarbs?: number;
       estimatedFats?: number;
     } = {
-      memberId: session.userId,
+      memberId: authResult.memberId,
       type,
     };
 
@@ -138,10 +141,13 @@ export async function POST(request: NextRequest) {
 
 export async function GET(request: NextRequest) {
   try {
-    const session = await getSession();
+    const authResult = await getMemberFromSession();
 
-    if (!session || session.userType !== "member") {
-      return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
+    if ("error" in authResult) {
+      return NextResponse.json(
+        { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
+        { status: 401 }
+      );
     }
 
     const { searchParams } = new URL(request.url);
@@ -162,7 +168,7 @@ export async function GET(request: NextRequest) {
 
       const logs = await prisma.dailyLog.findMany({
         where: {
-          memberId: session.userId,
+          memberId: authResult.memberId,
           date: {
             gte: startDate,
             lte: endDate,
@@ -223,7 +229,7 @@ export async function GET(request: NextRequest) {
 
     const logs = await prisma.dailyLog.findMany({
       where: {
-        memberId: session.userId,
+        memberId: authResult.memberId,
         date: {
           gte: startDate,
           lte: endDate,

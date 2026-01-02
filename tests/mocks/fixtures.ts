@@ -161,6 +161,34 @@ export const mockAdminSession = {
 }
 
 // =============================================================================
+// getMemberFromSession RESULT FIXTURES
+// =============================================================================
+
+export const mockMemberAuthResult = {
+  memberId: mockMember.id,
+  gymId: mockGym.id,
+  isStaffMember: false,
+}
+
+export const mockStaffMemberAuthResult = {
+  memberId: 'member-test-006', // Staff's linked member
+  gymId: mockGym.id,
+  isStaffMember: true,
+}
+
+export const mockNoSessionError = {
+  error: 'NO_SESSION' as const,
+}
+
+export const mockStaffNoLinkedMemberError = {
+  error: 'STAFF_NO_LINKED_MEMBER' as const,
+}
+
+export const mockInvalidUserTypeError = {
+  error: 'INVALID_USER_TYPE' as const,
+}
+
+// =============================================================================
 // DAILY LOG FIXTURES
 // =============================================================================
 

@@ -1,10 +1,11 @@
 import { describe, it, expect, vi, beforeEach, afterEach } from 'vitest'
 import { POST, GET } from '@/app/api/checkins/route'
 import prisma from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getMemberFromSession } from '@/lib/auth'
 import {
-  mockMemberSession,
-  mockStaffSession,
+  mockMemberAuthResult,
+  mockNoSessionError,
+  mockStaffNoLinkedMemberError,
   mockWeeklyCheckin,
   mockCheckinHistory,
   createMockRequest,
@@ -28,30 +29,30 @@ describe('Checkins API', () => {
   // =========================================================================
   describe('POST /api/checkins - Create Check-in', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
     })
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockRequest({ weight: 85, feeling: 3 })
         const response = await POST(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
 
-      it('should return 401 if session is not member type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 401 if staff without linked member', async () => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockStaffNoLinkedMemberError)
 
         const request = createMockRequest({ weight: 85, feeling: 3 })
         const response = await POST(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('STAFF_NO_LINKED_MEMBER')
       })
     })
 
@@ -283,14 +284,14 @@ describe('Checkins API', () => {
 
         expect(prisma.weeklyCheckin.create).toHaveBeenCalledWith({
           data: expect.objectContaining({
-            memberId: mockMemberSession.userId,
+            memberId: mockMemberAuthResult.memberId,
             weight: 84.5,
             feeling: 3,
           }),
         })
 
         expect(prisma.member.update).toHaveBeenCalledWith({
-          where: { id: mockMemberSession.userId },
+          where: { id: mockMemberAuthResult.memberId },
           data: { weight: 84.5 },
         })
       })
@@ -302,19 +303,19 @@ describe('Checkins API', () => {
   // =========================================================================
   describe('GET /api/checkins - Get Check-in Status', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
     })
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockGetRequest()
         const response = await GET()
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
     })
 

@@ -2,11 +2,13 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST as mealsPost, GET as mealsGet } from '@/app/api/member/meals/route'
 import { POST as coachMealsPost } from '@/app/api/coach/member-meals/[memberId]/route'
 import prisma from '@/lib/db'
-import { getSession } from '@/lib/auth'
+import { getSession, getMemberFromSession } from '@/lib/auth'
 import {
   mockMember,
   mockStaffCoach,
-  mockMemberSession,
+  mockMemberAuthResult,
+  mockNoSessionError,
+  mockStaffNoLinkedMemberError,
   mockStaffSession,
   mockCustomMeal,
   mockCoachMeal,
@@ -24,7 +26,7 @@ describe('Meals API', () => {
   // =========================================================================
   describe('GET /api/member/meals - Get Member Meals', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
       vi.mocked(prisma.member.findUnique).mockResolvedValue({
         ...mockMember,
         gymId: mockMember.gymId,
@@ -33,25 +35,25 @@ describe('Meals API', () => {
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockGetRequest()
         const response = await mealsGet(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
 
-      it('should return 401 if session is staff type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 401 if staff without linked member', async () => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockStaffNoLinkedMemberError)
 
         const request = createMockGetRequest()
         const response = await mealsGet(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('STAFF_NO_LINKED_MEMBER')
       })
     })
 
@@ -85,7 +87,7 @@ describe('Meals API', () => {
         expect(prisma.customMeal.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
-              memberId: mockMemberSession.userId,
+              memberId: mockMemberAuthResult.memberId,
               createdByCoachId: null,
             }),
           })
@@ -103,7 +105,7 @@ describe('Meals API', () => {
         expect(prisma.customMeal.findMany).toHaveBeenCalledWith(
           expect.objectContaining({
             where: expect.objectContaining({
-              memberId: mockMemberSession.userId,
+              memberId: mockMemberAuthResult.memberId,
               createdByCoachId: { not: null },
             }),
           })
@@ -117,7 +119,7 @@ describe('Meals API', () => {
   // =========================================================================
   describe('POST /api/member/meals - Create Member Meal', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
       vi.mocked(prisma.member.findUnique).mockResolvedValue({
         ...mockMember,
         gymId: mockMember.gymId,
@@ -126,7 +128,7 @@ describe('Meals API', () => {
 
     describe('Authentication', () => {
       it('should return 401 if no session', async () => {
-        vi.mocked(getSession).mockResolvedValue(null)
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockNoSessionError)
 
         const request = createMockRequest({
           name: 'Test Meal',
@@ -136,7 +138,7 @@ describe('Meals API', () => {
         const data = await response.json()
 
         expect(response.status).toBe(401)
-        expect(data.error).toBe('Unauthorized')
+        expect(data.code).toBe('NO_SESSION')
       })
     })
 
@@ -283,7 +285,12 @@ describe('Meals API', () => {
       })
 
       it('should return 401 if session is member type', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+        vi.mocked(getSession).mockResolvedValue({
+          userId: mockMember.id,
+          userType: 'member',
+          gymId: mockMember.gymId,
+          exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+        })
 
         const request = createMockRequest({
           name: 'Coach Meal',

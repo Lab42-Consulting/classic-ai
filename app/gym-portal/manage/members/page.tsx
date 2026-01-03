@@ -3,6 +3,10 @@
 import { useEffect, useState, useMemo } from "react";
 import Link from "next/link";
 import { SubscriptionExtendModal } from "@/components/staff/subscription-extend-modal";
+import { ActivityDistributionChart } from "@/components/members/charts/activity-distribution-chart";
+import { GoalDistributionChart } from "@/components/members/charts/goal-distribution-chart";
+import { SubscriptionStatusChart } from "@/components/members/charts/subscription-status-chart";
+import { MemberCSVExportButton } from "@/components/members/member-csv-export-button";
 
 interface Coach {
   id: string;
@@ -182,6 +186,47 @@ export default function MembersListPage() {
     return { total, active, expiringSoon, expired };
   }, [members]);
 
+  // Chart data
+  const chartData = useMemo(() => {
+    const activityDistribution = {
+      active: members.filter((m) => m.activityStatus === "active").length,
+      slipping: members.filter((m) => m.activityStatus === "slipping").length,
+      inactive: members.filter((m) => m.activityStatus === "inactive").length,
+    };
+
+    const goalDistribution = {
+      fat_loss: members.filter((m) => m.goal === "fat_loss").length,
+      muscle_gain: members.filter((m) => m.goal === "muscle_gain").length,
+      recomposition: members.filter((m) => m.goal === "recomposition").length,
+    };
+
+    const subscriptionStatus = {
+      active: members.filter((m) => m.subscriptionStatus === "active").length,
+      expiringSoon: members.filter((m) => {
+        const days = getDaysUntilExpiry(m.subscribedUntil);
+        return days !== null && days > 0 && days <= 7;
+      }).length,
+      expired: members.filter((m) => m.subscriptionStatus === "expired").length,
+    };
+
+    return { activityDistribution, goalDistribution, subscriptionStatus };
+  }, [members]);
+
+  // Tab state
+  const [activeTab, setActiveTab] = useState<"table" | "charts">("table");
+
+  // Pagination state
+  const [currentPage, setCurrentPage] = useState(1);
+  const [pageSize, setPageSize] = useState(5);
+  const totalPages = Math.ceil(filteredAndSortedMembers.length / pageSize);
+  const startIndex = (currentPage - 1) * pageSize;
+  const paginatedMembers = filteredAndSortedMembers.slice(startIndex, startIndex + pageSize);
+
+  // Reset page when filters change
+  useEffect(() => {
+    setCurrentPage(1);
+  }, [searchQuery, filterGoal, filterActivity, filterSubscription]);
+
   if (isLoading) {
     return (
       <div className="py-20 text-center">
@@ -193,7 +238,7 @@ export default function MembersListPage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Članovi
@@ -202,18 +247,45 @@ export default function MembersListPage() {
             Upravljaj članovima teretane
           </p>
         </div>
-        <Link
-          href="/gym-portal/manage/members/new"
-          className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
-        >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Novi član
-        </Link>
+        <div className="flex items-center gap-3">
+          <MemberCSVExportButton members={members} stats={stats} />
+          <Link
+            href="/gym-portal/manage/members/new"
+            className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Novi član
+          </Link>
+        </div>
       </div>
 
-      {/* Stats Cards */}
+      {/* Tabs */}
+      <div className="flex gap-1 mb-6 bg-background-secondary p-1 rounded-xl w-fit">
+        <button
+          onClick={() => setActiveTab("table")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "table"
+              ? "bg-accent text-white"
+              : "text-foreground-muted hover:text-foreground hover:bg-background"
+          }`}
+        >
+          Lista članova
+        </button>
+        <button
+          onClick={() => setActiveTab("charts")}
+          className={`px-4 py-2 rounded-lg text-sm font-medium transition-colors ${
+            activeTab === "charts"
+              ? "bg-accent text-white"
+              : "text-foreground-muted hover:text-foreground hover:bg-background"
+          }`}
+        >
+          Statistika
+        </button>
+      </div>
+
+      {/* Stats Cards - Always visible */}
       <div className="grid grid-cols-2 lg:grid-cols-4 gap-4 mb-8">
         <div className="bg-background-secondary border border-border rounded-xl p-4">
           <p className="text-sm text-foreground-muted">Ukupno</p>
@@ -232,6 +304,41 @@ export default function MembersListPage() {
           <p className="text-2xl font-bold text-red-400">{stats.expired}</p>
         </div>
       </div>
+
+      {/* Charts Tab */}
+      {activeTab === "charts" && (
+        <div className="space-y-6">
+          <div className="grid grid-cols-1 lg:grid-cols-3 gap-6">
+            {/* Activity Distribution */}
+            <div className="bg-background-secondary border border-border rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Distribucija aktivnosti
+              </h3>
+              <ActivityDistributionChart data={chartData.activityDistribution} />
+            </div>
+
+            {/* Goal Distribution */}
+            <div className="bg-background-secondary border border-border rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Distribucija ciljeva
+              </h3>
+              <GoalDistributionChart data={chartData.goalDistribution} />
+            </div>
+
+            {/* Subscription Status */}
+            <div className="bg-background-secondary border border-border rounded-xl p-6">
+              <h3 className="text-lg font-semibold text-foreground mb-4">
+                Status članarine
+              </h3>
+              <SubscriptionStatusChart data={chartData.subscriptionStatus} />
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Table Tab */}
+      {activeTab === "table" && (
+        <>
 
       {/* Filters and Search */}
       <div className="bg-background-secondary border border-border rounded-xl p-4 mb-6">
@@ -345,7 +452,7 @@ export default function MembersListPage() {
                 </tr>
               </thead>
               <tbody>
-                {filteredAndSortedMembers.map((member) => {
+                {paginatedMembers.map((member) => {
                   const daysUntilExpiry = getDaysUntilExpiry(member.subscribedUntil);
                   const isExpiringSoon = daysUntilExpiry !== null && daysUntilExpiry > 0 && daysUntilExpiry <= 7;
 
@@ -450,11 +557,53 @@ export default function MembersListPage() {
         )}
       </div>
 
-      {/* Results count */}
-      {filteredAndSortedMembers.length > 0 && (
-        <p className="text-sm text-foreground-muted mt-4">
-          Prikazano {filteredAndSortedMembers.length} od {members.length} članova
-        </p>
+      {/* Pagination */}
+      {activeTab === "table" && filteredAndSortedMembers.length > 0 && (
+        <div className="flex flex-col sm:flex-row items-start sm:items-center justify-between gap-4 mt-4">
+          <div className="flex items-center gap-4">
+            <p className="text-sm text-foreground-muted">
+              Prikazano {startIndex + 1}-{Math.min(startIndex + pageSize, filteredAndSortedMembers.length)} od {filteredAndSortedMembers.length} članova
+            </p>
+            <div className="flex items-center gap-2">
+              <span className="text-sm text-foreground-muted">Po stranici:</span>
+              <select
+                value={pageSize}
+                onChange={(e) => {
+                  setPageSize(Number(e.target.value));
+                  setCurrentPage(1);
+                }}
+                className="px-2 py-1 bg-background border border-border rounded-lg text-sm text-foreground focus:outline-none focus:ring-2 focus:ring-accent/50"
+              >
+                <option value={5}>5</option>
+                <option value={10}>10</option>
+                <option value={20}>20</option>
+              </select>
+            </div>
+          </div>
+          {totalPages > 1 && (
+            <div className="flex items-center gap-2">
+              <button
+                onClick={() => setCurrentPage((p) => Math.max(1, p - 1))}
+                disabled={currentPage === 1}
+                className="px-3 py-1.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Prethodna
+              </button>
+              <span className="text-sm text-foreground-muted">
+                {currentPage} / {totalPages}
+              </span>
+              <button
+                onClick={() => setCurrentPage((p) => Math.min(totalPages, p + 1))}
+                disabled={currentPage === totalPages}
+                className="px-3 py-1.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+              >
+                Sledeća
+              </button>
+            </div>
+          )}
+        </div>
+      )}
+        </>
       )}
 
       {/* Subscription Modal */}

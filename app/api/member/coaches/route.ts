@@ -47,10 +47,13 @@ export async function GET() {
     }
 
     // Get all coaches in this gym with their member counts
+    // Exclude self if this is a staff member viewing their linked member account
     const coaches = await prisma.staff.findMany({
       where: {
         gymId: member.gymId,
         role: "coach",
+        // Exclude self - coaches cannot assign themselves as their own coach
+        ...(authResult.staffId && { id: { not: authResult.staffId } }),
       },
       select: {
         id: true,

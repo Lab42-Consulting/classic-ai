@@ -663,6 +663,118 @@ The seed script creates the following test accounts:
 
 ---
 
+#### Test A5: Coach Performance Dashboard
+
+**Objective:** Verify coach performance analytics display correctly
+
+**Steps:**
+1. Login as Admin (`S-ADMIN`)
+2. Navigate to `/gym-portal/manage/staff`
+3. Click "Performanse trenera" tab
+
+**Expected Results:**
+- [ ] Summary cards display (coaches, coached members, uncoached members)
+- [ ] Members Per Coach chart renders
+- [ ] Consistency Comparison chart renders with color coding
+- [ ] Performance table shows coach list
+
+**Expandable Rows:**
+1. Click on a coach row with assigned members
+
+**Expected Results:**
+- [ ] Row expands to show member cards
+- [ ] Each card shows: name, member ID, status badge, consistency %
+- [ ] Members sorted by status (off-track first)
+- [ ] Click again to collapse
+
+---
+
+#### Test A6: Coach Performance CSV Export
+
+**Objective:** Verify CSV export functionality
+
+**Steps:**
+1. Login as Admin
+2. Navigate to coach performance tab
+3. Click "Preuzmi CSV" button
+
+**Expected Results:**
+- [ ] CSV file downloads
+- [ ] Filename format: `performanse-trenera-YYYY-MM-DD.csv`
+- [ ] Contains all coach data columns
+- [ ] Summary section at bottom
+- [ ] UTF-8 encoding with BOM (Excel compatible)
+
+---
+
+#### Test A7: Members Page Charts
+
+**Objective:** Verify member analytics charts
+
+**Steps:**
+1. Login as Admin
+2. Navigate to `/gym-portal/manage/members`
+3. Click "Statistika" tab
+
+**Expected Results:**
+- [ ] Activity Distribution pie chart renders
+- [ ] Goal Distribution bar chart renders
+- [ ] Subscription Status pie chart renders
+- [ ] Charts update based on member data
+
+---
+
+#### Test A8: Members Page Pagination
+
+**Objective:** Verify pagination functionality
+
+**Steps:**
+1. Navigate to members page
+2. Ensure "Lista članova" tab is active
+3. Test page size selector
+
+**Expected Results:**
+- [ ] Default shows 5 members
+- [ ] Page size options: 5, 10, 20
+- [ ] Changing page size resets to page 1
+- [ ] Previous/Next buttons work correctly
+- [ ] Displays "X-Y od Z članova" count
+
+---
+
+#### Test A9: Members CSV Export
+
+**Objective:** Verify members CSV export
+
+**Steps:**
+1. Navigate to members page
+2. Click "Preuzmi CSV" button
+
+**Expected Results:**
+- [ ] CSV file downloads
+- [ ] Filename format: `clanovi-YYYY-MM-DD.csv`
+- [ ] Contains all member columns
+- [ ] Goal and status labels in Serbian
+- [ ] Summary section at bottom
+
+---
+
+#### Test A10: Staff Tab Navigation
+
+**Objective:** Verify staff page tab switching
+
+**Steps:**
+1. Navigate to `/gym-portal/manage/staff`
+2. Switch between tabs
+
+**Expected Results:**
+- [ ] "Osoblje" tab shows staff table
+- [ ] "Performanse trenera" tab shows coach dashboard
+- [ ] Active tab highlighted with accent color
+- [ ] Content updates without page reload
+
+---
+
 ## API Testing Reference
 
 ### Authentication Endpoints
@@ -701,6 +813,7 @@ The seed script creates the following test accounts:
 | `/api/gym/settings` | GET | Unauthenticated (empty), member (branding only), staff (full stats) |
 | `/api/gym/branding` | GET | Auth required, admin only (403 for coach), returns branding |
 | `/api/gym/branding` | PUT | Color validation, logo size limit, successful update |
+| `/api/admin/coach-performance` | GET | Admin only, returns coaches with stats, assigned members, nudge data |
 
 ### Coach Endpoints
 
@@ -801,5 +914,76 @@ npm run test:coverage
 ---
 
 *Last Updated: January 2025*
-*Added: Custom nutrition targets tests (M14, M15)*
-*Updated: Member profile API test cases for custom targets*
+*Added: Coach Performance Dashboard tests (A5, A6)*
+*Added: Member analytics and pagination tests (A7, A8, A9, A10)*
+*Added: Coach performance API endpoint to reference*
+*Previously Added: Custom nutrition targets tests (M14, M15)*
+
+---
+
+## Appendix: Coach Performance API Tests
+
+Manual API testing for `/api/admin/coach-performance`:
+
+```bash
+# Test 1: Unauthorized access (no session)
+curl -X GET http://localhost:3000/api/admin/coach-performance
+# Expected: 401 Unauthorized
+
+# Test 2: Coach access (should fail - admin only)
+# Login as coach first, then:
+curl -X GET http://localhost:3000/api/admin/coach-performance \
+  -H "Cookie: session=<coach-session-cookie>"
+# Expected: 403 Admin access required
+
+# Test 3: Admin access (should succeed)
+# Login as admin first, then:
+curl -X GET http://localhost:3000/api/admin/coach-performance \
+  -H "Cookie: session=<admin-session-cookie>"
+# Expected: 200 with coaches array and summary object
+```
+
+**Expected Response Structure:**
+```json
+{
+  "coaches": [
+    {
+      "id": "coach-id",
+      "staffId": "S-COACH",
+      "name": "Coach Name",
+      "assignedMemberCount": 5,
+      "pendingRequestCount": 2,
+      "assignedMembers": [
+        {
+          "id": "member-id",
+          "memberId": "MBR001",
+          "name": "Member Name",
+          "status": "on_track",
+          "consistencyScore": 75
+        }
+      ],
+      "nudgeStats": {
+        "totalSent": 10,
+        "totalViewed": 8,
+        "viewRate": 80
+      },
+      "memberOutcomes": {
+        "onTrack": 3,
+        "slipping": 1,
+        "offTrack": 1,
+        "avgConsistencyScore": 68
+      }
+    }
+  ],
+  "summary": {
+    "totalCoaches": 3,
+    "totalCoachedMembers": 15,
+    "uncoachedMembers": 5,
+    "overallMemberStatus": {
+      "onTrack": 8,
+      "slipping": 4,
+      "offTrack": 3
+    }
+  }
+}
+```

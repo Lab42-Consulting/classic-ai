@@ -111,6 +111,7 @@ export interface MemberAuthResult {
   memberId: string;
   gymId: string;
   isStaffMember: boolean; // true if this is a staff member using their linked member account
+  staffId?: string; // The staff ID when isStaffMember is true (useful for filtering self from coach lists)
 }
 
 /**
@@ -165,6 +166,7 @@ export async function getMemberFromSession(): Promise<
       memberId: staff.linkedMemberId,
       gymId: session.gymId,
       isStaffMember: true,
+      staffId: session.userId,
     };
   }
 

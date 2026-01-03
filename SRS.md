@@ -2,8 +2,21 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.5
+**Version:** 1.6
 **Last Updated:** January 2025
+
+**Changelog v1.6:**
+- Added Coach Performance Dashboard with analytics and charts
+- Added Members Per Coach chart (vertical bar chart using Recharts)
+- Added Consistency Comparison chart (horizontal bar chart)
+- Added expandable rows in coach table showing assigned member details
+- Added CSV export for coach performance data
+- Added Members page enhancements with tabbed interface (Lista članova / Statistika)
+- Added member charts: Activity Distribution, Goal Distribution, Subscription Status
+- Added CSV export for members data
+- Added pagination to members table (default 5, options 5/10/20)
+- Staff page redesign with tabbed interface (Osoblje / Performanse trenera)
+- Staff table view with search, filter by role, and pagination
 
 **Changelog v1.5:**
 - Added Member Custom Targets feature (calories, protein, carbs, fats)
@@ -582,10 +595,47 @@ The Gym Portal at `/gym-portal/manage` provides comprehensive gym management for
 #### FR-ADMIN-005: Staff Management
 - **Location:** `/gym-portal/manage/staff`
 - **Features:**
-  - List all gym staff (admins and coaches)
-  - View assigned members per coach
+  - Tabbed interface: "Osoblje" (Staff list) and "Performanse trenera" (Coach Performance)
+  - Staff table view with search and filter by role
+  - Pagination for staff list (10 per page)
   - Add new staff member (coach or admin role)
   - Auto-generated Staff ID and PIN
+
+#### FR-ADMIN-005a: Coach Performance Dashboard
+- **Location:** `/gym-portal/manage/staff` → "Performanse trenera" tab
+- **Charts (using Recharts library):**
+  - Members Per Coach (vertical bar chart)
+  - Consistency Comparison (horizontal bar chart, color-coded by score)
+- **Performance Table:**
+  - Sortable columns: Name, Members, Consistency, Nudge Rate
+  - Expandable rows showing assigned member details
+  - Member cards show: name, ID, status badge, consistency score
+  - Search and pagination (10 per page)
+- **Summary Cards:**
+  - Total coaches count
+  - Total coached members
+  - Uncoached members count
+  - Overall member status distribution (on track, slipping, off track)
+- **CSV Export:**
+  - Export coach performance data with summary
+  - Includes: coach name, staff ID, member counts, nudge stats, outcomes
+
+#### FR-ADMIN-005b: Member Management Enhancements
+- **Location:** `/gym-portal/manage/members`
+- **Tabbed Interface:**
+  - "Lista članova" tab: Member table with filters
+  - "Statistika" tab: Visual charts and analytics
+- **Charts (Statistika tab):**
+  - Activity Distribution (pie chart: active, slipping, inactive)
+  - Goal Distribution (horizontal bar chart: fat_loss, muscle_gain, recomposition)
+  - Subscription Status (pie chart: active, expiring soon, expired)
+- **Pagination:**
+  - Default: 5 members per page
+  - Options: 5, 10, 20 per page
+  - Page size selector and navigation controls
+- **CSV Export:**
+  - Download members data with summary
+  - Includes: name, ID, goal, activity status, subscription, coach
 
 #### FR-ADMIN-006: Gym Branding
 - **Location:** `/gym-portal/manage/branding`
@@ -1281,6 +1331,19 @@ interface Translations {
     /staff/route.ts              # Staff list and creation
 /components
   /ui/index.ts (GlassCard, Button, Modal, ProgressRing, Input, etc.)
+  /staff/
+    coach-performance-dashboard.tsx  # Main coach performance wrapper
+    coach-performance-table.tsx      # Table with expandable rows
+    csv-export-button.tsx            # CSV download for coach data
+    /charts/
+      members-per-coach-chart.tsx    # Vertical bar chart
+      consistency-comparison-chart.tsx # Horizontal bar chart
+  /members/
+    member-csv-export-button.tsx     # CSV download for members
+    /charts/
+      activity-distribution-chart.tsx # Pie chart for activity status
+      goal-distribution-chart.tsx     # Bar chart for goals
+      subscription-status-chart.tsx   # Pie chart for subscriptions
 /lib
   /auth.ts
   /db.ts

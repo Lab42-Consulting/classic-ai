@@ -174,6 +174,7 @@ export const mockStaffMemberAuthResult = {
   memberId: 'member-test-006', // Staff's linked member
   gymId: mockGym.id,
   isStaffMember: true,
+  staffId: mockStaffCoach.id, // The staff ID of the coach accessing their linked member
 }
 
 export const mockNoSessionError = {

@@ -43,6 +43,14 @@ export async function POST(
       );
     }
 
+    // Prevent coaches from requesting themselves
+    if (authResult.staffId && authResult.staffId === coachId) {
+      return NextResponse.json(
+        { error: "You cannot request yourself as a coach" },
+        { status: 400 }
+      );
+    }
+
     // Get member with gym
     const member = await prisma.member.findUnique({
       where: { id: authResult.memberId },

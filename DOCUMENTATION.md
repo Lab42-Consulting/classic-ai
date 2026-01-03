@@ -158,13 +158,46 @@ The admin dashboard at `/gym-portal/manage` shows:
 
 Access the full member list at `/gym-portal/manage/members`:
 
+The members page has a **tabbed interface**:
+
+#### Tab 1: Lista članova (Member List)
+- **Stats cards**: Total, Active, Expiring Soon, Expired
 - **Search** members by name or member ID
 - **Filter by**:
   - Goal (Fat Loss, Muscle Gain, Recomposition)
   - Activity status (Active, Slipping, Inactive)
   - Subscription status (Active, Expiring, Expired)
+- **Sort by**: Name, Created date, Subscription expiry
 - **View subscription status** for each member
+- **Pagination**: Default 5 per page (options: 5, 10, 20)
 - Click any member to see details
+
+#### Tab 2: Statistika (Member Analytics)
+View member statistics with visual charts:
+
+**Charts (Recharts):**
+1. **Activity Distribution** - Pie chart showing:
+   - Active members (green)
+   - Slipping members (yellow)
+   - Inactive members (red)
+
+2. **Goal Distribution** - Horizontal bar chart showing:
+   - Fat Loss (orange)
+   - Muscle Gain (blue)
+   - Recomposition (purple)
+
+3. **Subscription Status** - Pie chart showing:
+   - Active subscriptions (green)
+   - Expiring soon (yellow)
+   - Expired (red)
+
+**CSV Export:**
+Click "Preuzmi CSV" button to download member data:
+- Member name and ID
+- Goal and activity status
+- Subscription status and end date
+- Assigned coach (if any)
+- Summary totals at the end
 
 #### Registering a New Member (Admin)
 
@@ -194,12 +227,52 @@ View and extend member subscriptions at `/gym-portal/manage/members/[id]`:
 
 Manage gym staff at `/gym-portal/manage/staff`:
 
-- View all staff members (admins and coaches)
-- See assigned member count per coach
+The staff page has a **tabbed interface**:
+
+#### Tab 1: Osoblje (Staff List)
+- **Table view** with all staff members
+- **Search** by name or Staff ID
+- **Filter by role**: All, Coaches, Admins
+- **Pagination**: 10 per page with navigation
+- View assigned member count per coach
 - **Add new staff**: Click "Dodaj novog člana osoblja"
   - Enter name
   - Select role (Coach or Admin)
   - Credentials are auto-generated (Staff ID + PIN)
+
+#### Tab 2: Performanse trenera (Coach Performance Dashboard)
+
+View comprehensive coach analytics:
+
+**Summary Cards:**
+- Total coaches in gym
+- Members with coaches (coached)
+- Members without coaches (uncoached)
+- Overall member status breakdown
+
+**Charts (Recharts):**
+1. **Members Per Coach** - Vertical bar chart showing member distribution
+2. **Consistency Comparison** - Horizontal bar chart comparing coach performance
+   - Green (≥70%): Good performance
+   - Yellow (≥40%): Average performance
+   - Red (<40%): Needs attention
+
+**Performance Table:**
+- **Sortable columns**: Name, Members, Consistency, Nudge Rate
+- **Search**: Filter coaches by name
+- **Expandable rows**: Click any coach row to see their assigned members
+  - Shows member cards with: name, ID, status badge, consistency score
+  - Members sorted by status (off-track first for quick identification)
+- **Pagination**: 10 coaches per page
+
+**CSV Export:**
+Click "Preuzmi CSV" to download performance data including:
+- Coach name and Staff ID
+- Member count and pending requests
+- Nudge stats (sent, viewed, view rate)
+- Member outcomes (on track, slipping, off track)
+- Average consistency score
+- Summary totals at the end
 
 ### Gym Branding
 

@@ -34,6 +34,16 @@ interface CoachRequestData {
   createdAt: string;
 }
 
+interface ChallengeData {
+  id: string;
+  name: string;
+  rewardDescription: string;
+  participantCount: number;
+  daysUntilDeadline: number | null;
+  daysUntilStart: number | null;
+  isUpcoming: boolean;
+}
+
 interface HomeData {
   memberName: string;
   memberAvatarUrl: string | null;
@@ -59,6 +69,8 @@ interface HomeData {
   pendingCoachRequest: CoachRequestData | null;
   // Staff viewing as member (dual-role)
   isStaffMember: boolean;
+  // Active challenge
+  activeChallenge: ChallengeData | null;
 }
 
 interface HomeClientProps {
@@ -384,27 +396,56 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
-      {/* Find Coach Card - Show when member has no coach, no pending request, and is not staff */}
-      {!data.hasCoach && !coachRequest && !data.isStaffMember && (
+      {/* Active/Upcoming Challenge Banner - Show when there's a challenge the member hasn't joined */}
+      {data.activeChallenge && (
         <div className="px-6 mb-4">
           <SlideUp delay={50}>
             <button
-              onClick={() => router.push("/find-coach")}
-              className="w-full relative bg-gradient-to-r from-accent/15 to-accent/5 border border-accent/20 rounded-2xl p-5 text-left hover:bg-accent/10 transition-colors"
+              onClick={() => router.push("/challenge")}
+              className={`w-full relative bg-gradient-to-r ${
+                data.activeChallenge.isUpcoming
+                  ? "from-amber-500/15 to-amber-500/5 border-amber-500/20 hover:bg-amber-500/10"
+                  : "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10"
+              } border rounded-2xl p-5 text-left transition-colors`}
             >
               <div className="flex items-center gap-4">
-                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">👨‍🏫</span>
+                <div className={`w-12 h-12 rounded-full ${
+                  data.activeChallenge.isUpcoming ? "bg-amber-500/20" : "bg-emerald-500/20"
+                } flex items-center justify-center flex-shrink-0`}>
+                  <span className="text-2xl">{data.activeChallenge.isUpcoming ? "⏳" : "🏆"}</span>
                 </div>
                 <div className="flex-1 min-w-0">
-                  <h3 className="text-lg font-semibold text-accent mb-1">
-                    {t.coaches?.title || "Pronađi trenera"}
-                  </h3>
-                  <p className="text-sm text-foreground-muted">
-                    {t.coaches?.subtitle || "Izaberi trenera koji će te voditi"}
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className={`text-lg font-semibold ${
+                      data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
+                    }`}>
+                      {data.activeChallenge.name}
+                    </h3>
+                    {data.activeChallenge.isUpcoming && (
+                      <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                        Uskoro
+                      </span>
+                    )}
+                  </div>
+                  <p className="text-sm text-foreground-muted line-clamp-1">
+                    {data.activeChallenge.rewardDescription}
                   </p>
+                  <div className="flex items-center gap-3 mt-2 text-xs text-foreground-muted">
+                    <span>{data.activeChallenge.participantCount} učesnika</span>
+                    {data.activeChallenge.isUpcoming ? (
+                      <span className="text-amber-400">
+                        Počinje za {data.activeChallenge.daysUntilStart} {data.activeChallenge.daysUntilStart === 1 ? "dan" : "dana"}
+                      </span>
+                    ) : (
+                      <span className="text-emerald-400">
+                        Još {data.activeChallenge.daysUntilDeadline} {data.activeChallenge.daysUntilDeadline === 1 ? "dan" : "dana"} za prijavu
+                      </span>
+                    )}
+                  </div>
                 </div>
-                <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <svg className={`w-5 h-5 ${
+                  data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
+                } flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>
               </div>
@@ -780,11 +821,11 @@ export function HomeClient({ data }: HomeClientProps) {
             </button>
             {/* Row 2 */}
             <button
-              onClick={() => router.push("/subscription")}
+              onClick={() => router.push("/find-coach")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">💳</span>
-              <span className="text-sm text-foreground-muted">{t.home.membership}</span>
+              <span className="text-2xl block mb-2">👨‍🏫</span>
+              <span className="text-sm text-foreground-muted">Trener</span>
             </button>
             <button
               onClick={() => router.push("/supplements")}

@@ -124,6 +124,12 @@ export default function ManageLayout({
                 Osoblje
               </Link>
               <Link
+                href="/gym-portal/manage/challenges"
+                className="text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2 hidden sm:inline-flex"
+              >
+                Izazovi
+              </Link>
+              <Link
                 href="/gym-portal/manage/branding"
                 className="text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2 hidden sm:inline-flex"
               >

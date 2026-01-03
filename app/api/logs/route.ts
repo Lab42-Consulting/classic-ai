@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { estimateMealMacros, Goal, MealSize } from "@/lib/calculations";
+import { awardPointsForLog, LogType } from "@/lib/challenges/points";
 
 export async function POST(request: NextRequest) {
   try {
@@ -128,6 +129,9 @@ export async function POST(request: NextRequest) {
     const log = await prisma.dailyLog.create({
       data: logData,
     });
+
+    // Award challenge points (non-blocking)
+    awardPointsForLog(authResult.memberId, type as LogType).catch(console.error);
 
     return NextResponse.json({ success: true, log });
   } catch (error) {

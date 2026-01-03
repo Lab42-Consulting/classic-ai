@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { getWeekNumber } from "@/lib/calculations";
+import { awardPointsForCheckin } from "@/lib/challenges/points";
 
 const MINIMUM_DAYS_BETWEEN_CHECKINS = 7;
 
@@ -105,6 +106,9 @@ export async function POST(request: NextRequest) {
       where: { id: authResult.memberId },
       data: { weight },
     });
+
+    // Award challenge points (non-blocking)
+    awardPointsForCheckin(authResult.memberId).catch(console.error);
 
     return NextResponse.json({ success: true, checkin });
   } catch (error) {

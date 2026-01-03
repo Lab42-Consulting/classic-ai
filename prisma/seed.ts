@@ -402,6 +402,217 @@ async function main() {
     console.log(`⚠️  Skipped AI cache seeding (ANTHROPIC_API_KEY not set)`);
   }
 
+  // Seed challenges
+  console.log("\n🏆 Seeding challenges...");
+
+  // Challenge 1: Finished challenge (ended 1 week ago) with 3 winners
+  const finishedChallengeStart = new Date(today);
+  finishedChallengeStart.setDate(finishedChallengeStart.getDate() - 35); // Started 5 weeks ago
+  const finishedChallengeEnd = new Date(today);
+  finishedChallengeEnd.setDate(finishedChallengeEnd.getDate() - 7); // Ended 1 week ago
+
+  const finishedChallenge = await prisma.challenge.upsert({
+    where: { id: "challenge-finished-001" },
+    update: {},
+    create: {
+      id: "challenge-finished-001",
+      gymId: gym.id,
+      name: "Novogodišnji Izazov",
+      description: "Započni godinu zdravo! Prikupljaj bodove kroz pravilnu ishranu i trening.",
+      rewardDescription: "Top 3: Mesečna članarina gratis + Classic majica",
+      startDate: finishedChallengeStart,
+      endDate: finishedChallengeEnd,
+      joinDeadlineDays: 7,
+      winnerCount: 3,
+      status: "ended",
+      pointsPerMeal: 5,
+      pointsPerTraining: 15,
+      pointsPerWater: 1,
+      pointsPerCheckin: 25,
+      streakBonus: 5,
+    },
+  });
+
+  // Add 3 winners and some other participants to finished challenge
+  const winnerMembers = createdMembers.filter(m =>
+    ["MJ01", "AN02", "MP06"].includes(m.memberId)
+  );
+  const otherParticipants = createdMembers.filter(m =>
+    ["SD03", "II07", "SM11", "PP12"].includes(m.memberId)
+  );
+
+  // Winner 1 - 1st place
+  if (winnerMembers[0]) {
+    await prisma.challengeParticipant.upsert({
+      where: { challengeId_memberId: { challengeId: finishedChallenge.id, memberId: winnerMembers[0].id } },
+      update: {},
+      create: {
+        challengeId: finishedChallenge.id,
+        memberId: winnerMembers[0].id,
+        totalPoints: 485,
+        mealPoints: 180,
+        trainingPoints: 165,
+        waterPoints: 45,
+        checkinPoints: 75,
+        streakPoints: 20,
+        currentStreak: 0,
+        joinedAt: new Date(finishedChallengeStart.getTime() + 2 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  // Winner 2 - 2nd place
+  if (winnerMembers[1]) {
+    await prisma.challengeParticipant.upsert({
+      where: { challengeId_memberId: { challengeId: finishedChallenge.id, memberId: winnerMembers[1].id } },
+      update: {},
+      create: {
+        challengeId: finishedChallenge.id,
+        memberId: winnerMembers[1].id,
+        totalPoints: 412,
+        mealPoints: 150,
+        trainingPoints: 135,
+        waterPoints: 52,
+        checkinPoints: 50,
+        streakPoints: 25,
+        currentStreak: 0,
+        joinedAt: new Date(finishedChallengeStart.getTime() + 1 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  // Winner 3 - 3rd place
+  if (winnerMembers[2]) {
+    await prisma.challengeParticipant.upsert({
+      where: { challengeId_memberId: { challengeId: finishedChallenge.id, memberId: winnerMembers[2].id } },
+      update: {},
+      create: {
+        challengeId: finishedChallenge.id,
+        memberId: winnerMembers[2].id,
+        totalPoints: 378,
+        mealPoints: 140,
+        trainingPoints: 120,
+        waterPoints: 38,
+        checkinPoints: 50,
+        streakPoints: 30,
+        currentStreak: 0,
+        joinedAt: new Date(finishedChallengeStart.getTime() + 3 * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  // Other participants (4th-7th place)
+  const otherScores = [
+    { totalPoints: 295, mealPoints: 100, trainingPoints: 105, waterPoints: 30, checkinPoints: 50, streakPoints: 10 },
+    { totalPoints: 248, mealPoints: 85, trainingPoints: 90, waterPoints: 28, checkinPoints: 25, streakPoints: 20 },
+    { totalPoints: 186, mealPoints: 70, trainingPoints: 60, waterPoints: 21, checkinPoints: 25, streakPoints: 10 },
+    { totalPoints: 124, mealPoints: 45, trainingPoints: 45, waterPoints: 14, checkinPoints: 25, streakPoints: -5 },
+  ];
+
+  for (let i = 0; i < otherParticipants.length; i++) {
+    const member = otherParticipants[i];
+    const scores = otherScores[i] || otherScores[0];
+    await prisma.challengeParticipant.upsert({
+      where: { challengeId_memberId: { challengeId: finishedChallenge.id, memberId: member.id } },
+      update: {},
+      create: {
+        challengeId: finishedChallenge.id,
+        memberId: member.id,
+        ...scores,
+        currentStreak: 0,
+        joinedAt: new Date(finishedChallengeStart.getTime() + (i + 4) * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  console.log(`  ✅ Created finished challenge "${finishedChallenge.name}" with 7 participants`);
+
+  // Challenge 2: Ongoing challenge (until end of February)
+  const ongoingChallengeStart = new Date(today);
+  ongoingChallengeStart.setDate(ongoingChallengeStart.getDate() - 10); // Started 10 days ago
+  const ongoingChallengeEnd = new Date(today.getFullYear(), 1, 28); // February 28th
+
+  const ongoingChallenge = await prisma.challenge.upsert({
+    where: { id: "challenge-ongoing-001" },
+    update: {},
+    create: {
+      id: "challenge-ongoing-001",
+      gymId: gym.id,
+      name: "Zimski Fitnes Marathon",
+      description: "Održi formu tokom zime! Boduj svaki obrok, trening i čašu vode.",
+      rewardDescription: "Top 3: 3 meseca članarine + Protein paket",
+      startDate: ongoingChallengeStart,
+      endDate: ongoingChallengeEnd,
+      joinDeadlineDays: 14,
+      winnerCount: 3,
+      status: "registration",
+      pointsPerMeal: 5,
+      pointsPerTraining: 15,
+      pointsPerWater: 1,
+      pointsPerCheckin: 25,
+      streakBonus: 5,
+    },
+  });
+
+  // Add some participants to ongoing challenge
+  const ongoingParticipants = createdMembers.filter(m =>
+    ["MJ01", "AN02", "SD03", "MP06", "II07"].includes(m.memberId)
+  );
+
+  const ongoingScores = [
+    { totalPoints: 145, mealPoints: 60, trainingPoints: 45, waterPoints: 20, checkinPoints: 0, streakPoints: 20, currentStreak: 4 },
+    { totalPoints: 128, mealPoints: 50, trainingPoints: 45, waterPoints: 18, checkinPoints: 0, streakPoints: 15, currentStreak: 3 },
+    { totalPoints: 98, mealPoints: 40, trainingPoints: 30, waterPoints: 13, checkinPoints: 0, streakPoints: 15, currentStreak: 3 },
+    { totalPoints: 76, mealPoints: 30, trainingPoints: 30, waterPoints: 11, checkinPoints: 0, streakPoints: 5, currentStreak: 1 },
+    { totalPoints: 52, mealPoints: 25, trainingPoints: 15, waterPoints: 12, checkinPoints: 0, streakPoints: 0, currentStreak: 0 },
+  ];
+
+  for (let i = 0; i < ongoingParticipants.length; i++) {
+    const member = ongoingParticipants[i];
+    const scores = ongoingScores[i];
+    await prisma.challengeParticipant.upsert({
+      where: { challengeId_memberId: { challengeId: ongoingChallenge.id, memberId: member.id } },
+      update: {},
+      create: {
+        challengeId: ongoingChallenge.id,
+        memberId: member.id,
+        ...scores,
+        lastActiveDate: new Date(today.getTime() - i * 24 * 60 * 60 * 1000),
+        joinedAt: new Date(ongoingChallengeStart.getTime() + i * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  console.log(`  ✅ Created ongoing challenge "${ongoingChallenge.name}" with 5 participants`);
+
+  // Challenge 3: Scheduled challenge (starts in March - will show as "upcoming")
+  const scheduledChallengeStart = new Date(today.getFullYear(), 2, 1); // March 1st
+  const scheduledChallengeEnd = new Date(today.getFullYear(), 2, 31); // March 31st
+
+  const scheduledChallenge = await prisma.challenge.upsert({
+    where: { id: "challenge-scheduled-001" },
+    update: {},
+    create: {
+      id: "challenge-scheduled-001",
+      gymId: gym.id,
+      name: "Prolećni Restart",
+      description: "Dočekaj proleće u top formi! Mesec dana intenzivnog praćenja napretka.",
+      rewardDescription: "Top 5: Personalizovani plan ishrane + Suplementi",
+      startDate: scheduledChallengeStart,
+      endDate: scheduledChallengeEnd,
+      joinDeadlineDays: 10,
+      winnerCount: 5,
+      status: "registration", // Will compute to "upcoming" since startDate is in future
+      pointsPerMeal: 5,
+      pointsPerTraining: 20, // Higher training points for this challenge
+      pointsPerWater: 2,
+      pointsPerCheckin: 30,
+      streakBonus: 10,
+    },
+  });
+
+  console.log(`  ✅ Created scheduled challenge "${scheduledChallenge.name}" (starts March 1st)`);
+
   // Print summary
   printSummary(coachConfigs, members);
 }

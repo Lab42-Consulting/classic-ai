@@ -50,6 +50,7 @@ export async function GET() {
         totalProtein: meal.totalProtein,
         totalCarbs: meal.totalCarbs,
         totalFats: meal.totalFats,
+        photoUrl: meal.photoUrl,
         ingredientCount: meal.ingredients.length,
         ingredients: meal.ingredients,
         memberName: meal.member.name,

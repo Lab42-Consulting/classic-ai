@@ -9,16 +9,65 @@ import { calculateStreakBonus } from "./index";
 export type LogType = "meal" | "training" | "water";
 
 /**
+ * Check if member has a valid gym check-in for today
+ * Returns true if:
+ * - Gym does NOT require check-in (no checkinSecret)
+ * - Gym requires check-in AND member has checked in today
+ */
+async function hasValidGymCheckin(memberId: string): Promise<boolean> {
+  // First, get the member's gym to check if check-in is required
+  const member = await prisma.member.findUnique({
+    where: { id: memberId },
+    select: {
+      gymId: true,
+      gym: {
+        select: {
+          checkinSecret: true,
+        },
+      },
+    },
+  });
+
+  if (!member) {
+    return false;
+  }
+
+  // If gym doesn't have check-in enabled, no verification needed
+  if (!member.gym.checkinSecret) {
+    return true;
+  }
+
+  // Gym requires check-in, verify member has checked in today
+  const today = new Date();
+  today.setUTCHours(0, 0, 0, 0);
+
+  const checkin = await prisma.gymCheckin.findUnique({
+    where: {
+      memberId_date: {
+        memberId,
+        date: today,
+      },
+    },
+  });
+
+  return !!checkin;
+}
+
+/**
  * Award points to a member for logging an activity (meal, training, or water)
  * Only awards points if member is participating in an active challenge
  *
+ * IMPORTANT: Training points require a valid gym check-in for the day
+ * (anti-cheating measure - members must be physically at the gym)
+ *
  * @param memberId - The member's ID
  * @param logType - Type of log: meal, training, or water
+ * @returns Object indicating if points were awarded and reason if not
  */
 export async function awardPointsForLog(
   memberId: string,
   logType: LogType
-): Promise<void> {
+): Promise<{ awarded: boolean; reason?: string }> {
   try {
     const now = new Date();
 
@@ -39,7 +88,7 @@ export async function awardPointsForLog(
 
     // No active participation, nothing to do
     if (!participation) {
-      return;
+      return { awarded: false, reason: "not_participating" };
     }
 
     const challenge = participation.challenge;
@@ -54,6 +103,12 @@ export async function awardPointsForLog(
         pointField = "mealPoints";
         break;
       case "training":
+        // Training requires gym check-in verification
+        const hasCheckin = await hasValidGymCheckin(memberId);
+        if (!hasCheckin) {
+          // Log training but don't award challenge points
+          return { awarded: false, reason: "no_gym_checkin" };
+        }
         pointsToAdd = challenge.pointsPerTraining;
         pointField = "trainingPoints";
         break;
@@ -82,9 +137,12 @@ export async function awardPointsForLog(
         lastActiveDate: now,
       },
     });
+
+    return { awarded: true };
   } catch (error) {
     // Log error but don't throw - point awarding should not break logging
     console.error("Error awarding points for log:", error);
+    return { awarded: false, reason: "error" };
   }
 }
 

@@ -14,6 +14,8 @@ interface ImageCropperProps {
   aspectRatio?: number;
   circularCrop?: boolean;
   locale?: "sr" | "en";
+  outputWidth?: number;  // Output image width (default: 256)
+  outputHeight?: number; // Output image height (default: 256)
 }
 
 function centerAspectCrop(
@@ -44,6 +46,8 @@ export function ImageCropper({
   aspectRatio = 1,
   circularCrop = true,
   locale = "sr",
+  outputWidth = 256,
+  outputHeight = 256,
 }: ImageCropperProps) {
   const [imgSrc, setImgSrc] = useState<string>("");
   const [crop, setCrop] = useState<Crop>();
@@ -120,10 +124,9 @@ export function ImageCropper({
       height: (completedCrop.height / 100) * image.height * scaleY,
     };
 
-    // Output size - 256x256 for avatars
-    const outputSize = 256;
-    canvas.width = outputSize;
-    canvas.height = outputSize;
+    // Output size - customizable via props
+    canvas.width = outputWidth;
+    canvas.height = outputHeight;
 
     // Draw cropped area to canvas
     ctx.drawImage(
@@ -134,13 +137,14 @@ export function ImageCropper({
       pixelCrop.height,
       0,
       0,
-      outputSize,
-      outputSize
+      outputWidth,
+      outputHeight
     );
 
-    // Convert to base64 with compression
-    return canvas.toDataURL("image/jpeg", 0.85);
-  }, [completedCrop]);
+    // Convert to base64 with compression (0.80 for larger images to keep under size limits)
+    const quality = outputWidth > 256 ? 0.80 : 0.85;
+    return canvas.toDataURL("image/jpeg", quality);
+  }, [completedCrop, outputWidth, outputHeight]);
 
   const handleSave = useCallback(async () => {
     setProcessing(true);

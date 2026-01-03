@@ -47,14 +47,20 @@ tests/
 ├── setup.ts                 # Global test setup and mocks
 ├── mocks/
 │   └── fixtures.ts          # Test data fixtures
-└── api/
-    ├── auth.test.ts         # Authentication tests
-    ├── logs.test.ts         # Daily logging tests
-    ├── checkins.test.ts     # Weekly check-in tests
-    ├── member-profile.test.ts # Member profile tests
-    ├── members.test.ts      # Staff member management tests
-    ├── coach.test.ts        # Coach features tests
-    └── gym.test.ts          # Gym settings and branding tests
+├── api/
+│   ├── auth.test.ts         # Authentication tests
+│   ├── logs.test.ts         # Daily logging tests
+│   ├── checkins.test.ts     # Weekly check-in tests
+│   ├── member-profile.test.ts # Member profile tests
+│   ├── members.test.ts      # Staff member management tests
+│   ├── coach.test.ts        # Coach features tests
+│   ├── gym.test.ts          # Gym settings and branding tests
+│   ├── challenges.test.ts   # Challenge/Game system tests
+│   ├── gym-checkin.test.ts  # Gym QR check-in tests
+│   ├── reset-week.test.ts   # Week reset API tests
+│   └── meals.test.ts        # Meal creation and photo tests
+└── lib/
+    └── meal-validation.test.ts  # Meal photo validation unit tests
 ```
 
 ### Writing New Tests
@@ -450,6 +456,440 @@ The seed script creates the following test accounts:
 
 ---
 
+#### Test M16: Challenge View (No Active Challenge)
+
+**Objective:** Verify empty state when no challenge exists
+
+**Steps:**
+1. Navigate to `/challenge`
+
+**Expected Results:**
+- [ ] Shows "Trenutno nema aktivnog izazova" message
+- [ ] Trophy icon displayed
+- [ ] "Budi spreman" subtitle
+
+---
+
+#### Test M17: Challenge View (Upcoming Challenge)
+
+**Objective:** Verify upcoming challenge display
+
+**Prerequisite:** Published challenge with future start date
+
+**Steps:**
+1. Navigate to `/challenge`
+
+**Expected Results:**
+- [ ] Amber themed card displayed
+- [ ] "Uskoro" badge visible
+- [ ] Challenge name and description shown
+- [ ] Countdown: "Počinje za X dana"
+- [ ] No join button (can't join yet)
+- [ ] Point values listed with emojis (🍽️💪💧📊🔥)
+
+---
+
+#### Test M18: Challenge Join Flow
+
+**Objective:** Verify member can join an active challenge
+
+**Prerequisite:** Active challenge in registration period
+
+**Steps:**
+1. Navigate to `/challenge`
+2. Review challenge details
+3. Click "Pridruži se" button
+
+**Expected Results:**
+- [ ] Challenge info displayed (name, reward, deadline)
+- [ ] Point values shown
+- [ ] "Pridruži se" button visible
+- [ ] After clicking: success message
+- [ ] View changes to show leaderboard
+
+**Edge Cases:**
+- Already joined → "Već učestvuješ u ovom izazovu"
+- Registration closed → "Rok za prijavu je istekao"
+
+---
+
+#### Test M19: Challenge Leaderboard
+
+**Objective:** Verify leaderboard displays correctly for participants
+
+**Prerequisite:** Member participating in active challenge
+
+**Steps:**
+1. Navigate to `/challenge`
+2. View your rank card
+3. Scroll through leaderboard
+
+**Expected Results:**
+- [ ] Your rank card shows:
+  - Current position (e.g., "#3")
+  - Total points
+  - Points breakdown (meals, training, water, check-in, streak)
+- [ ] Leaderboard shows all participants
+- [ ] Medal icons for top 3 (🥇🥈🥉)
+- [ ] Your row highlighted
+
+---
+
+#### Test M20: Challenge Points Integration
+
+**Objective:** Verify points are awarded when logging activities
+
+**Prerequisite:** Member participating in active challenge
+
+**Steps:**
+1. Log a meal at `/log`
+2. Navigate to `/challenge`
+3. Check points updated
+
+**Expected Results:**
+- [ ] Meal points increased by challenge.pointsPerMeal
+- [ ] Total points updated
+- [ ] Rank may change based on new total
+
+**Test All Point Types:**
+| Action | Expected Points |
+|--------|-----------------|
+| Log meal | +5 (default) |
+| Log training | +15 (default) |
+| Log water | +1 (default) |
+| Weekly check-in | +25 (default) |
+
+---
+
+#### Test M21: Challenge Home Banner
+
+**Objective:** Verify challenge banner appears on home page
+
+**Prerequisite:** Active challenge, member not participating
+
+**Steps:**
+1. Navigate to `/home`
+2. Look for challenge banner below coach nudges
+
+**Expected Results:**
+- [ ] Banner displays:
+  - Challenge name
+  - Reward description
+  - Participant count
+  - Days until deadline OR days until start
+- [ ] Emerald color for joinable challenge
+- [ ] Amber color for upcoming challenge
+- [ ] Tapping banner navigates to `/challenge`
+
+---
+
+#### Test M22: Week Reset
+
+**Objective:** Verify member can reset their weekly consistency tracking
+
+**Steps:**
+1. Login as member
+2. Navigate to `/profile`
+3. Find and tap "Resetuj nedelju" button
+4. Read confirmation modal
+5. Tap "Resetuj" to confirm
+
+**Expected Results:**
+- [ ] Confirmation modal appears with warning message
+- [ ] After confirming: success feedback
+- [ ] Consistency score recalculates from reset date
+- [ ] Historical logs remain intact
+
+**API Test:**
+1. Call POST `/api/member/reset-week`
+2. Should return 200 with success message
+
+**Expected Response:**
+```json
+{
+  "success": true,
+  "message": "Nedelja uspešno resetovana",
+  "weekResetAt": "2025-01-03T12:00:00.000Z"
+}
+```
+
+**Edge Cases:**
+- Unauthenticated user → 401 error
+- Multiple resets → Each sets new weekResetAt timestamp
+
+---
+
+#### Test M23: Coach View-Only Challenge (Coach as Member)
+
+**Objective:** Verify coaches see view-only mode when accessing challenges
+
+**Prerequisite:** Coach with linked member account, active challenge
+
+**Steps:**
+1. Login as coach via `/staff-login`
+2. Click "Moj nalog" to access member view
+3. Navigate to `/challenge`
+
+**Expected Results:**
+- [ ] Blue info banner: "Pregled izazova"
+- [ ] Subtitle: "Kao trener možete pratiti izazov, ali ne učestvovati"
+- [ ] Leaderboard visible with all participants
+- [ ] NO "Pridruži se" (Join) button displayed
+- [ ] Challenge details and rewards shown
+
+**API Test:**
+1. Call GET `/api/member/challenge` as coach
+2. Response should include `isStaffMember: true`
+
+**Join Attempt Test:**
+1. Call POST `/api/member/challenge` as coach
+2. Should return 403 error
+
+**Expected Response:**
+```json
+{ "error": "Treneri ne mogu učestvovati u izazovima" }
+```
+
+---
+
+#### Test M24: Gym QR Check-in (Member)
+
+**Objective:** Verify member can check-in at gym via daily rotating code for challenge training points
+
+**Prerequisite:** Gym has QR check-in enabled, member participating in active challenge
+
+**Steps:**
+1. Login as member
+2. Navigate to `/challenge`
+3. Look for check-in status indicator
+4. If showing red badge, tap "Prijavi se u teretanu"
+5. Scan QR code displayed at gym (or enter daily code manually)
+
+**Expected Results:**
+- [ ] Check-in status shows in challenge page
+- [ ] Red badge: "Check-in required, not done today"
+- [ ] After check-in: Green badge "Prijavljen/a"
+- [ ] Success message: "Uspešno prijavljen!"
+- [ ] Can only check-in once per day
+
+**Daily Rotating Codes:**
+- Codes are 8-character uppercase alphanumeric (e.g., `A3F2B1C9`)
+- Codes rotate at midnight UTC
+- 1-hour grace period after midnight accepts yesterday's code
+
+**API Tests:**
+
+```bash
+# Test 1: Check-in with valid daily code
+POST /api/member/gym-checkin
+{ "secret": "<daily-code>" }  # e.g., "A3F2B1C9"
+# Expected: 200 { success: true, alreadyCheckedIn: false }
+
+# Test 2: Duplicate check-in (same day)
+POST /api/member/gym-checkin
+{ "secret": "<daily-code>" }
+# Expected: 200 { success: true, alreadyCheckedIn: true }
+
+# Test 3: Invalid/expired code
+POST /api/member/gym-checkin
+{ "secret": "wrong-code" }
+# Expected: 400 { error: "Nevažeći ili istekao kod za prijavu" }
+
+# Test 4: Get check-in status
+GET /api/member/gym-checkin
+# Expected: 200 { checkedInToday: true/false, isInActiveChallenge: true/false }
+```
+
+**Edge Cases:**
+- Missing secret → "Nedostaje kod za prijavu"
+- Gym has no check-in enabled → "Teretana nema aktiviran sistem prijave"
+- Wrong/expired code → "Nevažeći ili istekao kod za prijavu"
+- Yesterday's code during grace period (00:00-01:00 UTC) → Should work
+
+---
+
+#### Test M25: Training Points with Gym Check-in
+
+**Objective:** Verify training points require gym check-in when enabled
+
+**Prerequisite:** Gym has QR check-in enabled, member in active challenge
+
+**Without Check-in:**
+1. Login as member participating in challenge
+2. Do NOT scan gym QR code
+3. Log training at `/log`
+4. Navigate to `/challenge`
+
+**Expected Results:**
+- [ ] Training logged successfully (normal log works)
+- [ ] Challenge training points NOT awarded
+- [ ] No training points increase on leaderboard
+
+**With Check-in:**
+1. Scan gym QR code first
+2. Log training at `/log`
+3. Navigate to `/challenge`
+
+**Expected Results:**
+- [ ] Training logged successfully
+- [ ] Challenge training points awarded (e.g., +15)
+- [ ] Leaderboard reflects new points
+
+---
+
+#### Test M26: Create Meal with Photo
+
+**Objective:** Verify member can create a meal with a photo
+
+**Steps:**
+1. Login as member
+2. Navigate to `/meals`
+3. Click **"Novi obrok"** (New Meal)
+4. Enter meal name: "Test Meal with Photo"
+5. Click the photo upload area
+6. Select an image file
+7. Crop to 4:3 aspect ratio
+8. Add at least one ingredient
+9. Save the meal
+
+**Expected Results:**
+- [ ] Image cropper opens with 4:3 aspect ratio
+- [ ] Crop preview shows selected area
+- [ ] Photo displays in meal form after cropping
+- [ ] Meal saves successfully with photo
+- [ ] Photo appears in meal card on meals page
+
+**Edge Cases:**
+- Image over 5MB in cropper → Silently ignored (file too large)
+- Non-image file → Silently ignored
+- Cancel cropping → No photo added
+
+---
+
+#### Test M27: Create Meal Without Photo (Private)
+
+**Objective:** Verify private meals don't require photos
+
+**Steps:**
+1. Navigate to `/meals`
+2. Create a new meal **without** adding a photo
+3. Leave "Podeli sa teretanom" unchecked
+4. Add ingredients and save
+
+**Expected Results:**
+- [ ] Meal saves successfully without photo
+- [ ] No validation error for missing photo
+- [ ] Meal appears in "Moji obroci" without photo
+
+---
+
+#### Test M28: Share Meal Requires Photo
+
+**Objective:** Verify sharing meals requires a photo
+
+**Steps:**
+1. Create a new meal **without** a photo
+2. Check **"Podeli sa teretanom"** (Share with gym)
+3. Try to save
+
+**Expected Results:**
+- [ ] Error message: "Slika je obavezna za deljenje obroka"
+- [ ] Meal NOT saved
+- [ ] Photo hint text shows "Slika je obavezna za deljenje sa teretanom"
+
+**Fix and Retry:**
+1. Add a photo via the cropper
+2. Save again
+
+**Expected Results:**
+- [ ] Meal saves successfully
+- [ ] Shows pending approval status
+
+---
+
+#### Test M29: Remove Photo from Shared Meal
+
+**Objective:** Verify removing photo auto-unshares the meal
+
+**Prerequisite:** Member has a shared meal with photo (pending or approved)
+
+**Steps:**
+1. Navigate to `/meals`
+2. Edit a shared meal with photo
+3. Click the trash icon to remove photo
+4. Save the meal
+
+**Expected Results:**
+- [ ] Photo removed from meal
+- [ ] Meal automatically set to private (`isShared: false`)
+- [ ] No longer appears in pending/shared meals
+- [ ] Success message displayed
+
+**API Test:**
+```bash
+PATCH /api/member/meals/[id]
+{ "photoUrl": null }
+# Expected: meal.isShared = false, meal.shareApproved = false
+```
+
+---
+
+#### Test M30: Copy Shared Meal with Photo
+
+**Objective:** Verify copying a shared meal also copies the photo
+
+**Prerequisite:** Approved shared meal with photo exists
+
+**Steps:**
+1. Navigate to `/meals`
+2. Go to "Deljeni" (Shared) tab
+3. Find a meal with photo
+4. Click **"Sačuvaj u svoje obroke"** (Copy to saved)
+
+**Expected Results:**
+- [ ] Success message: "Obrok kopiran u tvoje sačuvane obroke"
+- [ ] Meal appears in "Moji obroci" tab
+- [ ] Copied meal includes the photo
+- [ ] Copy is private (not shared)
+
+**API Test:**
+```bash
+POST /api/member/meals/copy
+{ "mealId": "shared-meal-id" }
+# Expected: copiedMeal.photoUrl matches original
+```
+
+---
+
+#### Test M31: Meal Photo Validation
+
+**Objective:** Verify photo validation rules
+
+**API Tests:**
+```bash
+# Test 1: Valid JPEG base64
+POST /api/member/meals
+{ "name": "Test", "photoUrl": "data:image/jpeg;base64,...", "ingredients": [...] }
+# Expected: 200 success
+
+# Test 2: Photo too large (>1MB)
+POST /api/member/meals
+{ "name": "Test", "photoUrl": "<2MB base64 image>", "ingredients": [...] }
+# Expected: 400 { error: "Photo too large. Max 1MB." }
+
+# Test 3: Invalid format (not image)
+POST /api/member/meals
+{ "name": "Test", "photoUrl": "data:text/plain;base64,...", "ingredients": [...] }
+# Expected: 400 { error: "Photo must be an image" }
+
+# Test 4: Share without photo
+POST /api/member/meals
+{ "name": "Test", "isShared": true, "ingredients": [...] }
+# Expected: 400 { error: "Photo is required when sharing a meal" }
+```
+
+---
+
 ### Staff/Coach Role Testing
 
 #### Test S1: Staff Login
@@ -590,6 +1030,70 @@ The seed script creates the following test accounts:
 - [ ] Nutrition (emerald dot)
 - [ ] Supplements (violet dot)
 - [ ] Training (orange dot)
+
+---
+
+#### Test S8: Coach Data Visibility Restrictions
+
+**Objective:** Verify coaches cannot see subscription data
+
+**Steps:**
+1. Login as Coach (`S-COACH`)
+2. Navigate to `/dashboard`
+3. Check dashboard stats
+
+**Expected Results:**
+- [ ] NO "expiring subscriptions" section visible
+- [ ] NO subscription status badges on member cards
+- [ ] Dashboard shows only coaching-relevant data
+
+**API Test (Dashboard):**
+1. Call GET `/api/coach/dashboard` as coach
+2. Response should NOT include `expiringSubscriptions` object
+
+**API Test (Member Detail):**
+1. Call GET `/api/coach/member/[id]` as coach
+2. Response should NOT include:
+   - `subscribedAt`
+   - `subscribedUntil`
+   - `subscriptionStatus`
+
+**Comparison Test:**
+1. Call same endpoints as Admin
+2. Admin response SHOULD include subscription data
+
+---
+
+#### Test S9: Coach Member Detail Filtered Data
+
+**Objective:** Verify coach sees filtered member data
+
+**Prerequisite:** Coach with assigned member
+
+**Steps:**
+1. Login as Coach
+2. View assigned member details at `/members/[id]`
+
+**Expected Results:**
+- [ ] Profile info visible (name, goal, weight)
+- [ ] Activity summary visible
+- [ ] Consistency score visible
+- [ ] NO subscription section
+- [ ] NO "Extend subscription" button
+- [ ] Coach controls (nudges, AI knowledge) available
+
+**API Response Check:**
+```typescript
+// Coach sees:
+{
+  member: {
+    id, memberId, name, avatarUrl, goal, weight, height, gender, status, memberSince
+    // NO: subscribedAt, subscribedUntil, subscriptionStatus
+  },
+  isCoach: true,
+  snapshot: { ... }
+}
+```
 
 ---
 
@@ -775,6 +1279,334 @@ The seed script creates the following test accounts:
 
 ---
 
+#### Test A11: Challenge List Page
+
+**Objective:** Verify challenges page displays correctly
+
+**Steps:**
+1. Login as Admin
+2. Navigate to `/gym-portal/manage/challenges`
+
+**Expected Results:**
+- [ ] Stats cards show: Total, Active, Ended, Participants
+- [ ] Challenge table displays all challenges
+- [ ] Status badges with correct colors:
+  - Nacrt (gray)
+  - Uskoro (amber)
+  - Registracija (blue)
+  - Aktivno (emerald)
+  - Završeno (muted)
+- [ ] "Novi izazov" button visible
+
+---
+
+#### Test A12: Create Challenge
+
+**Objective:** Verify challenge creation flow
+
+**Steps:**
+1. Navigate to `/gym-portal/manage/challenges`
+2. Click "Novi izazov"
+3. Fill in form:
+   - Name: "Test Izazov"
+   - Description: "Test opis"
+   - Reward: "Nagrada za test"
+   - Start: Tomorrow
+   - End: 30 days from now
+4. Click "Kreiraj izazov"
+
+**Expected Results:**
+- [ ] Modal opens with form fields
+- [ ] Date pickers work correctly
+- [ ] Point configuration collapsible section
+- [ ] Success: Challenge created as "Nacrt" (draft)
+- [ ] Challenge appears in table
+
+**Validation Tests:**
+- Empty name → Error message
+- End date before start → Error message
+- Missing required fields → Error messages
+
+---
+
+#### Test A13: Publish Challenge
+
+**Objective:** Verify challenge publishing flow
+
+**Prerequisite:** Draft challenge exists
+
+**Steps:**
+1. Navigate to challenge detail page
+2. Click "Objavi" button
+3. Review confirmation modal
+4. Confirm publish
+
+**Expected Results:**
+- [ ] "Objavi" button visible for draft challenges
+- [ ] Confirmation modal shows:
+  - Amber notice if start date is future
+  - Blue notice if start date has passed
+- [ ] After confirm: Status changes
+- [ ] Becomes "Uskoro" or "Registracija" based on date
+
+---
+
+#### Test A14: Challenge Detail Page
+
+**Objective:** Verify challenge detail page
+
+**Steps:**
+1. Navigate to `/gym-portal/manage/challenges/[id]`
+
+**Expected Results:**
+- [ ] Header shows: Name, status badge, reward
+- [ ] Stats cards: Participants, Days left, Top score
+- [ ] Tab navigation: "Rang lista" | "Podešavanja"
+- [ ] Leaderboard shows participants with:
+  - Rank
+  - Name
+  - Points breakdown
+  - Total
+
+---
+
+#### Test A15: End Challenge Early
+
+**Objective:** Verify admin can end challenge manually
+
+**Prerequisite:** Active challenge with participants
+
+**Steps:**
+1. Navigate to challenge detail page
+2. Click "Završi izazov" button
+3. Confirm in modal
+
+**Expected Results:**
+- [ ] Confirmation modal warns about freezing leaderboard
+- [ ] After confirm: Status becomes "Završeno"
+- [ ] Leaderboard remains visible (read-only)
+- [ ] "Završi izazov" button disappears
+
+---
+
+#### Test A16: Delete Challenge
+
+**Objective:** Verify draft challenge deletion
+
+**Prerequisite:** Draft challenge with no participants
+
+**Steps:**
+1. Navigate to challenge detail page
+2. Go to "Podešavanja" tab
+3. Click "Obriši izazov"
+4. Confirm deletion
+
+**Expected Results:**
+- [ ] Delete only available for draft challenges
+- [ ] Delete button disabled if participants exist
+- [ ] After confirm: Redirected to challenges list
+- [ ] Challenge no longer in table
+
+**Edge Cases:**
+- Non-draft challenge → Delete button hidden
+- Challenge with participants → "Cannot delete" error
+
+---
+
+#### Test A17: Edit Challenge Settings
+
+**Objective:** Verify challenge editing
+
+**Prerequisite:** Draft or registration status challenge
+
+**Steps:**
+1. Navigate to challenge detail page
+2. Go to "Podešavanja" tab
+3. Modify fields (name, dates, points)
+4. Save changes
+
+**Expected Results:**
+- [ ] Fields editable for draft/registration
+- [ ] All point values adjustable
+- [ ] Changes saved successfully
+- [ ] Active/ended challenges: fields disabled
+
+---
+
+#### Test A18: Gym QR Check-in Management
+
+**Objective:** Verify admin can enable/disable gym check-in with daily rotating codes
+
+**Steps:**
+1. Login as Admin (`S-ADMIN`)
+2. Navigate to gym check-in settings
+3. Click "Aktiviraj" to enable check-in
+
+**Expected Results:**
+- [ ] New master secret generated (stored internally)
+- [ ] Daily code displayed (8-char uppercase, e.g., `A3F2B1C9`)
+- [ ] Countdown to next code rotation shown
+- [ ] QR code can be generated from daily code
+- [ ] Stats display: Today's check-ins, Total check-ins
+
+**Daily Code Display:**
+- Admin sees current daily code (not the master secret)
+- Shows time until next rotation (e.g., "5h 23m")
+- Code changes automatically at midnight UTC
+
+**API Tests:**
+
+```bash
+# Test 1: Get check-in settings (returns daily code, not master secret)
+GET /api/admin/gym-checkin
+# Expected: 200 { hasSecret: true/false, dailyCode: "A3F2B1C9", nextRotation: "5h 23m", stats: {...} }
+
+# Test 2: Generate new master secret (all daily codes change)
+POST /api/admin/gym-checkin
+# Expected: 200 { success: true, dailyCode: "<new-daily-code>", nextRotation: "..." }
+
+# Test 3: Disable check-in
+DELETE /api/admin/gym-checkin
+# Expected: 200 { success: true, message: "Sistem prijave je deaktiviran" }
+
+# Test 4: Unauthorized access (coach)
+GET /api/admin/gym-checkin  (as coach)
+# Expected: 403 { error: "Admin access required" }
+```
+
+**Edge Cases:**
+- Coach accessing → 403 "Admin access required"
+- No session → 401 "Unauthorized"
+- Gym not found → 404 "Gym not found"
+
+---
+
+#### Test A19: Regenerate Master Secret
+
+**Objective:** Verify admin can regenerate master secret (all daily codes change)
+
+**Steps:**
+1. Enable check-in if not enabled
+2. Note current daily code
+3. Click "Regeneriši" to generate new master secret
+4. Verify old daily code no longer works
+
+**Expected Results:**
+- [ ] New master secret generated (internal)
+- [ ] New daily code displayed (different from before)
+- [ ] Old daily code immediately invalidated
+- [ ] Member check-ins with old code fail: "Nevažeći ili istekao kod za prijavu"
+- [ ] New QR code displays with new daily code
+
+**Note:** Regenerating the master secret invalidates ALL daily codes immediately. This is different from natural daily rotation which happens at midnight UTC.
+
+---
+
+#### Test A20: Pending Meals Page
+
+**Objective:** Verify admin can view pending meal share requests
+
+**Steps:**
+1. Login as Admin (`S-ADMIN`)
+2. Navigate to `/gym-portal/manage`
+3. Click **"Obroci na čekanju"** in Quick Actions
+
+**Expected Results:**
+- [ ] Pending meals page loads at `/gym-portal/manage/pending-meals`
+- [ ] Grid displays meals awaiting approval
+- [ ] Each card shows:
+  - 4:3 aspect ratio photo
+  - Meal name and calories
+  - Macros (P/C/F)
+  - Ingredient list (first 3 + count)
+  - Member name and ID
+  - Request timestamp
+- [ ] Approve/Reject buttons visible
+
+**Empty State:**
+- [ ] When no pending meals: Shows "Nema obroka na čekanju" message
+
+---
+
+#### Test A21: Approve Shared Meal
+
+**Objective:** Verify admin can approve a meal share request
+
+**Prerequisite:** Member has submitted a meal for sharing (with photo)
+
+**Steps:**
+1. Navigate to `/gym-portal/manage/pending-meals`
+2. Find a pending meal
+3. Click **"Odobri"** (Approve)
+
+**Expected Results:**
+- [ ] Meal removed from pending list
+- [ ] Meal now visible in gym's shared meals
+- [ ] Member can see their meal in "Deljeni" tab with approved status
+
+**API Test:**
+```bash
+POST /api/admin/pending-shares
+{ "mealId": "meal-id", "action": "approve" }
+# Expected: 200 { success: true, message: "Share request approved" }
+```
+
+---
+
+#### Test A22: Reject Shared Meal
+
+**Objective:** Verify admin can reject a meal share request
+
+**Prerequisite:** Member has submitted a meal for sharing (with photo)
+
+**Steps:**
+1. Navigate to `/gym-portal/manage/pending-meals`
+2. Find a pending meal
+3. Click **"Odbij"** (Reject)
+
+**Expected Results:**
+- [ ] Meal removed from pending list
+- [ ] Meal returns to member's private meals
+- [ ] Meal no longer marked as shared
+
+**API Test:**
+```bash
+POST /api/admin/pending-shares
+{ "mealId": "meal-id", "action": "reject" }
+# Expected: 200 { success: true, message: "Share request rejected" }
+```
+
+**Verification:**
+- Member's meal has: `isShared: false`, `shareApproved: false`
+
+---
+
+#### Test A23: Pending Meals API Authorization
+
+**Objective:** Verify only admins can access pending shares
+
+**API Tests:**
+```bash
+# Test 1: Unauthenticated access
+GET /api/admin/pending-shares
+# Expected: 401 { error: "Unauthorized" }
+
+# Test 2: Coach access (not admin)
+GET /api/admin/pending-shares  (as coach)
+# Expected: 403 { error: "Only admins can manage share requests" }
+
+# Test 3: Member access
+GET /api/admin/pending-shares  (as member)
+# Expected: 401 { error: "Unauthorized" }
+
+# Test 4: Invalid action
+POST /api/admin/pending-shares
+{ "mealId": "id", "action": "invalid" }
+# Expected: 400 { error: "Invalid request. Must provide mealId and action (approve/reject)" }
+```
+
+---
+
 ## API Testing Reference
 
 ### Authentication Endpoints
@@ -797,6 +1629,11 @@ The seed script creates the following test accounts:
 | `/api/member/profile` | PATCH | Goal change, locale, weight, custom targets, 403 if has coach |
 | `/api/member/subscription` | GET | Trial, active, expired status |
 | `/api/member/nudges` | GET | Unread nudges |
+| `/api/member/meals` | GET | Own meals, coach meals, shared meals with photos |
+| `/api/member/meals` | POST | Create meal, photo validation, share requires photo |
+| `/api/member/meals/[id]` | PATCH | Update meal, photo update, auto-unshare on photo removal |
+| `/api/member/meals/[id]` | DELETE | Delete own meal |
+| `/api/member/meals/copy` | POST | Copy shared meal with photo |
 
 ### Staff Endpoints
 
@@ -814,6 +1651,40 @@ The seed script creates the following test accounts:
 | `/api/gym/branding` | GET | Auth required, admin only (403 for coach), returns branding |
 | `/api/gym/branding` | PUT | Color validation, logo size limit, successful update |
 | `/api/admin/coach-performance` | GET | Admin only, returns coaches with stats, assigned members, nudge data |
+| `/api/admin/pending-shares` | GET | Admin only, get pending meal share requests with photos |
+| `/api/admin/pending-shares` | POST | Approve/reject share request, validate action, 403 for coach |
+
+### Challenge Endpoints (Admin)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/admin/challenges` | GET | List all challenges for gym |
+| `/api/admin/challenges` | POST | Create challenge, validate dates, check for existing active |
+| `/api/admin/challenges/[id]` | GET | Challenge detail with leaderboard |
+| `/api/admin/challenges/[id]` | PATCH | Update fields, publish (action: publish), end (action: end) |
+| `/api/admin/challenges/[id]` | DELETE | Delete draft only, fail if participants exist |
+
+### Challenge Endpoints (Member)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/member/challenge` | GET | Active challenge, participation status, leaderboard, gymCheckinRequired, checkedInToday |
+| `/api/member/challenge` | POST | Join challenge, fail if already joined, fail if deadline passed |
+
+### Gym Check-in Endpoints (Admin)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/admin/gym-checkin` | GET | Get daily code + rotation time + stats, 403 for coach |
+| `/api/admin/gym-checkin` | POST | Generate new master secret, returns new daily code |
+| `/api/admin/gym-checkin` | DELETE | Disable check-in, removes secret |
+
+### Gym Check-in Endpoints (Member)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/member/gym-checkin` | GET | Check-in status, active challenge info |
+| `/api/member/gym-checkin` | POST | Valid daily code, invalid/expired code, already checked in, grace period |
 
 ### Coach Endpoints
 
@@ -913,10 +1784,16 @@ npm run test:coverage
 
 ---
 
-*Last Updated: January 2025*
-*Added: Coach Performance Dashboard tests (A5, A6)*
-*Added: Member analytics and pagination tests (A7, A8, A9, A10)*
-*Added: Coach performance API endpoint to reference*
+*Last Updated: January 2026*
+*Added: Meal Photos tests (M26-M31) - photo upload, validation, sharing requirements*
+*Added: Admin Pending Meals tests (A20-A23) - approval queue and authorization*
+*Added: Meal API endpoints to reference*
+*Previously Added: Daily rotating codes for Gym QR Check-in (M24, A18, A19)*
+*Previously Added: Gym QR Check-in tests (M24, M25, A18, A19)*
+*Previously Added: Gym Check-in API endpoints to reference*
+*Previously Added: Challenge/Game System tests (M16-M21, A11-A17)*
+*Previously Added: Coach Performance Dashboard tests (A5, A6)*
+*Previously Added: Member analytics and pagination tests (A7, A8, A9, A10)*
 *Previously Added: Custom nutrition targets tests (M14, M15)*
 
 ---

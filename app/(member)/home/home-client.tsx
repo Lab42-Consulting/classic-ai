@@ -42,6 +42,11 @@ interface ChallengeData {
   daysUntilDeadline: number | null;
   daysUntilStart: number | null;
   isUpcoming: boolean;
+  isParticipating?: boolean;
+  participation?: {
+    totalPoints: number;
+    rank: number;
+  } | null;
 }
 
 interface HomeData {
@@ -396,28 +401,40 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
-      {/* Active/Upcoming Challenge Banner - Show when there's a challenge the member hasn't joined */}
+      {/* Active/Upcoming Challenge Banner */}
       {data.activeChallenge && (
         <div className="px-6 mb-4">
           <SlideUp delay={50}>
             <button
               onClick={() => router.push("/challenge")}
               className={`w-full relative bg-gradient-to-r ${
-                data.activeChallenge.isUpcoming
+                data.activeChallenge.isParticipating
+                  ? "from-accent/15 to-accent/5 border-accent/20 hover:bg-accent/10"
+                  : data.activeChallenge.isUpcoming
                   ? "from-amber-500/15 to-amber-500/5 border-amber-500/20 hover:bg-amber-500/10"
                   : "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10"
               } border rounded-2xl p-5 text-left transition-colors`}
             >
               <div className="flex items-center gap-4">
                 <div className={`w-12 h-12 rounded-full ${
-                  data.activeChallenge.isUpcoming ? "bg-amber-500/20" : "bg-emerald-500/20"
+                  data.activeChallenge.isParticipating
+                    ? "bg-accent/20"
+                    : data.activeChallenge.isUpcoming ? "bg-amber-500/20" : "bg-emerald-500/20"
                 } flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-2xl">{data.activeChallenge.isUpcoming ? "⏳" : "🏆"}</span>
+                  <span className="text-2xl">
+                    {data.activeChallenge.isParticipating
+                      ? (data.activeChallenge.participation?.rank === 1 ? "🥇"
+                        : data.activeChallenge.participation?.rank === 2 ? "🥈"
+                        : data.activeChallenge.participation?.rank === 3 ? "🥉" : "🏆")
+                      : data.activeChallenge.isUpcoming ? "⏳" : "🏆"}
+                  </span>
                 </div>
                 <div className="flex-1 min-w-0">
                   <div className="flex items-center gap-2 mb-1">
                     <h3 className={`text-lg font-semibold ${
-                      data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
+                      data.activeChallenge.isParticipating
+                        ? "text-accent"
+                        : data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
                     }`}>
                       {data.activeChallenge.name}
                     </h3>
@@ -427,12 +444,25 @@ export function HomeClient({ data }: HomeClientProps) {
                       </span>
                     )}
                   </div>
-                  <p className="text-sm text-foreground-muted line-clamp-1">
-                    {data.activeChallenge.rewardDescription}
-                  </p>
+                  {data.activeChallenge.isParticipating && data.activeChallenge.participation ? (
+                    <div className="flex items-center gap-4 text-sm">
+                      <span className="text-foreground font-medium">
+                        #{data.activeChallenge.participation.rank} mesto
+                      </span>
+                      <span className="text-foreground-muted">
+                        {data.activeChallenge.participation.totalPoints} bodova
+                      </span>
+                    </div>
+                  ) : (
+                    <p className="text-sm text-foreground-muted line-clamp-1">
+                      {data.activeChallenge.rewardDescription}
+                    </p>
+                  )}
                   <div className="flex items-center gap-3 mt-2 text-xs text-foreground-muted">
                     <span>{data.activeChallenge.participantCount} učesnika</span>
-                    {data.activeChallenge.isUpcoming ? (
+                    {data.activeChallenge.isParticipating ? (
+                      <span className="text-accent">Pogledaj rang listu →</span>
+                    ) : data.activeChallenge.isUpcoming ? (
                       <span className="text-amber-400">
                         Počinje za {data.activeChallenge.daysUntilStart} {data.activeChallenge.daysUntilStart === 1 ? "dan" : "dana"}
                       </span>
@@ -444,7 +474,9 @@ export function HomeClient({ data }: HomeClientProps) {
                   </div>
                 </div>
                 <svg className={`w-5 h-5 ${
-                  data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
+                  data.activeChallenge.isParticipating
+                    ? "text-accent"
+                    : data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
                 } flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
                   <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
                 </svg>

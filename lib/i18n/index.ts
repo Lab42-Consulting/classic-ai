@@ -244,6 +244,13 @@ export const translations = {
       saveError: "Greška prilikom čuvanja",
       deleteConfirmTitle: "Obriši obrok?",
       deleteConfirmMessage: "Ova akcija se ne može poništiti.",
+      // Photo translations
+      photo: "Slika obroka",
+      addPhoto: "Dodaj sliku",
+      changePhoto: "Promeni sliku",
+      removePhoto: "Ukloni sliku",
+      photoRequired: "Slika je obavezna za deljenje obroka",
+      photoRequiredHint: "Slika je obavezna za deljenje sa teretanom",
     },
 
     // Ingredients
@@ -580,6 +587,13 @@ export const translations = {
       saveError: "Error saving meal",
       deleteConfirmTitle: "Delete meal?",
       deleteConfirmMessage: "This action cannot be undone.",
+      // Photo translations
+      photo: "Meal Photo",
+      addPhoto: "Add Photo",
+      changePhoto: "Change Photo",
+      removePhoto: "Remove Photo",
+      photoRequired: "Photo is required when sharing a meal",
+      photoRequiredHint: "Photo is required for sharing with gym",
     },
 
     // Ingredients
@@ -886,6 +900,13 @@ export type TranslationKeys = {
     saveError: string;
     deleteConfirmTitle: string;
     deleteConfirmMessage: string;
+    // Photo translations
+    photo?: string;
+    addPhoto?: string;
+    changePhoto?: string;
+    removePhoto?: string;
+    photoRequired?: string;
+    photoRequiredHint?: string;
   };
   ingredients: {
     title: string;

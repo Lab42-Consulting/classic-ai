@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
-import { calculateDailyTargets, calculateConsistencyScore, Goal } from "@/lib/calculations";
+import { calculateDailyTargets, calculateConsistencyScore, calculateAvailableDays, Goal } from "@/lib/calculations";
 
 type ActivityStatus = "on_track" | "slipping" | "off_track";
 
@@ -86,6 +86,7 @@ export async function GET() {
         goal: true,
         weight: true,
         createdAt: true,
+        weekResetAt: true,
       },
     });
 
@@ -223,13 +224,21 @@ export async function GET() {
           ? Math.round((daysWithWater / daysPassedThisWeek) * 100)
           : 0;
 
-        // Calculate consistency score
+        // Calculate available days for normalization (handles new members and week resets)
+        const availableDays = calculateAvailableDays(
+          member.createdAt,
+          member.weekResetAt,
+          mondayOfThisWeek
+        );
+
+        // Calculate consistency score with normalization
         const consistencyScore = calculateConsistencyScore({
           trainingSessions: weeklyTrainingSessions,
           daysWithMeals,
           avgCalorieAdherence: calorieAdherence,
           avgProteinAdherence: proteinAdherence,
-          waterConsistency,
+          waterConsistency: daysWithWater,
+          availableDays,
         });
 
         // Calculate streak (consecutive days with any activity)
@@ -378,50 +387,54 @@ export async function GET() {
       needsAttention: membersWithStats.filter(m => m.alerts.length > 0).length,
     };
 
-    // Calculate expiring subscriptions (only for this gym)
-    const sevenDaysFromNow = new Date(now);
-    sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
-    const thirtyDaysFromNow = new Date(now);
-    thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
-    const [expiringIn7Days, expiringIn30Days, expiredCount] = await Promise.all([
-      prisma.member.count({
-        where: {
-          gymId: session.gymId,
-          subscriptionStatus: "active",
-          subscribedUntil: {
-            gte: now,
-            lte: sevenDaysFromNow,
+    // Calculate expiring subscriptions (only for admins, not coaches)
+    let expiringSubscriptions = null;
+    if (!isCoach) {
+      const sevenDaysFromNow = new Date(now);
+      sevenDaysFromNow.setDate(sevenDaysFromNow.getDate() + 7);
+      const thirtyDaysFromNow = new Date(now);
+      thirtyDaysFromNow.setDate(thirtyDaysFromNow.getDate() + 30);
+      const [expiringIn7Days, expiringIn30Days, expiredCount] = await Promise.all([
+        prisma.member.count({
+          where: {
+            gymId: session.gymId,
+            subscriptionStatus: "active",
+            subscribedUntil: {
+              gte: now,
+              lte: sevenDaysFromNow,
+            },
           },
-        },
-      }),
-      prisma.member.count({
-        where: {
-          gymId: session.gymId,
-          subscriptionStatus: "active",
-          subscribedUntil: {
-            gt: sevenDaysFromNow,
-            lte: thirtyDaysFromNow,
+        }),
+        prisma.member.count({
+          where: {
+            gymId: session.gymId,
+            subscriptionStatus: "active",
+            subscribedUntil: {
+              gt: sevenDaysFromNow,
+              lte: thirtyDaysFromNow,
+            },
           },
-        },
-      }),
-      prisma.member.count({
-        where: {
-          gymId: session.gymId,
-          subscriptionStatus: "expired",
-        },
-      }),
-    ]);
+        }),
+        prisma.member.count({
+          where: {
+            gymId: session.gymId,
+            subscriptionStatus: "expired",
+          },
+        }),
+      ]);
+      expiringSubscriptions = {
+        expiringIn7Days,
+        expiringIn30Days,
+        expiredCount,
+      };
+    }
 
     return NextResponse.json({
       coachName: staff.name,
       isCoach,
       stats,
       members: membersWithStats,
-      expiringSubscriptions: {
-        expiringIn7Days,
-        expiringIn30Days,
-        expiredCount,
-      },
+      ...(expiringSubscriptions && { expiringSubscriptions }),
     });
   } catch (error) {
     console.error("Coach dashboard error:", error);

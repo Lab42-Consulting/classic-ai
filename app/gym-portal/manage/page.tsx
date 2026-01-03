@@ -206,6 +206,36 @@ export default function ManagePage() {
               <p className="text-sm text-foreground-muted">Logo, boje, izgled</p>
             </div>
           </Link>
+
+          <Link
+            href="/gym-portal/manage/checkin"
+            className="flex items-center gap-4 bg-background-secondary border border-border rounded-xl p-5 hover:border-accent/30 transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-cyan-500/10 flex items-center justify-center text-cyan-400 group-hover:bg-cyan-500/20 transition-colors">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v1m6 11h2m-6 0h-2v4m0-11v3m0 0h.01M12 12h4.01M16 20h4M4 12h4m12 0h.01M5 8h2a1 1 0 001-1V5a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1zm12 0h2a1 1 0 001-1V5a1 1 0 00-1-1h-2a1 1 0 00-1 1v2a1 1 0 001 1zM5 20h2a1 1 0 001-1v-2a1 1 0 00-1-1H5a1 1 0 00-1 1v2a1 1 0 001 1z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-foreground">QR Prijava</p>
+              <p className="text-sm text-foreground-muted">Verifikacija treninga</p>
+            </div>
+          </Link>
+
+          <Link
+            href="/gym-portal/manage/pending-meals"
+            className="flex items-center gap-4 bg-background-secondary border border-border rounded-xl p-5 hover:border-accent/30 transition-colors group"
+          >
+            <div className="w-12 h-12 rounded-xl bg-amber-500/10 flex items-center justify-center text-amber-400 group-hover:bg-amber-500/20 transition-colors">
+              <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                <path strokeLinecap="round" strokeLinejoin="round" d="M12 8v4l3 3m6-3a9 9 0 11-18 0 9 9 0 0118 0z" />
+              </svg>
+            </div>
+            <div>
+              <p className="font-medium text-foreground">Obroci na čekanju</p>
+              <p className="text-sm text-foreground-muted">Odobri podeljene obroke</p>
+            </div>
+          </Link>
         </div>
       </div>
 

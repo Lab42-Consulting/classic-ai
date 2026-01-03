@@ -15,6 +15,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Admin Dashboard](#admin-dashboard)
    - [Member Management](#member-management)
    - [Staff Management](#staff-management)
+   - [Challenge Management](#challenge-management)
    - [Gym Branding](#gym-branding)
 6. [Coach Guide](#coach-guide)
    - [Logging In as Coach](#logging-in-as-coach)
@@ -30,9 +31,11 @@ A digital accountability and guidance system for gym members and staff.
    - [Custom Meal System](#custom-meal-system)
    - [Coach Meals](#coach-meals)
    - [Browse and Request Coaches](#browse-and-request-coaches)
+   - [Challenges](#challenges)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
    - [Custom Nutrition Targets](#custom-nutrition-targets)
+   - [Week Reset](#week-reset)
    - [Meal Logging Modes](#log-a-meal)
    - [AI Agents](#ai-agents)
    - [Weekly Check-In](#weekly-check-in)
@@ -274,6 +277,71 @@ Click "Preuzmi CSV" to download performance data including:
 - Average consistency score
 - Summary totals at the end
 
+### Challenge Management
+
+Create and manage gym-wide challenges to boost member engagement at `/gym-portal/manage/challenges`.
+
+#### Challenges Overview
+
+The challenges page shows:
+- **Stats cards**: Total challenges, Active, Ended, Total participants
+- **Challenge list**: Table with name, status, dates, participants
+
+#### Creating a Challenge
+
+1. Click **"Novi izazov"** (New Challenge)
+2. Fill in the form:
+   - **Naziv izazova**: Challenge name (e.g., "Zimski Izazov 2026")
+   - **Opis**: Description of the challenge
+   - **Opis nagrade**: Reward description (e.g., "Top 3: Mesečna članarina gratis")
+   - **Početak / Kraj**: Start and end dates
+   - **Rok za prijavu**: Days after start when registration closes (default: 7)
+   - **Broj pobednika**: Number of winners (default: 3)
+3. Optionally expand **"Bodovanje"** to customize points:
+
+| Action | Default Points |
+|--------|----------------|
+| 🍽️ Obrok (Meal) | 5 |
+| 💪 Trening (Training) | 15 |
+| 💧 Čaša vode (Water) | 1 |
+| 📊 Nedeljni pregled (Check-in) | 25 |
+| 🔥 Dnevni niz bonus (Streak) | 5 |
+
+4. Click **"Kreiraj izazov"** - creates as draft
+
+#### Challenge Statuses
+
+| Status | Serbian | Description |
+|--------|---------|-------------|
+| Draft | Nacrt | Admin-only, not visible to members |
+| Upcoming | Uskoro | Published but before start date |
+| Registration | Registracija | Open for member sign-ups |
+| Active | Aktivno | Ongoing, registration may be closed |
+| Ended | Završeno | Completed |
+
+#### Publishing a Challenge
+
+1. Go to challenge detail page
+2. For draft challenges, click **"Objavi"** (Publish)
+3. Confirm in the modal
+4. Status becomes:
+   - **Upcoming** if start date is in the future
+   - **Registration** if start date has passed
+
+#### Managing Active Challenges
+
+On the challenge detail page:
+- **Leaderboard tab**: View rankings with point breakdown
+- **Settings tab**: Edit challenge (draft/registration only)
+- **"Završi izazov"**: End challenge early
+- **"Obriši izazov"**: Delete (draft only, no participants)
+
+**Leaderboard shows:**
+- Rank position with medal icons (🥇🥈🥉)
+- Member name and avatar
+- Points by category (meals, training, water, check-in, streak)
+- Total points
+
 ### Gym Branding
 
 Customize your gym's appearance at `/gym-portal/manage/branding`:
@@ -286,6 +354,90 @@ Customize your gym's appearance at `/gym-portal/manage/branding`:
 - Custom colors apply to **members** and **coaches** after login
 - **Login pages always use default colors** (red accent)
 - Logo appears in member and coach headers
+
+### Pending Meals Approval
+
+Review and approve meals that members want to share with the gym at `/gym-portal/manage/pending-meals`.
+
+**Accessing Pending Meals:**
+1. Click **"Obroci na čekanju"** from the admin dashboard Quick Actions
+2. Or navigate directly to `/gym-portal/manage/pending-meals`
+
+**Approval Queue Features:**
+- Grid display of pending meals with photos
+- Each meal card shows:
+  - **Photo**: 4:3 aspect ratio image of the meal
+  - **Name and calories**: Meal name with total calories
+  - **Macros**: Protein, carbs, fats breakdown
+  - **Ingredients**: First 3 ingredients with "more..." indicator
+  - **Member info**: Name and member ID of who submitted
+  - **Request date**: When the share request was made
+
+**Actions:**
+| Button | Effect |
+|--------|--------|
+| **Odobri** (Approve) | Sets `shareApproved: true`, meal becomes visible to all gym members |
+| **Odbij** (Reject) | Sets `isShared: false`, meal returns to member's private meals |
+
+**Empty State:**
+When no meals are pending, shows "Nema obroka na čekanju" with a checkmark icon.
+
+**Important Notes:**
+- Only meals with photos can be submitted for sharing (enforced by the app)
+- Rejecting a meal doesn't delete it - it becomes private again
+- Admin can see full ingredient list before approving
+
+### Gym QR Check-in Management
+
+Enable QR-based gym check-in to prevent cheating in challenges. This ensures members must physically be at the gym to earn training points.
+
+**Location:** Gym Portal settings or `/api/admin/gym-checkin`
+
+#### Enabling Check-in
+
+1. Access gym check-in settings
+2. Click **"Aktiviraj"** (Activate) to generate a QR code
+3. Display the QR code prominently in your gym
+4. Members scan this code daily to verify their presence
+
+#### How It Works
+
+- Gym gets a unique `checkinSecret` (master UUID stored in database)
+- **Daily rotating codes** are generated from the master secret:
+  - Formula: First 8 characters of `SHA256(masterSecret + YYYY-MM-DD)`
+  - Code format: 8-character uppercase alphanumeric (e.g., `A3F2B1C9`)
+  - Codes rotate automatically at **midnight UTC**
+  - **1-hour grace period** after midnight accepts yesterday's code
+- Admin UI shows current daily code with countdown to next rotation
+- Members scan QR or enter the daily code to check in
+- One check-in per member per day
+- Training points in challenges require valid check-in
+
+**Security Benefits:**
+- If a code is leaked, it's only valid until midnight
+- Master secret never exposed to members
+- Automatic rotation requires no admin intervention
+
+#### Managing QR Codes
+
+| Action | Description |
+|--------|-------------|
+| **Aktiviraj** | Enable check-in, generates master secret and first daily code |
+| **Regeneriši** | Create new master secret (all daily codes change immediately) |
+| **Deaktiviraj** | Disable check-in system |
+
+**When to Regenerate:**
+- If master secret is compromised
+- After security incidents
+- Note: Daily codes auto-rotate, so leaked daily codes expire at midnight
+
+#### Check-in Stats
+
+View check-in statistics:
+- **Danas**: Today's check-in count
+- **Ukupno**: All-time check-in count
+
+**Important:** This only affects challenge training points. Regular training logs work without check-in verification.
 
 ---
 
@@ -528,6 +680,27 @@ Members can browse coaches and send requests to work with you:
 4. **Accept**: Creates assignment, clears member history for fresh start
 5. **Decline**: Removes the request, member can try another coach
 
+### Coach Data Visibility
+
+As a coach, certain business data is restricted from your view:
+
+**What You CAN See:**
+- Member profile information (name, goals, weight, height)
+- Activity logs (meals, training, water)
+- Consistency scores and progress
+- Weight history from check-ins
+- AI summaries and coaching notes
+
+**What You CANNOT See:**
+- Member subscription status and dates
+- Subscription expiration warnings
+- Payment and billing information
+- Gym-wide subscription statistics
+
+**Rationale:** Subscription management is a business/admin concern. Coaches focus on training and nutrition guidance without handling membership details.
+
+**Need Subscription Info?** Contact your gym admin if you need to know a member's subscription status.
+
 ---
 
 ## Member Guide
@@ -546,6 +719,7 @@ Create and save custom meals with detailed nutritional information:
 2. Click **"Novi obrok"** (New Meal)
 3. Fill in the meal details:
    - **Naziv obroka**: Meal name (e.g., "Piletina sa risom")
+   - **Slika obroka**: Add a photo (optional for private meals)
    - **Sastojci**: Add ingredients
 
 **Adding Ingredients:**
@@ -563,6 +737,25 @@ Click the cherries icon (🍒) to auto-fill nutritional values:
 - Falls back to AI if ingredient not found
 - Rate limits apply: Trial (5/day), Active (20/day)
 
+**Adding Meal Photos:**
+
+Add photos to help others visualize your meals:
+1. Click the photo upload area or tap **"Dodaj sliku"**
+2. Select an image from your device (JPEG, PNG, or WebP)
+3. Crop the image to 4:3 landscape aspect ratio
+4. Preview and confirm the cropped photo
+
+**Photo Requirements:**
+- **Required when sharing:** Photos are mandatory for shared meals
+- **Optional for private:** Private meals don't require photos
+- **Aspect ratio:** 4:3 landscape (800x600 pixels)
+- **Max file size:** 1MB
+- **Formats:** JPEG, PNG, WebP
+
+**Photo Management:**
+- **Change photo:** Click the edit icon on existing photo
+- **Remove photo:** Click the trash icon (auto-unshares if meal was shared)
+
 **Meal Totals:**
 
 - Totals auto-calculate from ingredients
@@ -571,16 +764,18 @@ Click the cherries icon (🍒) to auto-fill nutritional values:
 **Sharing Meals:**
 
 - Check "Podeli sa teretanom" to share your meal
+- **Photo is required** when sharing a meal
 - Shared meals require admin approval
-- Once approved, visible to all gym members
+- Once approved, visible to all gym members with photo displayed
+- Removing photo from a shared meal automatically unshares it
 
 **Meal Categories:**
 
 | Category | Description |
 |----------|-------------|
-| Moji obroci | Meals you created |
+| Moji obroci | Meals you created (with optional photos) |
 | Od trenera | Meals your coach created for you |
-| Deljeni | Approved shared meals from gym |
+| Deljeni | Approved shared meals from gym (with photos) |
 
 ### Coach Meals
 
@@ -622,6 +817,99 @@ If you don't have a coach, you can browse and request one:
 - Pending request shows "Zahtev poslat" status
 - If declined, you can request a different coach
 - If accepted, coach becomes your assigned coach
+
+### Challenges
+
+Participate in gym-wide challenges to earn points and win rewards.
+
+#### Viewing Challenges
+
+Go to `/challenge` to see the current challenge:
+
+**Challenge States:**
+
+| State | What You See |
+|-------|--------------|
+| No challenge | "Trenutno nema aktivnog izazova" message |
+| Upcoming | Challenge preview with countdown to start |
+| Can join | Join button with reward info and deadline |
+| Participating | Your rank, points breakdown, full leaderboard |
+
+#### Joining a Challenge
+
+1. Go to `/challenge` or tap the challenge banner on home
+2. Review the challenge details:
+   - Name and description
+   - Reward for winners
+   - How points are earned
+   - Days until registration closes
+3. Tap **"Pridruži se"** (Join)
+4. Start earning points!
+
+#### Earning Points
+
+Points are awarded automatically when you log activities:
+
+| Activity | Points |
+|----------|--------|
+| 🍽️ Log a meal | 5 points |
+| 💪 Log training | 15 points |
+| 💧 Log water | 1 point |
+| 📊 Weekly check-in | 25 points |
+| 🔥 Daily streak bonus | 5 points |
+
+**Streak Bonus:** Awarded once per day when you log any activity on consecutive days.
+
+#### Gym Check-in for Training Points
+
+If your gym has QR check-in enabled, you must verify your gym presence to earn training points:
+
+**How to Check In:**
+1. Look for the QR code displayed at your gym (usually at the entrance)
+2. Open the challenge page in the app
+3. Tap **"Prijavi se u teretanu"** (Check in to gym)
+4. Scan the QR code or enter the code manually
+5. Once verified, a green badge shows "Prijavljen/a"
+
+**Check-in Status Indicators:**
+
+| Status | Meaning |
+|--------|---------|
+| 🔴 Red badge | Check-in required, not yet done today |
+| 🟢 Green badge | Already checked in today |
+| No badge | Gym doesn't require check-in |
+
+**Important Notes:**
+- Check-in is required **once per day** (resets at midnight)
+- You must check in **before** logging training for points
+- If you forgot to check in, training log still works but won't earn challenge points
+- This only affects training points; meal, water, and other points don't require check-in
+
+#### Leaderboard
+
+Once participating, you'll see:
+- **Your rank card**: Position, total points, breakdown by category
+- **Full leaderboard**: All participants ranked by points
+- **Medal icons**: 🥇🥈🥉 for top 3 positions
+
+#### Home Page Banner
+
+If there's an active challenge you haven't joined, a banner appears on your home page:
+- **Green banner**: Challenge is open for registration
+- **Amber banner**: Challenge is upcoming (can't join yet)
+
+Tap the banner to go to the challenge page.
+
+#### Coach View-Only Mode
+
+If you're a coach with a linked member account, you can view challenges but cannot participate:
+
+- **Blue info banner**: "Pregled izazova" - explains view-only mode
+- **Leaderboard visible**: See all participants and their rankings
+- **No join button**: Coaches cannot join challenges
+- **Rationale**: Coaches monitor member progress without competing
+
+This ensures fair competition while allowing coaches to track their members' challenge performance.
 
 ### Home Screen
 
@@ -701,6 +989,31 @@ The system uses the following priority for determining your daily targets:
 👨‍🏫 Managed by Coach Marko
 Contact your coach to adjust targets
 ```
+
+### Week Reset
+
+Reset your weekly consistency tracking to start fresh:
+
+**Location:** Profile → "Resetuj nedelju" button
+
+**When to Use:**
+- After returning from vacation or illness
+- When you want a fresh start on consistency tracking
+- If past inactivity is dragging down your current score
+
+**How to Reset:**
+1. Go to your Profile page
+2. Find and tap **"Resetuj nedelju"** (Reset Week)
+3. Read the confirmation message
+4. Tap **"Resetuj"** to confirm
+
+**What Happens:**
+- Your consistency score calculation starts fresh from today
+- Previous logged data remains intact (not deleted)
+- Fair scoring: new baseline for weekly evaluation
+- The `weekResetAt` timestamp is set to now
+
+**Note:** This affects only the consistency score calculation. All your historical meal, training, and water logs are preserved.
 
 ### Logging Actions
 
@@ -935,6 +1248,7 @@ Access your profile and account settings:
 | `/api/member/profile` | GET | Get current member's profile |
 | `/api/member/profile` | PATCH | Update member profile (e.g., goal) |
 | `/api/member/subscription` | GET | Get subscription/trial status |
+| `/api/member/reset-week` | POST | Reset weekly consistency tracking |
 
 ### Check-ins
 
@@ -983,6 +1297,113 @@ Access your profile and account settings:
 | `/api/coach/assignments` | POST | Assign coach to member with custom targets |
 | `/api/coach/assignments/:id` | PATCH | Update coach assignment settings |
 | `/api/coach/unassigned-members` | GET | List members without a coach |
+
+### Challenges (Admin only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/challenges` | GET | List all challenges for gym |
+| `/api/admin/challenges` | POST | Create a new challenge |
+| `/api/admin/challenges/[id]` | GET | Get challenge with leaderboard |
+| `/api/admin/challenges/[id]` | PATCH | Update, publish, or end challenge |
+| `/api/admin/challenges/[id]` | DELETE | Delete draft challenge |
+
+### Pending Meal Shares (Admin only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/pending-shares` | GET | Get pending meal share requests |
+| `/api/admin/pending-shares` | POST | Approve or reject a share request |
+
+**GET `/api/admin/pending-shares` response:**
+```json
+{
+  "pendingMeals": [
+    {
+      "id": "meal-id",
+      "name": "Piletina sa risom",
+      "totalCalories": 550,
+      "totalProtein": 45,
+      "totalCarbs": 50,
+      "totalFats": 12,
+      "photoUrl": "data:image/jpeg;base64,...",
+      "ingredientCount": 3,
+      "ingredients": [
+        { "name": "Chicken breast", "portionSize": "150g", "calories": 248 }
+      ],
+      "memberName": "Marko P.",
+      "memberId": "ABC123",
+      "requestedAt": "2026-01-03T12:00:00Z"
+    }
+  ]
+}
+```
+
+**POST `/api/admin/pending-shares` body:**
+```json
+{
+  "mealId": "meal-id",
+  "action": "approve"  // or "reject"
+}
+```
+
+**Actions:**
+- `approve`: Sets `shareApproved: true`, meal visible to all gym members
+- `reject`: Sets `isShared: false`, meal returns to member's private meals
+
+### Challenges (Member)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/challenge` | GET | Get active challenge and participation |
+| `/api/member/challenge` | POST | Join active challenge |
+
+### Gym Check-in (Admin)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/gym-checkin` | GET | Get daily code, rotation time, and stats |
+| `/api/admin/gym-checkin` | POST | Generate new master secret (rotates all codes) |
+| `/api/admin/gym-checkin` | DELETE | Disable check-in system |
+
+**GET `/api/admin/gym-checkin` response:**
+```json
+{
+  "hasSecret": true,
+  "dailyCode": "A3F2B1C9",
+  "nextRotation": "5h 23m",
+  "stats": {
+    "todayCheckins": 15,
+    "totalCheckins": 342
+  }
+}
+```
+
+### Gym Check-in (Member)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/gym-checkin` | GET | Get today's check-in status |
+| `/api/member/gym-checkin` | POST | Verify gym presence with secret |
+
+**POST `/api/member/gym-checkin` body:**
+
+```json
+{
+  "secret": "uuid-from-qr-code"
+}
+```
+
+**GET `/api/member/challenge` additional response fields:**
+
+```json
+{
+  "challenge": { ... },
+  "participation": { ... },
+  "gymCheckinRequired": true,   // Gym has check-in enabled
+  "checkedInToday": false       // Member has not checked in today
+}
+```
 
 **POST `/api/coach/assignments` body:**
 
@@ -1038,13 +1459,16 @@ Access your profile and account settings:
 |----------|--------|-------------|
 | `/api/member/meals` | GET | Get member's meals (own, coach, shared) |
 | `/api/member/meals` | POST | Create a new meal with ingredients |
+| `/api/member/meals/[id]` | PATCH | Update an existing meal |
+| `/api/member/meals/[id]` | DELETE | Delete a meal |
+| `/api/member/meals/copy` | POST | Copy a shared meal to own meals |
 
 **GET `/api/member/meals` response:**
 ```json
 {
-  "own": [{ "id": "...", "name": "My Meal", "totalCalories": 500, ... }],
+  "own": [{ "id": "...", "name": "My Meal", "totalCalories": 500, "photoUrl": "data:image/jpeg;base64,...", ... }],
   "coach": [{ "id": "...", "name": "Coach Meal", "coachName": "Coach Marko", ... }],
-  "shared": [{ "id": "...", "name": "Shared Meal", "authorName": "Petar", ... }]
+  "shared": [{ "id": "...", "name": "Shared Meal", "authorName": "Petar", "photoUrl": "data:image/jpeg;base64,...", ... }]
 }
 ```
 
@@ -1052,6 +1476,7 @@ Access your profile and account settings:
 ```json
 {
   "name": "Piletina sa risom",
+  "photoUrl": "data:image/jpeg;base64,...",
   "ingredients": [
     {
       "name": "Chicken breast",
@@ -1066,6 +1491,17 @@ Access your profile and account settings:
   "isShared": false
 }
 ```
+
+**Photo Validation:**
+- `photoUrl` is optional for private meals (`isShared: false`)
+- `photoUrl` is **required** when `isShared: true`
+- Must be base64-encoded JPEG, PNG, or WebP
+- Maximum 1MB file size (base64 encoded ~1.37MB)
+- Returns 400 error if sharing without photo
+
+**Edge Cases:**
+- Removing photo from shared meal (`photoUrl: null`) auto-unshares it
+- Copying a shared meal copies the photo too
 
 ### Coach Meals (Staff only)
 

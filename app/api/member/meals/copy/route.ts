@@ -69,6 +69,7 @@ export async function POST(request: NextRequest) {
         isShared: false, // Copy is not shared by default
         shareApproved: false,
         shareRequestedAt: null,
+        photoUrl: sharedMeal.photoUrl, // Copy the photo too
         ingredients: {
           create: sharedMeal.ingredients.map((ing) => ({
             name: ing.name,
@@ -95,6 +96,7 @@ export async function POST(request: NextRequest) {
         totalProtein: copiedMeal.totalProtein,
         totalCarbs: copiedMeal.totalCarbs,
         totalFats: copiedMeal.totalFats,
+        photoUrl: copiedMeal.photoUrl,
       },
     });
   } catch (error) {

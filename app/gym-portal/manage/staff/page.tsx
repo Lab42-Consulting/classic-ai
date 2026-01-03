@@ -171,7 +171,7 @@ export default function StaffManagementPage() {
       {activeTab === "staff" && (
         <>
           {/* Stats */}
-          <div className="grid grid-cols-3 gap-4 mb-8">
+          <div className="grid grid-cols-1 sm:grid-cols-3 gap-4 mb-8">
             <div className="bg-background-secondary border border-border rounded-xl p-4">
               <p className="text-sm text-foreground-muted">Ukupno</p>
               <p className="text-2xl font-bold text-foreground">{staff.length}</p>

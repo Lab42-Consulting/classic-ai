@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
+// Meal photo validation constants
+const MAX_MEAL_PHOTO_SIZE = 1 * 1024 * 1024; // 1MB
+const VALID_IMAGE_TYPES = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+
+function validateMealPhoto(photoUrl: string | null | undefined): { valid: boolean; error?: string } {
+  if (!photoUrl) {
+    return { valid: true }; // Photo is optional for private meals
+  }
+
+  if (typeof photoUrl !== "string") {
+    return { valid: false, error: "Invalid photo format" };
+  }
+
+  if (!photoUrl.startsWith("data:image/")) {
+    return { valid: false, error: "Photo must be an image" };
+  }
+
+  // Base64 is ~1.37x larger than binary
+  if (photoUrl.length > MAX_MEAL_PHOTO_SIZE * 1.37) {
+    return { valid: false, error: "Photo too large. Max 1MB." };
+  }
+
+  if (!VALID_IMAGE_TYPES.some(type => photoUrl.startsWith(type))) {
+    return { valid: false, error: "Photo must be JPEG, PNG, or WebP" };
+  }
+
+  return { valid: true };
+}
+
 // GET - Get meals for the logged-in member (own + coach + shared from gym)
 export async function GET(request: NextRequest) {
   try {
@@ -98,6 +127,7 @@ export async function GET(request: NextRequest) {
         isShared: meal.isShared,
         shareApproved: meal.shareApproved,
         sharePending: meal.isShared && !meal.shareApproved, // Pending approval
+        photoUrl: meal.photoUrl,
         ingredientCount: meal.ingredients.length,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
@@ -112,6 +142,7 @@ export async function GET(request: NextRequest) {
         totalFats: meal.totalFats,
         isManualTotal: meal.isManualTotal,
         coachName: meal.createdByCoach?.name,
+        photoUrl: meal.photoUrl,
         ingredientCount: meal.ingredients.length,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
@@ -125,6 +156,7 @@ export async function GET(request: NextRequest) {
         totalCarbs: meal.totalCarbs,
         totalFats: meal.totalFats,
         authorName: meal.member.name,
+        photoUrl: meal.photoUrl,
         ingredientCount: meal.ingredients.length,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
@@ -161,12 +193,30 @@ export async function POST(request: NextRequest) {
       totalFats,
       isManualTotal = false,
       isShared = false,
+      photoUrl,
     } = body;
 
     // Validation
     if (!name || typeof name !== "string" || name.trim().length === 0) {
       return NextResponse.json(
         { error: "Meal name is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate photo if provided
+    const photoValidation = validateMealPhoto(photoUrl);
+    if (!photoValidation.valid) {
+      return NextResponse.json(
+        { error: photoValidation.error },
+        { status: 400 }
+      );
+    }
+
+    // Photo is required when sharing a meal
+    if (isShared && !photoUrl) {
+      return NextResponse.json(
+        { error: "Photo is required when sharing a meal" },
         { status: 400 }
       );
     }
@@ -239,6 +289,7 @@ export async function POST(request: NextRequest) {
         isShared,
         shareApproved: false, // Requires admin approval
         shareRequestedAt: isShared ? new Date() : null, // Track when share was requested
+        photoUrl: photoUrl || null,
         ingredients: {
           create: ingredients.map((ing: {
             name: string;
@@ -277,6 +328,7 @@ export async function POST(request: NextRequest) {
         isShared: meal.isShared,
         shareApproved: meal.shareApproved,
         sharePending: meal.isShared && !meal.shareApproved,
+        photoUrl: meal.photoUrl,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
       },

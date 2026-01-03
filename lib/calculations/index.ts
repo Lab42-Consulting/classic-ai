@@ -158,39 +158,81 @@ export function calculateStreak(logDates: Date[]): number {
 // Consistency score calculation (0-100)
 // Based on: training frequency, calorie adherence, protein intake
 interface ConsistencyInput {
-  // Last 7 days data
-  trainingSessions: number; // Number of training sessions in last 7 days
+  // Last 7 days data (or available days if less)
+  trainingSessions: number; // Number of training sessions
   daysWithMeals: number; // Days where meals were logged
   avgCalorieAdherence: number; // Average % of target calories hit (0-100+)
   avgProteinAdherence: number; // Average % of target protein hit (0-100+)
   waterConsistency: number; // Days with 4+ glasses of water
+  availableDays?: number; // Number of days the member has been active (1-7), defaults to 7
 }
 
 export function calculateConsistencyScore(input: ConsistencyInput): number {
+  // Normalize based on available days (for new members who signed up mid-week)
+  // If member signed up 3 days ago, we evaluate based on 3 days, not 7
+  const daysToEvaluate = Math.min(7, Math.max(1, input.availableDays ?? 7));
+
   // Training component (0-30 points)
-  // 3+ sessions = 30 points, 2 = 20, 1 = 10, 0 = 0
-  const trainingScore = Math.min(30, input.trainingSessions * 10);
+  // Normalize expectation: 3 sessions per 7 days = ~0.43 per day
+  // For 3 days, expect 1-2 sessions for full score
+  const expectedTrainingSessions = Math.max(1, Math.ceil(daysToEvaluate * (3 / 7)));
+  const trainingRatio = Math.min(1, input.trainingSessions / expectedTrainingSessions);
+  const trainingScore = trainingRatio * 30;
 
   // Logging consistency component (0-20 points)
-  // 7 days = 20, 5-6 = 15, 3-4 = 10, 1-2 = 5, 0 = 0
-  const loggingScore = Math.min(20, Math.floor(input.daysWithMeals / 7 * 20));
+  // Full score if logged all available days
+  const loggingScore = Math.min(20, (input.daysWithMeals / daysToEvaluate) * 20);
 
   // Calorie adherence component (0-25 points)
   // Perfect = 80-120% of target, score based on how close to 100%
-  const calorieDeviation = Math.abs(100 - input.avgCalorieAdherence);
-  const calorieScore = Math.max(0, 25 - calorieDeviation * 0.5);
+  // Only apply if there's data (daysWithMeals > 0)
+  let calorieScore = 0;
+  if (input.daysWithMeals > 0) {
+    const calorieDeviation = Math.abs(100 - input.avgCalorieAdherence);
+    calorieScore = Math.max(0, 25 - calorieDeviation * 0.5);
+  }
 
   // Protein adherence component (0-15 points)
   // 90%+ = full points, scales down from there
-  const proteinScore = Math.min(15, input.avgProteinAdherence * 0.15);
+  // Only apply if there's data
+  let proteinScore = 0;
+  if (input.daysWithMeals > 0) {
+    proteinScore = Math.min(15, input.avgProteinAdherence * 0.15);
+  }
 
   // Water component (0-10 points)
-  // 7 days = 10, proportional otherwise
-  const waterScore = Math.min(10, Math.floor(input.waterConsistency / 7 * 10));
+  // Full score if logged water on all available days
+  const waterScore = Math.min(10, (input.waterConsistency / daysToEvaluate) * 10);
 
   const total = Math.round(trainingScore + loggingScore + calorieScore + proteinScore + waterScore);
 
   return Math.min(100, Math.max(0, total));
+}
+
+// Helper to calculate available days for a member
+export function calculateAvailableDays(
+  memberCreatedAt: Date,
+  weekResetAt: Date | null,
+  mondayOfThisWeek: Date
+): number {
+  // Use weekResetAt if set, otherwise use createdAt
+  const startDate = weekResetAt || memberCreatedAt;
+
+  // Calculate days since start (but max 7, and at least 1)
+  const now = new Date();
+  const daysSinceStart = Math.floor((now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)) + 1;
+
+  // Also consider days passed this week (Mon-Sun)
+  const dayOfWeek = now.getDay(); // 0 = Sunday
+  const daysPassedThisWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+  // If member started before this week's Monday, use full week
+  if (startDate.getTime() < mondayOfThisWeek.getTime()) {
+    return daysPassedThisWeek;
+  }
+
+  // Otherwise, use days since they started (or reset)
+  return Math.min(daysSinceStart, daysPassedThisWeek, 7);
 }
 
 export function getConsistencyLevel(score: number): StatusType {

@@ -505,7 +505,36 @@ export const mockSharedMeal = {
   isShared: true,
   shareApproved: true,
   shareRequestedAt: new Date(),
+  photoUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', // Mock base64 JPEG
 }
+
+// Meal with photo (private)
+export const mockMealWithPhoto = {
+  ...mockCustomMeal,
+  id: 'meal-004',
+  name: 'Meal With Photo',
+  photoUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==', // Mock base64 JPEG
+}
+
+// Pending shared meal (awaiting admin approval)
+export const mockPendingSharedMeal = {
+  ...mockCustomMeal,
+  id: 'meal-005',
+  name: 'Pending Shared Meal',
+  isShared: true,
+  shareApproved: false,
+  shareRequestedAt: new Date(),
+  photoUrl: 'data:image/jpeg;base64,/9j/4AAQSkZJRg==',
+}
+
+// Valid base64 JPEG header for testing (small valid image)
+export const mockValidPhotoBase64 = 'data:image/jpeg;base64,/9j/4AAQSkZJRgABAQEASABIAAD/2wBDAA=='
+
+// Invalid photo (too large - over 1MB)
+export const mockOversizedPhoto = 'data:image/jpeg;base64,' + 'A'.repeat(1.5 * 1024 * 1024)
+
+// Invalid photo format
+export const mockInvalidPhotoFormat = 'data:text/plain;base64,SGVsbG8gV29ybGQ='
 
 export const mockMealWithIngredients = {
   ...mockCustomMeal,
@@ -542,4 +571,114 @@ export function getWeekday(): Date {
     date.setDate(date.getDate() + 1)
   }
   return date
+}
+
+// =============================================================================
+// CHALLENGE FIXTURES
+// =============================================================================
+
+export const mockChallenge = {
+  id: 'challenge-test-001',
+  gymId: mockGym.id,
+  name: 'Zimski Izazov',
+  description: 'Održi formu tokom zime!',
+  rewardDescription: 'Top 3: Mesečna članarina gratis',
+  startDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Started 7 days ago
+  endDate: new Date(Date.now() + 23 * 24 * 60 * 60 * 1000), // Ends in 23 days
+  joinDeadlineDays: 14,
+  winnerCount: 3,
+  status: 'registration',
+  pointsPerMeal: 5,
+  pointsPerTraining: 15,
+  pointsPerWater: 1,
+  pointsPerCheckin: 25,
+  streakBonus: 5,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
+export const mockDraftChallenge = {
+  ...mockChallenge,
+  id: 'challenge-test-002',
+  name: 'Draft Challenge',
+  status: 'draft',
+}
+
+export const mockUpcomingChallenge = {
+  ...mockChallenge,
+  id: 'challenge-test-003',
+  name: 'Upcoming Challenge',
+  status: 'registration',
+  startDate: new Date(Date.now() + 14 * 24 * 60 * 60 * 1000), // Starts in 14 days
+  endDate: new Date(Date.now() + 44 * 24 * 60 * 60 * 1000), // Ends in 44 days
+}
+
+export const mockEndedChallenge = {
+  ...mockChallenge,
+  id: 'challenge-test-004',
+  name: 'Ended Challenge',
+  status: 'ended',
+  startDate: new Date(Date.now() - 37 * 24 * 60 * 60 * 1000), // Started 37 days ago
+  endDate: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Ended 7 days ago
+}
+
+export const mockChallengeParticipant = {
+  id: 'participant-test-001',
+  challengeId: mockChallenge.id,
+  memberId: mockMember.id,
+  totalPoints: 145,
+  mealPoints: 60,
+  trainingPoints: 45,
+  waterPoints: 20,
+  checkinPoints: 0,
+  streakPoints: 20,
+  currentStreak: 4,
+  lastActiveDate: new Date(),
+  joinedAt: new Date(Date.now() - 5 * 24 * 60 * 60 * 1000), // Joined 5 days ago
+}
+
+export const mockChallengeWithParticipants = {
+  ...mockChallenge,
+  _count: { participants: 5 },
+  participants: [mockChallengeParticipant],
+}
+
+export const mockChallengeLeaderboard = [
+  {
+    ...mockChallengeParticipant,
+    member: { id: mockMember.id, name: mockMember.name, avatarUrl: null },
+  },
+  {
+    ...mockChallengeParticipant,
+    id: 'participant-test-002',
+    memberId: 'member-test-002',
+    totalPoints: 128,
+    mealPoints: 50,
+    trainingPoints: 45,
+    waterPoints: 18,
+    streakPoints: 15,
+    member: { id: 'member-test-002', name: 'Ana Anic', avatarUrl: null },
+  },
+]
+
+// =============================================================================
+// GYM CHECK-IN FIXTURES
+// =============================================================================
+
+export const mockGymWithCheckin = {
+  ...mockGym,
+  checkinSecret: 'test-checkin-secret-uuid',
+}
+
+export const mockGymWithoutCheckin = {
+  ...mockGym,
+  checkinSecret: null,
+}
+
+export const mockGymCheckin = {
+  id: 'checkin-gym-001',
+  memberId: mockMember.id,
+  gymId: mockGym.id,
+  date: new Date(new Date().setUTCHours(0, 0, 0, 0)), // Today's date at midnight
+  createdAt: new Date(),
 }

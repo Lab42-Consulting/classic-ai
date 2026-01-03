@@ -190,13 +190,30 @@ export async function GET(
         : 999,
     });
 
+    // Only include subscription data for admins, not coaches
+    const memberData = isCoach
+      ? {
+          id: member.id,
+          memberId: member.memberId,
+          name: member.name,
+          avatarUrl: member.avatarUrl,
+          goal: member.goal,
+          weight: member.weight,
+          height: member.height,
+          gender: member.gender,
+          status: member.status,
+          memberSince: member.createdAt,
+        }
+      : {
+          ...member,
+          subscribedAt: member.subscribedAt?.toISOString() || null,
+          subscribedUntil: member.subscribedUntil?.toISOString() || null,
+          memberSince: member.createdAt,
+        };
+
     return NextResponse.json({
-      member: {
-        ...member,
-        subscribedAt: member.subscribedAt?.toISOString() || null,
-        subscribedUntil: member.subscribedUntil?.toISOString() || null,
-        memberSince: member.createdAt,
-      },
+      member: memberData,
+      isCoach,
       snapshot: {
         currentWeight,
         startWeight,

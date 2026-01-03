@@ -2,6 +2,35 @@ import { NextRequest, NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
 
+// Meal photo validation constants
+const MAX_MEAL_PHOTO_SIZE = 1 * 1024 * 1024; // 1MB
+const VALID_IMAGE_TYPES = ["data:image/jpeg", "data:image/png", "data:image/webp"];
+
+function validateMealPhoto(photoUrl: string | null | undefined): { valid: boolean; error?: string } {
+  if (!photoUrl) {
+    return { valid: true }; // Photo is optional for private meals
+  }
+
+  if (typeof photoUrl !== "string") {
+    return { valid: false, error: "Invalid photo format" };
+  }
+
+  if (!photoUrl.startsWith("data:image/")) {
+    return { valid: false, error: "Photo must be an image" };
+  }
+
+  // Base64 is ~1.37x larger than binary
+  if (photoUrl.length > MAX_MEAL_PHOTO_SIZE * 1.37) {
+    return { valid: false, error: "Photo too large. Max 1MB." };
+  }
+
+  if (!VALID_IMAGE_TYPES.some(type => photoUrl.startsWith(type))) {
+    return { valid: false, error: "Photo must be JPEG, PNG, or WebP" };
+  }
+
+  return { valid: true };
+}
+
 interface RouteParams {
   params: Promise<{ id: string }>;
 }
@@ -66,6 +95,7 @@ export async function GET(request: NextRequest, { params }: RouteParams) {
         isShared: meal.isShared,
         isOwn: isOwnMeal,
         authorName: meal.member.name,
+        photoUrl: meal.photoUrl,
         ingredients: meal.ingredients,
         createdAt: meal.createdAt,
         updatedAt: meal.updatedAt,
@@ -129,7 +159,19 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       totalFats,
       isManualTotal,
       isShared,
+      photoUrl,
     } = body;
+
+    // Validate photo if provided (not null/undefined means it was explicitly set)
+    if (photoUrl !== undefined && photoUrl !== null) {
+      const photoValidation = validateMealPhoto(photoUrl);
+      if (!photoValidation.valid) {
+        return NextResponse.json(
+          { error: photoValidation.error },
+          { status: 400 }
+        );
+      }
+    }
 
     // Build update data
     const updateData: {
@@ -140,7 +182,32 @@ export async function PATCH(request: NextRequest, { params }: RouteParams) {
       totalFats?: number | null;
       isManualTotal?: boolean;
       isShared?: boolean;
+      shareApproved?: boolean;
+      shareRequestedAt?: Date | null;
+      photoUrl?: string | null;
     } = {};
+
+    // Handle photoUrl update
+    if (photoUrl !== undefined) {
+      updateData.photoUrl = photoUrl;
+    }
+
+    // Edge case: If removing photo from a shared meal, auto-unshare it
+    if (photoUrl === null && existingMeal.isShared) {
+      updateData.isShared = false;
+      updateData.shareApproved = false;
+      updateData.shareRequestedAt = null;
+    }
+
+    // Edge case: If trying to share without a photo, reject
+    const finalPhotoUrl = photoUrl !== undefined ? photoUrl : existingMeal.photoUrl;
+    const finalIsShared = isShared !== undefined ? isShared : existingMeal.isShared;
+    if (finalIsShared && !finalPhotoUrl) {
+      return NextResponse.json(
+        { error: "Photo is required when sharing a meal" },
+        { status: 400 }
+      );
+    }
 
     if (name !== undefined) {
       if (typeof name !== "string" || name.trim().length === 0) {

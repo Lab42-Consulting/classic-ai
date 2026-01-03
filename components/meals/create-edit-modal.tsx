@@ -4,6 +4,7 @@ import { useState, useEffect, useCallback } from "react";
 import { Modal } from "@/components/ui/modal";
 import { Input } from "@/components/ui/input";
 import { Button } from "@/components/ui/button";
+import { ImageCropper } from "@/components/ui/image-cropper";
 import { IngredientRow, IngredientData } from "./ingredient-row";
 import { IngredientPicker, SavedIngredient } from "./ingredient-picker";
 import { TranslationKeys } from "@/lib/i18n";
@@ -19,6 +20,7 @@ interface MealFormData {
   isShared: boolean;
   isManualTotal: boolean;
   ingredients: IngredientData[];
+  photoUrl?: string | null;
 }
 
 interface CreateEditMealModalProps {
@@ -58,6 +60,8 @@ export function CreateEditMealModal({
   const [manualFats, setManualFats] = useState(0);
   const [deducingIndex, setDeducingIndex] = useState<number | null>(null);
   const [showIngredientPicker, setShowIngredientPicker] = useState(false);
+  const [showPhotoCropper, setShowPhotoCropper] = useState(false);
+  const [photoUrl, setPhotoUrl] = useState<string | null>(null);
   const [saving, setSaving] = useState(false);
   const [error, setError] = useState<string | null>(null);
 
@@ -71,6 +75,7 @@ export function CreateEditMealModal({
           : [{ ...EMPTY_INGREDIENT }]);
         setIsShared(existingMeal.isShared);
         setIsManualTotal(existingMeal.isManualTotal);
+        setPhotoUrl(existingMeal.photoUrl || null);
         if (existingMeal.isManualTotal) {
           setManualCalories(existingMeal.totalCalories);
           setManualProtein(existingMeal.totalProtein || 0);
@@ -82,6 +87,7 @@ export function CreateEditMealModal({
         setIngredients([{ ...EMPTY_INGREDIENT }]);
         setIsShared(false);
         setIsManualTotal(false);
+        setPhotoUrl(null);
         setManualCalories(0);
         setManualProtein(0);
         setManualCarbs(0);
@@ -204,6 +210,12 @@ export function CreateEditMealModal({
       return;
     }
 
+    // Photo is required when sharing
+    if (isShared && !photoUrl) {
+      setError(t.meals?.photoRequired || "Slika je obavezna za deljenje obroka");
+      return;
+    }
+
     setSaving(true);
     setError(null);
 
@@ -218,6 +230,7 @@ export function CreateEditMealModal({
         isShared,
         isManualTotal,
         ingredients: validIngredients,
+        photoUrl,
       });
       onClose();
     } catch (err) {
@@ -310,6 +323,68 @@ export function CreateEditMealModal({
                 {t.meals?.fromLibrary || "Iz biblioteke"}
               </Button>
             </div>
+          </div>
+
+          {/* Meal Photo */}
+          <div>
+            <label className="block text-sm font-medium text-foreground-muted mb-3">
+              {t.meals?.photo || "Slika obroka"}
+              {isShared && <span className="text-error ml-1">*</span>}
+            </label>
+
+            {photoUrl ? (
+              <div className="relative">
+                <img
+                  src={photoUrl}
+                  alt={name || "Meal preview"}
+                  className="w-full aspect-[4/3] object-cover rounded-xl"
+                />
+                <div className="absolute top-2 right-2 flex gap-2">
+                  <button
+                    type="button"
+                    onClick={() => setShowPhotoCropper(true)}
+                    className="p-2 bg-background/80 backdrop-blur-sm rounded-lg hover:bg-background transition-colors"
+                    title={t.meals?.changePhoto || "Promeni sliku"}
+                  >
+                    <svg className="w-4 h-4 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z" />
+                    </svg>
+                  </button>
+                  <button
+                    type="button"
+                    onClick={() => setPhotoUrl(null)}
+                    className="p-2 bg-background/80 backdrop-blur-sm rounded-lg hover:bg-error/20 transition-colors"
+                    title={t.meals?.removePhoto || "Ukloni sliku"}
+                  >
+                    <svg className="w-4 h-4 text-error" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            ) : (
+              <button
+                type="button"
+                onClick={() => setShowPhotoCropper(true)}
+                className="w-full aspect-[4/3] border-2 border-dashed border-white/20 rounded-xl flex flex-col items-center justify-center gap-2 hover:border-accent/50 transition-colors cursor-pointer"
+              >
+                <div className="w-12 h-12 bg-accent/20 rounded-full flex items-center justify-center">
+                  <svg className="w-6 h-6 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M3 9a2 2 0 012-2h.93a2 2 0 001.664-.89l.812-1.22A2 2 0 0110.07 4h3.86a2 2 0 011.664.89l.812 1.22A2 2 0 0018.07 7H19a2 2 0 012 2v9a2 2 0 01-2 2H5a2 2 0 01-2-2V9z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 13a3 3 0 11-6 0 3 3 0 016 0z" />
+                  </svg>
+                </div>
+                <span className="text-sm text-foreground-muted">
+                  {t.meals?.addPhoto || "Dodaj sliku"}
+                </span>
+              </button>
+            )}
+
+            {isShared && !photoUrl && (
+              <p className="text-xs text-warning mt-2">
+                {t.meals?.photoRequiredHint || "Slika je obavezna za deljenje sa teretanom"}
+              </p>
+            )}
           </div>
 
           {/* Totals */}
@@ -449,6 +524,22 @@ export function CreateEditMealModal({
         onClose={() => setShowIngredientPicker(false)}
         onSelect={handleAddFromLibrary}
         t={t}
+      />
+
+      {/* Photo cropper modal */}
+      <ImageCropper
+        isOpen={showPhotoCropper}
+        onClose={() => setShowPhotoCropper(false)}
+        onSave={(croppedImageUrl) => {
+          setPhotoUrl(croppedImageUrl);
+          setShowPhotoCropper(false);
+        }}
+        title={t.meals?.addPhoto || "Dodaj sliku obroka"}
+        aspectRatio={4 / 3}
+        circularCrop={false}
+        locale="sr"
+        outputWidth={800}
+        outputHeight={600}
       />
     </>
   );

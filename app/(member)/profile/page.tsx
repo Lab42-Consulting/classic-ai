@@ -91,6 +91,10 @@ export default function ProfilePage() {
   const [savingTargets, setSavingTargets] = useState(false);
   const [targetError, setTargetError] = useState("");
 
+  // Reset week state
+  const [resettingWeek, setResettingWeek] = useState(false);
+  const [showResetConfirm, setShowResetConfirm] = useState(false);
+
   useEffect(() => {
     fetchProfile();
   }, []);
@@ -340,6 +344,25 @@ export default function ProfilePage() {
       // Handle silently
     } finally {
       setSavingAvatar(false);
+    }
+  };
+
+  const handleResetWeek = async () => {
+    setResettingWeek(true);
+    try {
+      const response = await fetch("/api/member/reset-week", {
+        method: "POST",
+      });
+
+      if (response.ok) {
+        setShowResetConfirm(false);
+        // Optionally refresh the page to reflect new consistency score
+        router.refresh();
+      }
+    } catch {
+      // Handle silently
+    } finally {
+      setResettingWeek(false);
     }
   };
 
@@ -672,6 +695,18 @@ export default function ProfilePage() {
                 <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
               </svg>
             </button>
+            <button
+              onClick={() => setShowResetConfirm(true)}
+              className="w-full glass rounded-2xl p-4 flex items-center gap-4 card-hover btn-press"
+            >
+              <span className="text-2xl">🔄</span>
+              <span className="flex-1 text-left text-foreground">
+                {locale === "en" ? "Reset Week" : "Resetuj nedelju"}
+              </span>
+              <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
           </div>
         </SlideUp>
 
@@ -890,6 +925,49 @@ export default function ProfilePage() {
               {locale === "en" ? "Reset to auto-calculated" : "Vrati na automatski izračunato"}
             </button>
           )}
+        </div>
+      </Modal>
+
+      {/* Reset Week Confirmation Modal */}
+      <Modal
+        isOpen={showResetConfirm}
+        onClose={() => setShowResetConfirm(false)}
+        title={locale === "en" ? "Reset Week?" : "Resetuj nedelju?"}
+      >
+        <div className="space-y-4">
+          <p className="text-foreground-muted">
+            {locale === "en"
+              ? "This will restart your weekly consistency tracking from today. Your consistency score will be calculated based on your activity from now on."
+              : "Ovo će ponovo pokrenuti praćenje nedeljne doslednosti od danas. Tvoj skor doslednosti će se računati na osnovu aktivnosti od sada."}
+          </p>
+
+          <div className="p-3 bg-warning/10 border border-warning/20 rounded-xl">
+            <p className="text-sm text-warning">
+              {locale === "en"
+                ? "Use this if you've been away or want a fresh start. Your logged data remains intact."
+                : "Koristi ovo ako si bio/bila odsutan/na ili želiš novi početak. Tvoji ulogovani podaci ostaju sačuvani."}
+            </p>
+          </div>
+
+          <div className="flex gap-3 pt-2">
+            <Button
+              variant="secondary"
+              className="flex-1"
+              onClick={() => setShowResetConfirm(false)}
+              disabled={resettingWeek}
+            >
+              {locale === "en" ? "Cancel" : "Otkaži"}
+            </Button>
+            <Button
+              className="flex-1"
+              onClick={handleResetWeek}
+              disabled={resettingWeek}
+            >
+              {resettingWeek
+                ? (locale === "en" ? "Resetting..." : "Resetujem...")
+                : (locale === "en" ? "Reset" : "Resetuj")}
+            </Button>
+          </div>
         </div>
       </Modal>
     </div>

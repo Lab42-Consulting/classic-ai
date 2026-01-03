@@ -39,11 +39,12 @@ interface MemberDetail {
     height: number | null;
     gender: string | null;
     status: string;
-    subscriptionStatus: string;
-    subscribedAt: string | null;
-    subscribedUntil: string | null;
+    subscriptionStatus?: string;
+    subscribedAt?: string | null;
+    subscribedUntil?: string | null;
     memberSince: string;
   };
+  isCoach?: boolean;
   snapshot: {
     currentWeight: number | null;
     startWeight: number | null;
@@ -395,7 +396,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
     );
   }
 
-  const { member, snapshot, summary, recentCheckins, notes, nudges } = data;
+  const { member, snapshot, summary, recentCheckins, notes, nudges, isCoach } = data;
   const isProgressPositive =
     (member.goal === "fat_loss" && snapshot.weightTrend === "down") ||
     (member.goal === "muscle_gain" && snapshot.weightTrend === "up") ||
@@ -478,75 +479,77 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           </GlassCard>
         </SlideUp>
 
-        {/* Subscription Status */}
-        <SlideUp delay={120}>
-          <GlassCard className={`
-            ${member.subscriptionStatus === "expired"
-              ? "border-error/30 bg-error/5"
-              : member.subscriptionStatus === "active" && member.subscribedUntil &&
-                new Date(member.subscribedUntil).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
-                ? "border-warning/30 bg-warning/5"
-                : "border-success/30 bg-success/5"
-            }
-          `}>
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  member.subscriptionStatus === "expired"
-                    ? "bg-error/20"
-                    : member.subscriptionStatus === "active" && member.subscribedUntil &&
-                      new Date(member.subscribedUntil).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
-                      ? "bg-warning/20"
-                      : "bg-success/20"
-                }`}>
-                  <span className="text-lg">💳</span>
-                </div>
-                <div>
-                  <p className={`font-medium ${
+        {/* Subscription Status - Only visible to admins, not coaches */}
+        {!isCoach && member.subscriptionStatus && (
+          <SlideUp delay={120}>
+            <GlassCard className={`
+              ${member.subscriptionStatus === "expired"
+                ? "border-error/30 bg-error/5"
+                : member.subscriptionStatus === "active" && member.subscribedUntil &&
+                  new Date(member.subscribedUntil).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
+                  ? "border-warning/30 bg-warning/5"
+                  : "border-success/30 bg-success/5"
+              }
+            `}>
+              <div className="flex items-center justify-between">
+                <div className="flex items-center gap-3">
+                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
                     member.subscriptionStatus === "expired"
-                      ? "text-error"
+                      ? "bg-error/20"
                       : member.subscriptionStatus === "active" && member.subscribedUntil &&
                         new Date(member.subscribedUntil).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
-                        ? "text-warning"
-                        : "text-success"
+                        ? "bg-warning/20"
+                        : "bg-success/20"
                   }`}>
-                    {member.subscriptionStatus === "expired" ? "Članarina istekla" :
-                     member.subscriptionStatus === "active" ? "Aktivna članarina" :
-                     member.subscriptionStatus === "trial" ? "Probni period" : "Članarina"}
-                  </p>
-                  <p className="text-sm text-foreground-muted">
-                    {member.subscribedUntil ? (
-                      member.subscriptionStatus === "expired" ? (
-                        `Istekla ${new Date(member.subscribedUntil).toLocaleDateString("sr-Latn-RS")}`
+                    <span className="text-lg">💳</span>
+                  </div>
+                  <div>
+                    <p className={`font-medium ${
+                      member.subscriptionStatus === "expired"
+                        ? "text-error"
+                        : member.subscriptionStatus === "active" && member.subscribedUntil &&
+                          new Date(member.subscribedUntil).getTime() - Date.now() < 7 * 24 * 60 * 60 * 1000
+                          ? "text-warning"
+                          : "text-success"
+                    }`}>
+                      {member.subscriptionStatus === "expired" ? "Članarina istekla" :
+                       member.subscriptionStatus === "active" ? "Aktivna članarina" :
+                       member.subscriptionStatus === "trial" ? "Probni period" : "Članarina"}
+                    </p>
+                    <p className="text-sm text-foreground-muted">
+                      {member.subscribedUntil ? (
+                        member.subscriptionStatus === "expired" ? (
+                          `Istekla ${new Date(member.subscribedUntil).toLocaleDateString("sr-Latn-RS")}`
+                        ) : (
+                          `Do ${new Date(member.subscribedUntil).toLocaleDateString("sr-Latn-RS", {
+                            day: "numeric",
+                            month: "long",
+                            year: "numeric",
+                          })}`
+                        )
                       ) : (
-                        `Do ${new Date(member.subscribedUntil).toLocaleDateString("sr-Latn-RS", {
-                          day: "numeric",
-                          month: "long",
-                          year: "numeric",
-                        })}`
-                      )
-                    ) : (
-                      "Nije aktivirana"
-                    )}
-                  </p>
+                        "Nije aktivirana"
+                      )}
+                    </p>
+                  </div>
                 </div>
+                <button
+                  onClick={() => setShowSubscriptionModal(true)}
+                  className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
+                    member.subscriptionStatus === "expired"
+                      ? "bg-error text-white hover:bg-error/90"
+                      : "bg-accent text-white hover:bg-accent/90"
+                  }`}
+                >
+                  {member.subscriptionStatus === "expired" || !member.subscribedUntil
+                    ? "Aktiviraj"
+                    : "Produži"
+                  }
+                </button>
               </div>
-              <button
-                onClick={() => setShowSubscriptionModal(true)}
-                className={`px-4 py-2 rounded-xl font-medium text-sm transition-colors ${
-                  member.subscriptionStatus === "expired"
-                    ? "bg-error text-white hover:bg-error/90"
-                    : "bg-accent text-white hover:bg-accent/90"
-                }`}
-              >
-                {member.subscriptionStatus === "expired" || !member.subscribedUntil
-                  ? "Aktiviraj"
-                  : "Produži"
-                }
-              </button>
-            </div>
-          </GlassCard>
-        </SlideUp>
+            </GlassCard>
+          </SlideUp>
+        )}
 
         {/* AI Behavior Summary */}
         <SlideUp delay={150}>
@@ -979,12 +982,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         hideShareOption
       />
 
-      {/* Subscription Extend Modal */}
-      {showSubscriptionModal && (
+      {/* Subscription Extend Modal - Only for admins */}
+      {!isCoach && showSubscriptionModal && (
         <SubscriptionExtendModal
           memberId={member.id}
           memberName={member.name}
-          currentEndDate={member.subscribedUntil}
+          currentEndDate={member.subscribedUntil ?? null}
           isExpired={member.subscriptionStatus === "expired" || !member.subscribedUntil}
           onClose={() => setShowSubscriptionModal(false)}
           onSuccess={async () => {

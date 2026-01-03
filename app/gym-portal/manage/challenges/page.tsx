@@ -361,7 +361,7 @@ export default function ChallengesPage() {
               </div>
 
               {/* Dates */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground-muted mb-2">
                     Početak *
@@ -387,7 +387,7 @@ export default function ChallengesPage() {
               </div>
 
               {/* Join Deadline & Winners */}
-              <div className="grid grid-cols-2 gap-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
                 <div>
                   <label className="block text-sm font-medium text-foreground-muted mb-2">
                     Rok za prijavu (dana)

@@ -24,6 +24,7 @@ interface Meal {
   isManualTotal: boolean;
   shareApproved?: boolean;
   sharePending?: boolean;
+  photoUrl?: string | null;
   ingredients: MealIngredient[];
   member?: {
     name: string;
@@ -55,7 +56,18 @@ export function MealCard({
   const hasMacros = meal.totalProtein || meal.totalCarbs || meal.totalFats;
 
   return (
-    <Card className="relative">
+    <Card className="relative overflow-hidden">
+      {/* Meal photo */}
+      {meal.photoUrl && (
+        <div className="-mx-4 -mt-4 mb-4">
+          <img
+            src={meal.photoUrl}
+            alt={meal.name}
+            className="w-full aspect-[4/3] object-cover"
+          />
+        </div>
+      )}
+
       <div className="flex items-start justify-between gap-4">
         <div className="flex-1 min-w-0">
           {/* Meal name */}

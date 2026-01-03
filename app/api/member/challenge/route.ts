@@ -29,6 +29,8 @@ export async function GET() {
     }
 
     const now = new Date();
+    const today = new Date();
+    today.setUTCHours(0, 0, 0, 0);
 
     // Find active, registration, or upcoming challenge for this gym
     // Status must be "registration" or "active" (not "draft" - those are admin-only)
@@ -41,12 +43,32 @@ export async function GET() {
       },
     });
 
+    // Check if gym has check-in enabled and if member checked in today
+    const gym = await prisma.gym.findUnique({
+      where: { id: member.gymId },
+      select: { checkinSecret: true },
+    });
+
+    const gymCheckin = await prisma.gymCheckin.findUnique({
+      where: {
+        memberId_date: {
+          memberId: authResult.memberId,
+          date: today,
+        },
+      },
+    });
+
+    const gymCheckinRequired = !!gym?.checkinSecret;
+    const checkedInToday = !!gymCheckin;
+
     if (!challenge) {
       return NextResponse.json({
         challenge: null,
         participation: null,
         leaderboard: [],
         rank: null,
+        gymCheckinRequired,
+        checkedInToday,
       });
     }
 
@@ -115,6 +137,9 @@ export async function GET() {
         totalPoints: p.totalPoints,
         isCurrentMember: p.member.id === authResult.memberId,
       })),
+      isStaffMember: authResult.isStaffMember || false,
+      gymCheckinRequired,
+      checkedInToday,
     });
   } catch (error) {
     console.error("Error fetching challenge:", error);
@@ -137,6 +162,14 @@ export async function POST() {
       return NextResponse.json(
         { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
         { status: 401 }
+      );
+    }
+
+    // Coaches cannot participate in challenges
+    if (authResult.isStaffMember) {
+      return NextResponse.json(
+        { error: "Treneri ne mogu učestvovati u izazovima" },
+        { status: 403 }
       );
     }
 

@@ -105,8 +105,9 @@ async function getMemberData(memberId: string) {
     },
   });
 
-  // Check if member is participating
+  // Check if member is participating and get their stats
   let isParticipating = false;
+  let participationData: { totalPoints: number; rank: number } | null = null;
   if (activeChallenge) {
     const participation = await prisma.challengeParticipant.findUnique({
       where: {
@@ -117,6 +118,28 @@ async function getMemberData(memberId: string) {
       },
     });
     isParticipating = !!participation;
+
+    if (participation) {
+      // Get member's rank
+      const higherRanked = await prisma.challengeParticipant.count({
+        where: {
+          challengeId: activeChallenge.id,
+          OR: [
+            { totalPoints: { gt: participation.totalPoints } },
+            {
+              AND: [
+                { totalPoints: participation.totalPoints },
+                { joinedAt: { lt: participation.joinedAt } },
+              ],
+            },
+          ],
+        },
+      });
+      participationData = {
+        totalPoints: participation.totalPoints,
+        rank: higherRanked + 1,
+      };
+    }
   }
 
   return {
@@ -127,6 +150,7 @@ async function getMemberData(memberId: string) {
     pendingCoachRequest,
     activeChallenge,
     isParticipating,
+    participationData,
   };
 }
 
@@ -237,7 +261,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, activeChallenge, isParticipating } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, activeChallenge, isParticipating, participationData } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
@@ -357,14 +381,14 @@ export default async function HomePage() {
       : null,
     // Staff viewing as member
     isStaffMember,
-    // Active or upcoming challenge (show if not participating)
-    activeChallenge: activeChallenge && !isParticipating
+    // Active or upcoming challenge (show always - different content based on participation)
+    activeChallenge: activeChallenge
       ? (() => {
           const status = getChallengeStatus(activeChallenge);
           const isUpcoming = status === "upcoming";
           const canJoin = canJoinChallenge(activeChallenge);
-          // Only show if upcoming or can join
-          if (!isUpcoming && !canJoin) return null;
+          // If not participating, only show if upcoming or can join
+          if (!isParticipating && !isUpcoming && !canJoin) return null;
           return {
             id: activeChallenge.id,
             name: activeChallenge.name,
@@ -373,6 +397,8 @@ export default async function HomePage() {
             daysUntilDeadline: isUpcoming ? null : getDaysUntilJoinDeadline(activeChallenge),
             daysUntilStart: isUpcoming ? getDaysUntilStart(activeChallenge) : null,
             isUpcoming,
+            isParticipating,
+            participation: participationData,
           };
         })()
       : null,

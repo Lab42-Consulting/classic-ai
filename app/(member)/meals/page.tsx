@@ -23,6 +23,7 @@ interface MealWithAuthor extends Meal {
     name: string;
   };
   coachName?: string;
+  photoUrl?: string | null;
 }
 
 interface MealsData {
@@ -100,6 +101,7 @@ export default function MealsPage() {
         totalFats: meal.totalFats,
         isShared: meal.isShared,
         isManualTotal: meal.isManualTotal,
+        photoUrl: meal.photoUrl,
         ingredients: meal.ingredients.map((ing: IngredientData) => ({
           name: ing.name,
           portionSize: formatPortion(ing.portionAmount, ing.portionUnit),
@@ -340,6 +342,7 @@ export default function MealsPage() {
                   // Transform meal ingredients from portionSize string to portionAmount + portionUnit
                   const transformedMeal: MealFormData = {
                     ...meal,
+                    photoUrl: meal.photoUrl,
                     ingredients: meal.ingredients.map((ing) => {
                       const parsed = parsePortion(ing.portionSize);
                       return {

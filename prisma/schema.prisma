@@ -25,6 +25,9 @@ model Gym {
   primaryColor    String?           // Primary brand color (e.g., #ef4444)
   secondaryColor  String?           // Secondary color
 
+  // Challenge check-in verification
+  checkinSecret   String?           // Secret code for gym QR check-in (validates physical presence)
+
   // Contact info for gym portal
   ownerEmail      String?           // Gym owner email for billing
   ownerName       String?           // Gym owner name
@@ -37,6 +40,7 @@ model Gym {
   customMeals     CustomMeal[]      // Gym-wide shared meals
   savedIngredients SavedIngredient[] // Gym-wide shared ingredients
   challenges      Challenge[]       // Gym challenges/competitions
+  gymCheckins     GymCheckin[]      // Member check-ins at the gym
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -89,6 +93,12 @@ model Member {
 
   // Challenge participations
   challengeParticipations ChallengeParticipant[]
+
+  // Gym check-ins (for challenge verification)
+  gymCheckins         GymCheckin[]
+
+  // Week reset - when set, consistency tracking starts from this date instead of createdAt
+  weekResetAt         DateTime?
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -396,6 +406,9 @@ model CustomMeal {
   shareApproved      Boolean          @default(false)  // Admin has approved sharing
   shareRequestedAt   DateTime?        // When user requested to share
 
+  // Meal photo (required for shared meals, optional for private)
+  photoUrl           String?          @db.Text  // Base64 encoded image (4:3 landscape, max 1MB)
+
   ingredients     MealIngredient[]
 
   createdAt       DateTime         @default(now())
@@ -543,4 +556,23 @@ model ChallengeParticipant {
   @@index([memberId])
   @@index([challengeId, totalPoints])
   @@map("challenge_participants")
+}
+
+// Gym check-in records - tracks when members physically check in at the gym
+// Used for challenge verification (training points only count with valid check-in)
+model GymCheckin {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  gymId     String
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date // Just the date, one check-in per day
+
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, date]) // One check-in per member per day
+  @@index([memberId])
+  @@index([gymId])
+  @@index([memberId, date])
+  @@map("gym_checkins")
 }

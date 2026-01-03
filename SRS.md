@@ -2,8 +2,52 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.6
-**Last Updated:** January 2025
+**Version:** 1.8
+**Last Updated:** January 2026
+
+**Changelog v1.10:**
+- Added Meal Photos feature for shared meals
+- Photos required when sharing meals with the gym (optional for private meals)
+- 4:3 landscape aspect ratio, max 1MB file size, base64 storage
+- Added `photoUrl` field to `CustomMeal` model
+- Admin pending meals page shows photos for approval review
+- Removing photo from shared meal auto-unshares it
+- Copying shared meal also copies the photo
+
+**Changelog v1.9:**
+- Added Gym QR Check-in system for challenge anti-cheating
+- Training points in challenges now require verified gym check-in
+- Members scan QR code at gym to verify presence before logging training
+- Admin can enable/disable gym check-in and regenerate QR codes
+- Added `GymCheckin` model and `checkinSecret` to Gym model
+- Challenge API returns `gymCheckinRequired` and `checkedInToday` status
+- Implemented daily rotating codes for enhanced security:
+  - QR codes change automatically at midnight UTC
+  - Generated from hash(masterSecret + date)
+  - 1-hour grace period after midnight for edge cases
+  - Admin sees countdown to next code rotation
+
+**Changelog v1.8:**
+- Added Week Reset feature for members to restart consistency tracking
+- Members can reset their week from profile page for a fresh start
+- Consistency score now normalizes based on available days (fair for new members)
+- Added `weekResetAt` field to Member model
+- Coach Challenge View-Only mode: coaches can view challenges but cannot participate
+- Added `isStaffMember` flag to challenge API for role-based UI
+- Data visibility restrictions: coaches no longer see subscription data
+- Coach dashboard excludes expiring subscription stats (admin-only data)
+- Coach member detail API returns filtered data without subscription info
+
+**Changelog v1.7:**
+- Added Challenge/Game System for member engagement
+- Challenges allow admins to create time-limited competitions with points and rewards
+- Members earn points by logging meals, training, water, check-ins, and daily streaks
+- Challenge statuses: draft, upcoming, registration, active, ended
+- Leaderboard with rank tracking and cached point totals
+- Admin can publish, end, and delete challenges
+- Member challenge page with join flow and real-time leaderboard
+- Challenge banner on home page for non-participants
+- Point configuration per challenge (admin customizable)
 
 **Changelog v1.6:**
 - Added Coach Performance Dashboard with analytics and charts
@@ -413,6 +457,18 @@ The home dashboard displays **daily metrics only** for a focused, simplified vie
   2. Member custom targets
   3. Auto-calculated targets (based on weight and goal)
 
+#### FR-PROF-005: Week Reset
+- **Purpose:** Allow members to restart their weekly consistency tracking
+- **Location:** Profile page → "Resetuj nedelju" button
+- **Trigger:** Member clicks reset button and confirms
+- **Effect:**
+  - Sets `weekResetAt` to current timestamp
+  - Consistency score calculation starts fresh from reset date
+  - Historical logs remain intact (not deleted)
+  - Useful after vacation, illness, or extended inactivity
+- **Confirmation:** Modal with warning about reset implications
+- **API:** `POST /api/member/reset-week`
+
 ### 3.10 Weekly Check-In
 
 #### FR-CHECK-001: Check-In Form
@@ -551,6 +607,18 @@ The coach dashboard at `/dashboard` is designed for day-to-day member coaching o
 - Coach can discover and assign unassigned members
 - Quick assignment flow from dashboard
 
+#### FR-STAFF-004: Coach Data Visibility Restrictions
+- **Purpose:** Limit sensitive business data exposure to coaches
+- **Restricted Data:**
+  - Member subscription status and dates (admin-only)
+  - Expiring subscription counts (admin-only)
+  - Subscription history and extension dates
+- **Coach Dashboard:** Does not include `expiringSubscriptions` object
+- **Member Detail API:** Returns filtered member data for coaches:
+  - Excludes: `subscribedAt`, `subscribedUntil`, `subscriptionStatus`
+  - Includes: Profile, goals, weight, activity data
+- **Rationale:** Subscription management is a business/admin concern
+
 ### 3.13 Gym Portal Admin Panel (Desktop-First)
 
 The Gym Portal at `/gym-portal/manage` provides comprehensive gym management for administrators.
@@ -648,6 +716,23 @@ The Gym Portal at `/gym-portal/manage` provides comprehensive gym management for
   - Login pages always use default colors (no gym-specific theming)
   - Colors stored in `gym.primaryColor` field
 
+#### FR-ADMIN-007: Pending Meals Approval
+- **Location:** `/gym-portal/manage/pending-meals`
+- **Purpose:** Review and approve/reject meals that members want to share with the gym
+- **Features:**
+  - Grid display of pending meals with photos
+  - Shows meal name, calories, macros, ingredients
+  - Member info (name, ID) who submitted the meal
+  - Request timestamp
+  - Approve/Reject action buttons
+- **Photo Display:**
+  - 4:3 aspect ratio meal photos prominently displayed
+  - Helps admin evaluate meal quality for sharing
+- **Actions:**
+  - **Approve:** Sets `shareApproved: true`, meal visible to all gym members
+  - **Reject:** Sets `isShared: false`, meal remains private to the member
+- **Quick Access:** Link from admin dashboard Quick Actions section
+
 ### 3.13 Coach Features
 
 #### FR-COACH-001: Coach Assignment
@@ -703,6 +788,146 @@ The Gym Portal at `/gym-portal/manage` provides comprehensive gym management for
   - Nutrition: "This member is lactose intolerant, suggest dairy alternatives"
   - Training: "Focus on upper body, avoid squats due to knee injury"
   - Supplements: "Already taking multivitamins, focus on protein and creatine"
+
+### 3.14 Challenge/Game System
+
+The challenge system provides gamification features for member engagement through time-limited competitions.
+
+#### FR-CHAL-001: Challenge Lifecycle
+- **Statuses:**
+  - `draft`: Admin-only, not visible to members
+  - `upcoming`: Published but before start date, members can view but not join
+  - `registration`: Active and open for member registration
+  - `active`: Ongoing, registration window may be closed
+  - `ended`: Challenge completed (manual or automatic)
+- **Status Computation:** Based on dates and manual status field
+- **Constraint:** One active challenge per gym at a time
+
+#### FR-CHAL-002: Challenge Creation (Admin)
+- **Location:** `/gym-portal/manage/challenges`
+- **Fields:**
+  - Name, Description, Reward Description
+  - Start Date, End Date
+  - Join Deadline (days after start)
+  - Winner Count (default: 3)
+  - Point Configuration (per action)
+- **Default Point Values:**
+
+| Action | Default Points |
+|--------|----------------|
+| Meal logged | 5 |
+| Training logged | 15 |
+| Water glass | 1 |
+| Weekly check-in | 25 |
+| Daily streak bonus | 5 |
+
+#### FR-CHAL-003: Challenge Publishing
+- **Action:** Admin clicks "Objavi" on draft challenge
+- **Effect:** Status changes from `draft` to `registration`
+- **Computed Status:**
+  - If start date in future → shows as `upcoming`
+  - If start date passed → shows as `registration`
+
+#### FR-CHAL-004: Challenge Joining (Member)
+- **Location:** `/challenge` or home page banner
+- **Eligibility:**
+  - Challenge must be in `registration` or `active` status
+  - Must be within join deadline (startDate + joinDeadlineDays)
+  - Member not already participating
+- **Effect:** Creates `ChallengeParticipant` record with zero points
+
+#### FR-CHAL-005: Point Awarding
+- **Trigger:** Member logs meal, training, water, or check-in
+- **Process:**
+  1. Check if member is participating in active challenge
+  2. Award points based on challenge configuration
+  3. Calculate streak bonus if applicable
+  4. Update cached totals in `ChallengeParticipant`
+- **Streak Bonus:**
+  - Awarded once per day for consecutive days of activity
+  - Resets if no activity for 24+ hours
+
+#### FR-CHAL-006: Leaderboard
+- **Display:** Ranked list of participants by total points
+- **Data:** Cached in `ChallengeParticipant.totalPoints` for performance
+- **Breakdown:** Shows points by category (meals, training, water, check-in, streak)
+- **Tie-breaking:** Earlier join date wins
+
+#### FR-CHAL-007: Challenge End
+- **Automatic:** When end date passes
+- **Manual:** Admin clicks "Završi izazov"
+- **Effect:** Status becomes `ended`, leaderboard frozen
+
+#### FR-CHAL-008: Member Challenge View
+- **Location:** `/challenge`
+- **States:**
+  1. No active challenge → Empty state
+  2. Challenge upcoming → Preview with countdown
+  3. Not joined, can join → Join prompt with reward info
+  4. Joined → Rank card + full leaderboard
+
+#### FR-CHAL-009: Home Page Integration
+- **Banner Display:** Shows when:
+  - Active/upcoming challenge exists
+  - Member not participating
+  - Registration still open OR challenge is upcoming
+- **Banner Content:**
+  - Challenge name and reward
+  - Participant count
+  - Days until deadline (registration) or days until start (upcoming)
+- **Styling:** Emerald for joinable, Amber for upcoming
+
+#### FR-CHAL-010: Coach View-Only Mode
+- **Purpose:** Coaches can monitor challenges but cannot participate
+- **Behavior:**
+  - Coaches accessing `/challenge` see read-only leaderboard view
+  - Blue info banner explains view-only mode
+  - No "Join" button displayed for coaches
+  - `POST /api/member/challenge` returns 403 for coaches
+- **API Response:** Includes `isStaffMember: true` flag for coaches
+- **Rationale:** Coaches should monitor member progress without competing
+
+### 3.15 Gym QR Check-in System
+
+The gym check-in system provides anti-cheating verification for challenge participants by requiring physical gym presence.
+
+#### FR-CHECKIN-001: Gym Check-in Setup (Admin)
+- **Purpose:** Admin enables QR-based gym check-in for challenge verification
+- **Location:** `/gym-portal/manage/settings` or admin check-in settings
+- **Actions:**
+  - **Enable:** Generate a unique UUID check-in secret
+  - **Regenerate:** Create a new QR code (invalidates old one)
+  - **Disable:** Remove check-in requirement
+- **Stats Display:** Today's check-ins, total check-ins
+
+#### FR-CHECKIN-002: Member Gym Check-in
+- **Purpose:** Members verify gym presence before logging training
+- **Process:**
+  1. Gym displays QR code containing `checkinSecret`
+  2. Member scans QR code (or enters secret manually)
+  3. System validates secret against gym's `checkinSecret`
+  4. Creates `GymCheckin` record for today
+  5. Member can now log training for challenge points
+- **Constraint:** One check-in per member per day
+
+#### FR-CHECKIN-003: Challenge Training Verification
+- **Purpose:** Prevent cheating by requiring gym presence for training points
+- **Behavior:**
+  - When member logs training during active challenge
+  - System checks if gym has `checkinSecret` enabled
+  - If enabled: Training points only awarded if checked in today
+  - If disabled: Training points awarded normally (no verification)
+- **API Response:** Returns `no_gym_checkin` reason if check-in required but missing
+
+#### FR-CHECKIN-004: Challenge API Check-in Status
+- **Purpose:** Frontend knows whether to prompt for check-in
+- **Fields returned in `GET /api/member/challenge`:**
+  - `gymCheckinRequired`: Boolean - gym has check-in enabled
+  - `checkedInToday`: Boolean - member checked in today
+- **UI Behavior:**
+  - If `gymCheckinRequired && !checkedInToday`: Show check-in prompt
+  - If `gymCheckinRequired && checkedInToday`: Show green verified badge
+  - If `!gymCheckinRequired`: Hide check-in UI
 
 ---
 
@@ -768,6 +993,9 @@ model Member {
   subscriptionStatus  String          @default("trial")
   subscriptionEndDate DateTime?
 
+  // Week reset - when set, consistency tracking starts from this date
+  weekResetAt         DateTime?
+
   // Relations
   gymId               String
   gym                 Gym             @relation(...)
@@ -775,6 +1003,7 @@ model Member {
   weeklyCheckins      WeeklyCheckin[]
   aiSummaries         AISummary[]
   chatMessages        ChatMessage[]
+  challengeParticipations ChallengeParticipant[]
 
   createdAt           DateTime        @default(now())
   updatedAt           DateTime        @updatedAt
@@ -889,6 +1118,166 @@ model ChatMessage {
   member    Member   @relation(...)
 }
 ```
+
+### 5.8 Challenge Model
+
+```prisma
+model Challenge {
+  id                String   @id @default(cuid())
+  gymId             String
+  gym               Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name              String
+  description       String   @db.Text
+  rewardDescription String   @db.Text
+
+  startDate         DateTime
+  endDate           DateTime
+  joinDeadlineDays  Int      @default(7)
+
+  winnerCount       Int      @default(3)
+  status            String   @default("draft") // draft | registration | active | ended
+
+  // Point configuration
+  pointsPerMeal     Int      @default(5)
+  pointsPerTraining Int      @default(15)
+  pointsPerWater    Int      @default(1)
+  pointsPerCheckin  Int      @default(25)
+  streakBonus       Int      @default(5)
+
+  participants      ChallengeParticipant[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([gymId, status])
+  @@map("challenges")
+}
+```
+
+### 5.9 ChallengeParticipant Model
+
+```prisma
+model ChallengeParticipant {
+  id             String    @id @default(cuid())
+  challengeId    String
+  challenge      Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Cached point totals for fast leaderboard queries
+  totalPoints    Int       @default(0)
+  mealPoints     Int       @default(0)
+  trainingPoints Int       @default(0)
+  waterPoints    Int       @default(0)
+  checkinPoints  Int       @default(0)
+  streakPoints   Int       @default(0)
+
+  // Streak tracking
+  currentStreak  Int       @default(0)
+  lastActiveDate DateTime?
+
+  joinedAt       DateTime  @default(now())
+
+  @@unique([challengeId, memberId])
+  @@index([challengeId, totalPoints])
+  @@map("challenge_participants")
+}
+```
+
+### 5.10 GymCheckin Model
+
+```prisma
+model GymCheckin {
+  id        String   @id @default(cuid())
+  memberId  String
+  member    Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  gymId     String
+  gym       Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+  date      DateTime @db.Date  // Date only (no time), for one check-in per day
+  createdAt DateTime @default(now())
+
+  @@unique([memberId, date])  // One check-in per member per day
+  @@index([memberId])
+  @@index([gymId])
+  @@index([memberId, date])
+  @@map("gym_checkins")
+}
+```
+
+**Gym Model Addition:**
+```prisma
+model Gym {
+  // ... existing fields
+  checkinSecret  String?  // UUID for QR check-in verification
+  gymCheckins    GymCheckin[]
+}
+```
+
+### 5.11 CustomMeal Model
+
+```prisma
+model CustomMeal {
+  id                 String             @id @default(cuid())
+  memberId           String
+  member             Member             @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  gymId              String
+  gym                Gym                @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name               String
+  totalCalories      Int
+  totalProtein       Int?
+  totalCarbs         Int?
+  totalFats          Int?
+  isManualTotal      Boolean            @default(false)
+
+  // Meal photo (required for shared meals, optional for private)
+  photoUrl           String?            @db.Text  // Base64 encoded image (4:3 landscape, max 1MB)
+
+  // Sharing with gym
+  isShared           Boolean            @default(false)
+  shareApproved      Boolean            @default(false)
+  shareRequestedAt   DateTime?
+
+  // Coach-created meal (null for member-created)
+  createdByCoachId   String?
+  createdByCoach     Staff?             @relation(fields: [createdByCoachId], references: [id])
+
+  ingredients        CustomMealIngredient[]
+
+  createdAt          DateTime           @default(now())
+  updatedAt          DateTime           @updatedAt
+
+  @@index([memberId])
+  @@index([gymId, isShared, shareApproved])
+  @@map("custom_meals")
+}
+
+model CustomMealIngredient {
+  id           String      @id @default(cuid())
+  mealId       String
+  meal         CustomMeal  @relation(fields: [mealId], references: [id], onDelete: Cascade)
+
+  name         String
+  portionSize  String      // e.g., "150g", "1 cup", "2 pieces"
+  calories     Int
+  protein      Int?
+  carbs        Int?
+  fats         Int?
+
+  createdAt    DateTime    @default(now())
+
+  @@index([mealId])
+  @@map("custom_meal_ingredients")
+}
+```
+
+**Meal Photo Constraints:**
+- Photo is **required** when `isShared` is `true`
+- 4:3 landscape aspect ratio (800x600 pixels output)
+- Maximum 1MB file size (base64 encoded)
+- Supported formats: JPEG, PNG, WebP
+- Removing photo from shared meal auto-unshares the meal
 
 ---
 
@@ -1076,6 +1465,21 @@ All pages follow mobile-first design with:
 { "success": true }
 ```
 
+#### POST /api/member/reset-week
+```json
+// Request - No body required
+
+// Response (200)
+{
+  "success": true,
+  "message": "Nedelja uspešno resetovana",
+  "weekResetAt": "2025-01-03T12:00:00Z"
+}
+
+// Response (401)
+{ "error": "Unauthorized", "code": "NO_SESSION" }
+```
+
 ### 7.4 Subscription
 
 #### GET /api/member/subscription
@@ -1159,6 +1563,226 @@ All pages follow mobile-first design with:
 { "success": true }
 ```
 
+### 7.7 Challenges (Admin)
+
+#### GET /api/admin/challenges
+```json
+// Response (200) - List challenges for gym
+{
+  "challenges": [
+    {
+      "id": "challenge-cuid",
+      "name": "Zimski Izazov",
+      "computedStatus": "active",
+      "startDate": "2025-01-01T00:00:00Z",
+      "endDate": "2025-01-31T00:00:00Z",
+      "participantCount": 15
+    }
+  ]
+}
+```
+
+#### POST /api/admin/challenges
+```json
+// Request - Create new challenge
+{
+  "name": "Zimski Izazov",
+  "description": "Održi formu tokom zime!",
+  "rewardDescription": "Top 3: Mesečna članarina gratis",
+  "startDate": "2025-01-01",
+  "endDate": "2025-01-31",
+  "joinDeadlineDays": 7,
+  "winnerCount": 3,
+  "pointsPerMeal": 5,
+  "pointsPerTraining": 15,
+  "pointsPerWater": 1,
+  "pointsPerCheckin": 25,
+  "streakBonus": 5
+}
+
+// Response (201)
+{ "success": true, "challenge": { ... } }
+
+// Response (400) - Already has active challenge
+{ "error": "Another challenge is already active" }
+```
+
+#### GET /api/admin/challenges/[id]
+```json
+// Response (200) - Challenge with leaderboard
+{
+  "challenge": {
+    "id": "challenge-cuid",
+    "name": "Zimski Izazov",
+    "computedStatus": "active",
+    "participantCount": 15,
+    ...
+  },
+  "leaderboard": [
+    {
+      "member": { "id": "...", "name": "Marko" },
+      "totalPoints": 145,
+      "mealPoints": 60,
+      "trainingPoints": 45,
+      ...
+    }
+  ]
+}
+```
+
+#### PATCH /api/admin/challenges/[id]
+```json
+// Request - Update challenge (draft/registration only)
+{ "name": "Updated Name", ... }
+
+// Request - Publish challenge
+{ "action": "publish" }
+
+// Request - End challenge early
+{ "action": "end" }
+
+// Response (200)
+{ "success": true, "challenge": { ... } }
+```
+
+#### DELETE /api/admin/challenges/[id]
+```json
+// Only allowed for draft challenges with no participants
+
+// Response (200)
+{ "success": true }
+
+// Response (400)
+{ "error": "Only draft challenges can be deleted" }
+```
+
+### 7.8 Challenges (Member)
+
+#### GET /api/member/challenge
+```json
+// Response (200) - Active challenge info
+{
+  "challenge": {
+    "id": "challenge-cuid",
+    "name": "Zimski Izazov",
+    "description": "...",
+    "rewardDescription": "...",
+    "status": "active",
+    "canJoin": true,
+    "daysUntilDeadline": 5,
+    "daysUntilEnd": 25,
+    "daysUntilStart": 0,
+    "participantCount": 15,
+    "pointsPerMeal": 5,
+    ...
+  },
+  "participation": {
+    "totalPoints": 145,
+    "mealPoints": 60,
+    "trainingPoints": 45,
+    ...
+  },
+  "rank": 3,
+  "leaderboard": [...]
+}
+
+// Response (200) - No active challenge
+{ "challenge": null, "participation": null, "leaderboard": [], "rank": null }
+```
+
+#### POST /api/member/challenge
+```json
+// Request - Join challenge (no body required)
+
+// Response (200)
+{ "success": true, "participation": { "id": "...", "joinedAt": "..." } }
+
+// Response (400) - Registration closed
+{ "error": "Rok za prijavu je istekao" }
+
+// Response (400) - Already participating
+{ "error": "Već učestvuješ u ovom izazovu" }
+```
+
+### 7.9 Gym Check-in (Admin)
+
+#### GET /api/admin/gym-checkin
+```json
+// Response (200) - Check-in settings and stats
+{
+  "hasSecret": true,
+  "checkinSecret": "uuid-secret-here",
+  "stats": {
+    "todayCheckins": 15,
+    "totalCheckins": 342
+  }
+}
+```
+
+#### POST /api/admin/gym-checkin
+```json
+// Generate new check-in secret
+
+// Response (200)
+{
+  "success": true,
+  "message": "Novi kod za prijavu je generisan",
+  "checkinSecret": "new-uuid-secret"
+}
+```
+
+#### DELETE /api/admin/gym-checkin
+```json
+// Disable check-in (remove secret)
+
+// Response (200)
+{
+  "success": true,
+  "message": "Sistem prijave je deaktiviran"
+}
+```
+
+### 7.10 Gym Check-in (Member)
+
+#### GET /api/member/gym-checkin
+```json
+// Response (200) - Check-in status
+{
+  "checkedInToday": true,
+  "checkInTime": "2025-01-03T10:30:00Z",
+  "hasActiveChallenge": true
+}
+
+// Response (200) - Not checked in
+{
+  "checkedInToday": false,
+  "checkInTime": null,
+  "hasActiveChallenge": true
+}
+```
+
+#### POST /api/member/gym-checkin
+```json
+// Request - Verify gym presence
+{ "secret": "uuid-from-qr-code" }
+
+// Response (200) - Success
+{
+  "success": true,
+  "message": "Uspešna prijava u teretanu"
+}
+
+// Response (200) - Already checked in
+{
+  "success": true,
+  "message": "Već si prijavljen/a danas",
+  "alreadyCheckedIn": true
+}
+
+// Response (400) - Invalid secret
+{ "error": "Neispravan kod za prijavu" }
+```
+
 ---
 
 ## 8. Business Logic
@@ -1216,13 +1840,40 @@ function estimateMealMacros(size: MealSize, goal: Goal): MacroEstimate {
 
 ### 8.3 Consistency Score
 
+The consistency score normalizes based on available days, ensuring fair scoring for new members and those who reset their week.
+
 ```typescript
+interface ConsistencyInput {
+  trainingSessions: number;
+  daysWithMeals: number;
+  avgCalorieAdherence: number;
+  avgProteinAdherence: number;
+  waterConsistency: number;
+  availableDays?: number; // 1-7, defaults to 7
+}
+
 function calculateConsistencyScore(input: ConsistencyInput): number {
-  const trainingScore = Math.min(30, input.trainingSessions * 10);
-  const loggingScore = Math.min(20, Math.floor(input.daysWithMeals / 7 * 20));
-  const calorieScore = Math.max(0, 25 - Math.abs(100 - input.avgCalorieAdherence) * 0.5);
-  const proteinScore = Math.min(15, input.avgProteinAdherence * 0.15);
-  const waterScore = Math.min(10, Math.floor(input.waterConsistency / 7 * 10));
+  const daysToEvaluate = Math.min(7, Math.max(1, input.availableDays ?? 7));
+
+  // Training (0-30): Normalized expectation based on available days
+  const expectedTraining = Math.max(1, Math.ceil(daysToEvaluate * (3 / 7)));
+  const trainingScore = Math.min(1, input.trainingSessions / expectedTraining) * 30;
+
+  // Logging (0-20): Full score if logged all available days
+  const loggingScore = Math.min(20, (input.daysWithMeals / daysToEvaluate) * 20);
+
+  // Calories (0-25): Only if meals logged
+  const calorieScore = input.daysWithMeals > 0
+    ? Math.max(0, 25 - Math.abs(100 - input.avgCalorieAdherence) * 0.5)
+    : 0;
+
+  // Protein (0-15): Only if meals logged
+  const proteinScore = input.daysWithMeals > 0
+    ? Math.min(15, input.avgProteinAdherence * 0.15)
+    : 0;
+
+  // Water (0-10): Normalized to available days
+  const waterScore = Math.min(10, (input.waterConsistency / daysToEvaluate) * 10);
 
   return Math.min(100, Math.max(0, Math.round(
     trainingScore + loggingScore + calorieScore + proteinScore + waterScore
@@ -1230,7 +1881,36 @@ function calculateConsistencyScore(input: ConsistencyInput): number {
 }
 ```
 
-### 8.4 Trial Period Calculation
+### 8.4 Available Days Calculation
+
+```typescript
+function calculateAvailableDays(
+  memberCreatedAt: Date,
+  weekResetAt: Date | null,
+  mondayOfThisWeek: Date
+): number {
+  // Use weekResetAt if set, otherwise createdAt
+  const startDate = weekResetAt || memberCreatedAt;
+
+  const now = new Date();
+  const daysSinceStart = Math.floor(
+    (now.getTime() - startDate.getTime()) / (1000 * 60 * 60 * 24)
+  ) + 1;
+
+  const dayOfWeek = now.getDay();
+  const daysPassedThisWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
+
+  // If started before this week, use full week
+  if (startDate.getTime() < mondayOfThisWeek.getTime()) {
+    return daysPassedThisWeek;
+  }
+
+  // Otherwise, use days since start/reset
+  return Math.min(daysSinceStart, daysPassedThisWeek, 7);
+}
+```
+
+### 8.5 Trial Period Calculation
 
 ```typescript
 function getTrialDayNumber(trialStartDate: Date): number {
@@ -1317,11 +1997,13 @@ interface Translations {
       /members/[id]/page.tsx     # Member details + subscription
       /staff/page.tsx            # Staff management
       /branding/page.tsx         # Gym branding (logo, colors)
+      /pending-meals/page.tsx    # Admin meal approval queue
   /api
     /auth/login, logout, staff-login
     /logs/route.ts               # Supports exact macros mode
     /checkins/route.ts
     /member/profile, subscription, nudges, meals, coaches
+    /admin/pending-shares/route.ts  # Meal approval (admin only)
     /members/route.ts, [id]/route.ts
     /members/[id]/subscription/extend/route.ts  # Extend subscription
     /coach/assignments, nudges, knowledge, dashboard, member-requests
@@ -1331,6 +2013,12 @@ interface Translations {
     /staff/route.ts              # Staff list and creation
 /components
   /ui/index.ts (GlassCard, Button, Modal, ProgressRing, Input, etc.)
+  /ui/image-cropper.tsx          # Reusable image cropper (avatar, meal photos)
+  /meals/
+    create-edit-modal.tsx        # Meal creation/editing with photo upload
+    meal-card.tsx                # Meal display card with photo
+    ingredient-row.tsx           # Single ingredient input
+    ingredient-picker.tsx        # Ingredient library picker
   /staff/
     coach-performance-dashboard.tsx  # Main coach performance wrapper
     coach-performance-table.tsx      # Table with expandable rows

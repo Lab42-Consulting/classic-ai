@@ -6,16 +6,24 @@ import { getSession, getMemberFromSession } from '@/lib/auth'
 import {
   mockMember,
   mockStaffCoach,
+  mockStaffAdmin,
   mockMemberAuthResult,
   mockNoSessionError,
   mockStaffNoLinkedMemberError,
   mockStaffSession,
+  mockAdminSession,
+  mockMemberSession,
   mockCustomMeal,
   mockCoachMeal,
   mockSharedMeal,
   mockMealWithIngredients,
   mockCoachMealWithIngredients,
   mockMealIngredient,
+  mockMealWithPhoto,
+  mockPendingSharedMeal,
+  mockValidPhotoBase64,
+  mockOversizedPhoto,
+  mockInvalidPhotoFormat,
   createMockRequest,
   createMockGetRequest,
 } from '../mocks/fixtures'
@@ -229,17 +237,16 @@ describe('Meals API', () => {
         expect(data.success).toBe(true)
       })
 
-      it('should create shared meal with pending approval', async () => {
+      it('should create shared meal with pending approval (requires photo)', async () => {
         const mealData = {
-          ...mockCustomMeal,
-          isShared: true,
-          shareApproved: false,
+          ...mockPendingSharedMeal,
           ingredients: [mockMealIngredient],
         }
         vi.mocked(prisma.customMeal.create).mockResolvedValue(mealData as never)
 
         const request = createMockRequest({
           name: 'Shared Meal',
+          photoUrl: mockValidPhotoBase64, // Photo is required for sharing
           ingredients: [
             { name: 'Chicken', portionSize: '150g', calories: 250 },
           ],
@@ -347,6 +354,150 @@ describe('Meals API', () => {
             }),
           })
         )
+      })
+    })
+  })
+
+  // =========================================================================
+  // MEAL PHOTO TESTS
+  // =========================================================================
+  describe('Meal Photo Feature', () => {
+    describe('Photo Validation', () => {
+      beforeEach(() => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
+        vi.mocked(prisma.member.findUnique).mockResolvedValue({
+          ...mockMember,
+          gymId: mockMember.gymId,
+        } as never)
+      })
+
+      it('should create private meal without photo', async () => {
+        vi.mocked(prisma.customMeal.create).mockResolvedValue({
+          ...mockCustomMeal,
+          ingredients: [mockMealIngredient],
+        } as never)
+
+        const request = createMockRequest({
+          name: 'Test Meal',
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+          isShared: false,
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+      })
+
+      it('should create meal with valid photo', async () => {
+        vi.mocked(prisma.customMeal.create).mockResolvedValue({
+          ...mockMealWithPhoto,
+          ingredients: [mockMealIngredient],
+        } as never)
+
+        const request = createMockRequest({
+          name: 'Test Meal with Photo',
+          photoUrl: mockValidPhotoBase64,
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+      })
+
+      it('should reject sharing without photo', async () => {
+        const request = createMockRequest({
+          name: 'Test Meal',
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+          isShared: true,
+          // No photoUrl
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(data.error).toBe('Photo is required when sharing a meal')
+      })
+
+      it('should reject oversized photo', async () => {
+        const request = createMockRequest({
+          name: 'Test Meal',
+          photoUrl: mockOversizedPhoto,
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(data.error).toBe('Photo too large. Max 1MB.')
+      })
+
+      it('should reject invalid photo format', async () => {
+        const request = createMockRequest({
+          name: 'Test Meal',
+          photoUrl: mockInvalidPhotoFormat,
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(data.error).toBe('Photo must be an image')
+      })
+
+      it('should allow sharing with valid photo', async () => {
+        vi.mocked(prisma.customMeal.create).mockResolvedValue({
+          ...mockPendingSharedMeal,
+          ingredients: [mockMealIngredient],
+        } as never)
+
+        const request = createMockRequest({
+          name: 'Shared Meal with Photo',
+          photoUrl: mockValidPhotoBase64,
+          ingredients: [{ name: 'Chicken', portionSize: '150g', calories: 250 }],
+          isShared: true,
+        })
+
+        const response = await mealsPost(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+        expect(data.meal.sharePending).toBe(true)
+      })
+    })
+
+    describe('Photo in GET Response', () => {
+      beforeEach(() => {
+        vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
+        vi.mocked(prisma.member.findUnique).mockResolvedValue({
+          ...mockMember,
+          gymId: mockMember.gymId,
+        } as never)
+      })
+
+      it('should include photoUrl in meal response', async () => {
+        const mealWithPhoto = {
+          ...mockMealWithPhoto,
+          ingredients: [mockMealIngredient],
+          member: { name: mockMember.name },
+          createdByCoach: null,
+        }
+        vi.mocked(prisma.customMeal.findMany).mockResolvedValue([mealWithPhoto] as never)
+
+        const request = createMockGetRequest()
+        const response = await mealsGet(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.own[0].photoUrl).toBeDefined()
       })
     })
   })

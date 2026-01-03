@@ -28,11 +28,13 @@ export async function GET() {
     }
 
     // Get gym members who don't have a coach assignment
+    // Exclude staff-linked member accounts (coaches' personal accounts)
     const unassignedMembers = await prisma.member.findMany({
       where: {
         gymId: session.gymId,
         coachAssignment: null, // No coach assigned
         status: "active",
+        staffAccount: null, // Exclude staff-linked member accounts
       },
       select: {
         id: true,

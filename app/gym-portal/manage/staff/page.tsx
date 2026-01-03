@@ -1,6 +1,9 @@
 "use client";
 
 import { useEffect, useState } from "react";
+import { CoachPerformanceDashboard } from "@/components/staff/coach-performance-dashboard";
+
+type TabType = "staff" | "performance";
 
 interface StaffMember {
   id: string;
@@ -20,6 +23,7 @@ interface NewStaffCredentials {
 }
 
 export default function StaffManagementPage() {
+  const [activeTab, setActiveTab] = useState<TabType>("staff");
   const [staff, setStaff] = useState<StaffMember[]>([]);
   const [isLoading, setIsLoading] = useState(true);
   const [showAddModal, setShowAddModal] = useState(false);
@@ -28,7 +32,10 @@ export default function StaffManagementPage() {
   const [submitting, setSubmitting] = useState(false);
   const [error, setError] = useState("");
   const [newCredentials, setNewCredentials] = useState<NewStaffCredentials | null>(null);
-  const [expandedStaff, setExpandedStaff] = useState<string | null>(null);
+  const [searchQuery, setSearchQuery] = useState("");
+  const [filterRole, setFilterRole] = useState<"all" | "coach" | "admin">("all");
+  const [currentPage, setCurrentPage] = useState(1);
+  const pageSize = 10;
 
   useEffect(() => {
     fetchStaff();
@@ -111,7 +118,7 @@ export default function StaffManagementPage() {
   return (
     <div>
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-8">
+      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">
             Osoblje
@@ -120,158 +127,246 @@ export default function StaffManagementPage() {
             Upravljaj trenerima i administratorima
           </p>
         </div>
+        {activeTab === "staff" && (
+          <button
+            onClick={() => setShowAddModal(true)}
+            className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
+          >
+            <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
+            </svg>
+            Dodaj osoblje
+          </button>
+        )}
+      </div>
+
+      {/* Tabs */}
+      <div className="flex gap-2 mb-8">
         <button
-          onClick={() => setShowAddModal(true)}
-          className="inline-flex items-center justify-center gap-2 bg-accent hover:bg-accent/90 text-white px-5 py-2.5 rounded-xl font-medium transition-colors"
+          onClick={() => setActiveTab("staff")}
+          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+            activeTab === "staff"
+              ? "bg-accent text-white"
+              : "bg-background-secondary border border-border text-foreground hover:border-foreground-muted"
+          }`}
         >
-          <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-            <path strokeLinecap="round" strokeLinejoin="round" d="M12 4v16m8-8H4" />
-          </svg>
-          Dodaj osoblje
+          Osoblje
+        </button>
+        <button
+          onClick={() => setActiveTab("performance")}
+          className={`px-4 py-2 rounded-xl font-medium transition-colors ${
+            activeTab === "performance"
+              ? "bg-accent text-white"
+              : "bg-background-secondary border border-border text-foreground hover:border-foreground-muted"
+          }`}
+        >
+          Performanse trenera
         </button>
       </div>
 
-      {/* Stats */}
-      <div className="grid grid-cols-3 gap-4 mb-8">
-        <div className="bg-background-secondary border border-border rounded-xl p-4">
-          <p className="text-sm text-foreground-muted">Ukupno</p>
-          <p className="text-2xl font-bold text-foreground">{staff.length}</p>
-        </div>
-        <div className="bg-background-secondary border border-border rounded-xl p-4">
-          <p className="text-sm text-foreground-muted">Administratori</p>
-          <p className="text-2xl font-bold text-violet-400">
-            {staff.filter((s) => s.role.toLowerCase() === "admin").length}
-          </p>
-        </div>
-        <div className="bg-background-secondary border border-border rounded-xl p-4">
-          <p className="text-sm text-foreground-muted">Treneri</p>
-          <p className="text-2xl font-bold text-blue-400">
-            {staff.filter((s) => s.role.toLowerCase() === "coach").length}
-          </p>
-        </div>
-      </div>
+      {/* Performance Tab */}
+      {activeTab === "performance" && <CoachPerformanceDashboard />}
 
-      {/* Staff List */}
-      <div className="bg-background-secondary border border-border rounded-xl overflow-hidden">
-        {staff.length === 0 ? (
-          <div className="text-center py-12">
-            <div className="w-16 h-16 bg-background rounded-full flex items-center justify-center mx-auto mb-4">
-              <svg className="w-8 h-8 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-              </svg>
+      {/* Staff Tab */}
+      {activeTab === "staff" && (
+        <>
+          {/* Stats */}
+          <div className="grid grid-cols-3 gap-4 mb-8">
+            <div className="bg-background-secondary border border-border rounded-xl p-4">
+              <p className="text-sm text-foreground-muted">Ukupno</p>
+              <p className="text-2xl font-bold text-foreground">{staff.length}</p>
             </div>
-            <p className="text-foreground-muted">Još nema osoblja</p>
+            <div className="bg-background-secondary border border-border rounded-xl p-4">
+              <p className="text-sm text-foreground-muted">Administratori</p>
+              <p className="text-2xl font-bold text-violet-400">
+                {staff.filter((s) => s.role.toLowerCase() === "admin").length}
+              </p>
+            </div>
+            <div className="bg-background-secondary border border-border rounded-xl p-4">
+              <p className="text-sm text-foreground-muted">Treneri</p>
+              <p className="text-2xl font-bold text-blue-400">
+                {staff.filter((s) => s.role.toLowerCase() === "coach").length}
+              </p>
+            </div>
           </div>
-        ) : (
-          <div className="divide-y divide-border">
-            {staff.map((member) => (
-              <div key={member.id} className="p-4 hover:bg-background/30 transition-colors">
-                <div className="flex items-center justify-between">
-                  <div className="flex items-center gap-4">
-                    <div className={`w-12 h-12 rounded-xl flex items-center justify-center ${
-                      member.role.toLowerCase() === "admin" ? "bg-violet-500/20" : "bg-blue-500/20"
-                    }`}>
-                      <span className={`text-lg font-bold ${
-                        member.role.toLowerCase() === "admin" ? "text-violet-400" : "text-blue-400"
-                      }`}>
-                        {member.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
-                      </span>
-                    </div>
-                    <div>
-                      <div className="flex items-center gap-2">
-                        <p className="font-medium text-foreground">{member.name}</p>
-                        <span className={`px-2 py-0.5 text-xs font-medium rounded-full ${
-                          roleColors[member.role.toLowerCase()] || "bg-gray-500/20 text-gray-400"
-                        }`}>
-                          {roleLabels[member.role.toLowerCase()] || member.role}
-                        </span>
-                      </div>
-                      <p className="text-sm text-foreground-muted">{member.staffId}</p>
-                    </div>
-                  </div>
 
-                  <div className="flex items-center gap-4">
-                    {member.role.toLowerCase() === "coach" && (
-                      <div className="text-right hidden sm:block">
-                        <p className="text-sm text-foreground">
-                          {member.assignedMembersCount} {member.assignedMembersCount === 1 ? "član" : "članova"}
-                        </p>
-                        {member.pendingRequestsCount > 0 && (
-                          <p className="text-xs text-yellow-400">
-                            {member.pendingRequestsCount} na čekanju
-                          </p>
-                        )}
+          {/* Search and Filter */}
+          <div className="flex flex-col sm:flex-row gap-4 mb-6">
+            <div className="relative flex-1">
+              <svg
+                className="absolute left-3 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-muted"
+                fill="none"
+                viewBox="0 0 24 24"
+                stroke="currentColor"
+              >
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+              </svg>
+              <input
+                type="text"
+                placeholder="Pretraži osoblje..."
+                value={searchQuery}
+                onChange={(e) => {
+                  setSearchQuery(e.target.value);
+                  setCurrentPage(1);
+                }}
+                className="w-full pl-10 pr-4 py-2.5 bg-background-secondary border border-border rounded-xl text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent transition-colors"
+              />
+            </div>
+            <select
+              value={filterRole}
+              onChange={(e) => {
+                setFilterRole(e.target.value as "all" | "coach" | "admin");
+                setCurrentPage(1);
+              }}
+              className="px-4 py-2.5 bg-background-secondary border border-border rounded-xl text-foreground focus:outline-none focus:border-accent transition-colors"
+            >
+              <option value="all">Sve uloge</option>
+              <option value="coach">Treneri</option>
+              <option value="admin">Administratori</option>
+            </select>
+          </div>
+
+          {/* Staff Table */}
+          {(() => {
+            // Filter and paginate staff
+            const filteredStaff = staff.filter((member) => {
+              const matchesSearch = searchQuery === "" ||
+                member.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
+                member.staffId.toLowerCase().includes(searchQuery.toLowerCase());
+              const matchesRole = filterRole === "all" || member.role.toLowerCase() === filterRole;
+              return matchesSearch && matchesRole;
+            });
+
+            const totalPages = Math.ceil(filteredStaff.length / pageSize);
+            const startIndex = (currentPage - 1) * pageSize;
+            const paginatedStaff = filteredStaff.slice(startIndex, startIndex + pageSize);
+
+            return (
+              <>
+                <div className="bg-background-secondary border border-border rounded-xl overflow-hidden">
+                  {filteredStaff.length === 0 ? (
+                    <div className="text-center py-12">
+                      <div className="w-16 h-16 bg-background rounded-full flex items-center justify-center mx-auto mb-4">
+                        <svg className="w-8 h-8 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
+                        </svg>
                       </div>
-                    )}
-                    <button
-                      onClick={() => setExpandedStaff(expandedStaff === member.id ? null : member.id)}
-                      className="p-2 text-foreground-muted hover:text-foreground hover:bg-background rounded-lg transition-colors"
-                    >
-                      <svg
-                        className={`w-5 h-5 transition-transform ${expandedStaff === member.id ? "rotate-180" : ""}`}
-                        fill="none"
-                        viewBox="0 0 24 24"
-                        stroke="currentColor"
-                      >
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
-                      </svg>
-                    </button>
-                  </div>
+                      <p className="text-foreground-muted">
+                        {searchQuery || filterRole !== "all" ? "Nema osoblja koji odgovaraju filterima" : "Još nema osoblja"}
+                      </p>
+                    </div>
+                  ) : (
+                    <div className="overflow-x-auto">
+                      <table className="w-full">
+                        <thead>
+                          <tr className="border-b border-border bg-background/50">
+                            <th className="text-left px-4 py-3 text-sm font-medium text-foreground-muted">Osoblje</th>
+                            <th className="text-left px-4 py-3 text-sm font-medium text-foreground-muted">Uloga</th>
+                            <th className="text-left px-4 py-3 text-sm font-medium text-foreground-muted hidden md:table-cell">Staff ID</th>
+                            <th className="text-center px-4 py-3 text-sm font-medium text-foreground-muted hidden lg:table-cell">Članovi</th>
+                            <th className="text-left px-4 py-3 text-sm font-medium text-foreground-muted hidden sm:table-cell">Dodat</th>
+                          </tr>
+                        </thead>
+                        <tbody>
+                          {paginatedStaff.map((member) => (
+                            <tr key={member.id} className="border-b border-border/50 hover:bg-background/30 transition-colors">
+                              {/* Name with Avatar */}
+                              <td className="px-4 py-4">
+                                <div className="flex items-center gap-3">
+                                  <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
+                                    member.role.toLowerCase() === "admin" ? "bg-violet-500/20" : "bg-blue-500/20"
+                                  }`}>
+                                    <span className={`text-sm font-medium ${
+                                      member.role.toLowerCase() === "admin" ? "text-violet-400" : "text-blue-400"
+                                    }`}>
+                                      {member.name.split(" ").map(n => n[0]).join("").slice(0, 2)}
+                                    </span>
+                                  </div>
+                                  <span className="font-medium text-foreground">{member.name}</span>
+                                </div>
+                              </td>
+
+                              {/* Role */}
+                              <td className="px-4 py-4">
+                                <span className={`inline-flex px-2.5 py-1 rounded-full text-xs font-medium ${
+                                  roleColors[member.role.toLowerCase()] || "bg-gray-500/20 text-gray-400"
+                                }`}>
+                                  {roleLabels[member.role.toLowerCase()] || member.role}
+                                </span>
+                              </td>
+
+                              {/* Staff ID */}
+                              <td className="px-4 py-4 hidden md:table-cell">
+                                <span className="font-mono text-sm text-foreground-muted">{member.staffId}</span>
+                              </td>
+
+                              {/* Assigned Members (coaches only) */}
+                              <td className="px-4 py-4 text-center hidden lg:table-cell">
+                                {member.role.toLowerCase() === "coach" ? (
+                                  <div className="flex flex-col items-center">
+                                    <span className="font-medium text-foreground">{member.assignedMembersCount}</span>
+                                    {member.pendingRequestsCount > 0 && (
+                                      <span className="text-xs text-yellow-400">{member.pendingRequestsCount} na čekanju</span>
+                                    )}
+                                  </div>
+                                ) : (
+                                  <span className="text-foreground-muted">-</span>
+                                )}
+                              </td>
+
+                              {/* Created Date */}
+                              <td className="px-4 py-4 hidden sm:table-cell">
+                                <span className="text-sm text-foreground-muted">
+                                  {new Date(member.createdAt).toLocaleDateString("sr-RS")}
+                                </span>
+                              </td>
+                            </tr>
+                          ))}
+                        </tbody>
+                      </table>
+                    </div>
+                  )}
                 </div>
 
-                {/* Expanded Details */}
-                {expandedStaff === member.id && (
-                  <div className="mt-4 pt-4 border-t border-border">
-                    <div className="grid sm:grid-cols-2 gap-4">
-                      <div>
-                        <p className="text-sm font-medium text-foreground-muted mb-2">Informacije</p>
-                        <div className="space-y-2 text-sm">
-                          <div className="flex justify-between">
-                            <span className="text-foreground-muted">Staff ID:</span>
-                            <span className="font-mono text-foreground">{member.staffId}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-foreground-muted">Uloga:</span>
-                            <span className="text-foreground">{roleLabels[member.role.toLowerCase()]}</span>
-                          </div>
-                          <div className="flex justify-between">
-                            <span className="text-foreground-muted">Dodat:</span>
-                            <span className="text-foreground">
-                              {new Date(member.createdAt).toLocaleDateString("sr-RS")}
-                            </span>
-                          </div>
-                        </div>
-                      </div>
-
-                      {member.role.toLowerCase() === "coach" && (
-                        <div>
-                          <p className="text-sm font-medium text-foreground-muted mb-2">
-                            Dodeljeni članovi ({member.assignedMembersCount})
-                          </p>
-                          {member.assignedMembers.length === 0 ? (
-                            <p className="text-sm text-foreground-muted">Nema dodeljenih članova</p>
-                          ) : (
-                            <div className="space-y-1">
-                              {member.assignedMembers.slice(0, 5).map((m) => (
-                                <p key={m.id} className="text-sm text-foreground">{m.name}</p>
-                              ))}
-                              {member.assignedMembers.length > 5 && (
-                                <p className="text-sm text-foreground-muted">
-                                  + još {member.assignedMembers.length - 5}
-                                </p>
-                              )}
-                            </div>
-                          )}
-                        </div>
-                      )}
+                {/* Pagination */}
+                {totalPages > 1 && (
+                  <div className="flex items-center justify-between mt-4">
+                    <p className="text-sm text-foreground-muted">
+                      Prikazano {startIndex + 1}-{Math.min(startIndex + pageSize, filteredStaff.length)} od {filteredStaff.length} osoblja
+                    </p>
+                    <div className="flex items-center gap-2">
+                      <button
+                        onClick={() => setCurrentPage(p => Math.max(1, p - 1))}
+                        disabled={currentPage === 1}
+                        className="px-3 py-1.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Prethodna
+                      </button>
+                      <span className="text-sm text-foreground-muted">
+                        {currentPage} / {totalPages}
+                      </span>
+                      <button
+                        onClick={() => setCurrentPage(p => Math.min(totalPages, p + 1))}
+                        disabled={currentPage === totalPages}
+                        className="px-3 py-1.5 text-sm font-medium text-foreground-muted hover:text-foreground hover:bg-background-secondary rounded-lg transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                      >
+                        Sledeća
+                      </button>
                     </div>
                   </div>
                 )}
-              </div>
-            ))}
-          </div>
-        )}
-      </div>
+
+                {/* Results count when not paginating */}
+                {totalPages <= 1 && filteredStaff.length > 0 && (
+                  <p className="text-sm text-foreground-muted mt-4">
+                    Prikazano {filteredStaff.length} od {staff.length} osoblja
+                  </p>
+                )}
+              </>
+            );
+          })()}
+        </>
+      )}
 
       {/* Add Staff Modal */}
       {showAddModal && (

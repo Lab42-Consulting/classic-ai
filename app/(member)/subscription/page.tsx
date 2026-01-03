@@ -7,7 +7,7 @@ import { getTranslations } from "@/lib/i18n";
 
 const t = getTranslations("sr");
 
-type SubscriptionStatus = "active" | "expired";
+type SubscriptionStatus = "active" | "trial" | "expired";
 
 interface SubscriptionData {
   status: SubscriptionStatus;
@@ -32,7 +32,9 @@ export default function SubscriptionPage() {
       const response = await fetch("/api/member/subscription");
       if (response.ok) {
         const result = await response.json();
-        const status = result.status === "active" ? "active" : "expired";
+        const status: SubscriptionStatus =
+          result.status === "active" ? "active" :
+          result.status === "trial" ? "trial" : "expired";
         setData({ status, subscribedUntil: result.subscribedUntil, loading: false });
       } else {
         setData({
@@ -140,6 +142,40 @@ export default function SubscriptionPage() {
                       </p>
                     </div>
                   )}
+                </>
+              ) : data.status === "trial" ? (
+                <>
+                  {/* Trial Status */}
+                  <div className="w-20 h-20 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+                    <span className="text-4xl">🎁</span>
+                  </div>
+                  <h2 className="text-2xl font-bold text-accent mb-2">
+                    Probni period
+                  </h2>
+
+                  {/* Trial End Date */}
+                  <div className="bg-background-tertiary rounded-xl p-4 mt-4">
+                    <p className="text-sm text-foreground-muted mb-1">Probni period ističe</p>
+                    <p className="text-xl font-semibold text-foreground">
+                      {formatDate(data.subscribedUntil)}
+                    </p>
+                    <p className={`text-sm mt-1 ${isExpiringSoon ? "text-warning" : "text-foreground-muted"}`}>
+                      {daysRemaining > 0
+                        ? `(još ${daysRemaining} ${daysRemaining === 1 ? "dan" : "dana"})`
+                        : "Ističe danas"
+                      }
+                    </p>
+                  </div>
+
+                  {/* Trial Info */}
+                  <div className="mt-4 p-4 rounded-xl bg-accent/10 border border-accent/20">
+                    <p className="text-sm text-accent mb-2">
+                      Uživaj u besplatnom probnom periodu!
+                    </p>
+                    <p className="text-xs text-foreground-muted">
+                      Aktiviraj punu pretplatu na pultu teretane pre isteka.
+                    </p>
+                  </div>
                 </>
               ) : (
                 <>

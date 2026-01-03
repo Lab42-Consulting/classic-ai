@@ -36,6 +36,7 @@ model Gym {
   aiUsageMonthly  AIUsageMonthly[]
   customMeals     CustomMeal[]      // Gym-wide shared meals
   savedIngredients SavedIngredient[] // Gym-wide shared ingredients
+  challenges      Challenge[]       // Gym challenges/competitions
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -85,6 +86,9 @@ model Member {
 
   // Dual-role: Staff member linked to this account (for coaches who track their own progress)
   staffAccount        Staff?            @relation("StaffMemberLink")
+
+  // Challenge participations
+  challengeParticipations ChallengeParticipant[]
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -472,4 +476,71 @@ model SubscriptionLog {
   @@index([entityType, entityId])
   @@index([createdAt])
   @@map("subscription_logs")
+}
+
+// Gym challenges/competitions - gamification for member engagement
+model Challenge {
+  id                String   @id @default(cuid())
+  gymId             String
+  gym               Gym      @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Basic info
+  name              String
+  description       String   @db.Text
+  rewardDescription String   @db.Text
+
+  // Dates
+  startDate         DateTime
+  endDate           DateTime
+  joinDeadlineDays  Int      @default(7) // Days after start when registration closes
+
+  // Configuration
+  winnerCount       Int      @default(3)  // Top N winners
+  status            String   @default("draft") // draft | registration | active | ended
+
+  // Point configuration (admin can customize per challenge)
+  pointsPerMeal     Int      @default(5)
+  pointsPerTraining Int      @default(15)
+  pointsPerWater    Int      @default(1)
+  pointsPerCheckin  Int      @default(25)
+  streakBonus       Int      @default(5)   // Daily streak bonus
+
+  participants      ChallengeParticipant[]
+
+  createdAt         DateTime @default(now())
+  updatedAt         DateTime @updatedAt
+
+  @@index([gymId])
+  @@index([gymId, status])
+  @@index([startDate, endDate])
+  @@map("challenges")
+}
+
+// Challenge participant - tracks member enrollment and points
+model ChallengeParticipant {
+  id             String    @id @default(cuid())
+  challengeId    String
+  challenge      Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  memberId       String
+  member         Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Cached point totals (updated on each log/checkin for fast leaderboard queries)
+  totalPoints    Int       @default(0)
+  mealPoints     Int       @default(0)
+  trainingPoints Int       @default(0)
+  waterPoints    Int       @default(0)
+  checkinPoints  Int       @default(0)
+  streakPoints   Int       @default(0)
+
+  // Streak tracking
+  currentStreak  Int       @default(0)
+  lastActiveDate DateTime?
+
+  joinedAt       DateTime  @default(now())
+
+  @@unique([challengeId, memberId])
+  @@index([challengeId])
+  @@index([memberId])
+  @@index([challengeId, totalPoints])
+  @@map("challenge_participants")
 }

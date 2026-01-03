@@ -9,6 +9,7 @@ import {
   calculateMacroStatus,
   Goal,
 } from "@/lib/calculations";
+import { getChallengeStatus, canJoinChallenge, getDaysUntilJoinDeadline, getDaysUntilStart } from "@/lib/challenges";
 
 interface DailyLogData {
   date: Date;
@@ -87,12 +88,45 @@ async function getMemberData(memberId: string) {
     },
   });
 
+  // Get active or upcoming challenge (if any)
+  // Note: We don't filter by startDate to also show upcoming challenges
+  // Status must be "registration" or "active" (not "draft" - those are admin-only)
+  const now = new Date();
+  const activeChallenge = await prisma.challenge.findFirst({
+    where: {
+      gymId: member.gymId,
+      status: { in: ["registration", "active"] },
+      endDate: { gte: now },
+    },
+    include: {
+      _count: {
+        select: { participants: true },
+      },
+    },
+  });
+
+  // Check if member is participating
+  let isParticipating = false;
+  if (activeChallenge) {
+    const participation = await prisma.challengeParticipant.findUnique({
+      where: {
+        challengeId_memberId: {
+          challengeId: activeChallenge.id,
+          memberId,
+        },
+      },
+    });
+    isParticipating = !!participation;
+  }
+
   return {
     member,
     todayLogs,
     last7DaysLogs,
     unseenNudges,
     pendingCoachRequest,
+    activeChallenge,
+    isParticipating,
   };
 }
 
@@ -203,7 +237,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, activeChallenge, isParticipating } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
@@ -323,6 +357,25 @@ export default async function HomePage() {
       : null,
     // Staff viewing as member
     isStaffMember,
+    // Active or upcoming challenge (show if not participating)
+    activeChallenge: activeChallenge && !isParticipating
+      ? (() => {
+          const status = getChallengeStatus(activeChallenge);
+          const isUpcoming = status === "upcoming";
+          const canJoin = canJoinChallenge(activeChallenge);
+          // Only show if upcoming or can join
+          if (!isUpcoming && !canJoin) return null;
+          return {
+            id: activeChallenge.id,
+            name: activeChallenge.name,
+            rewardDescription: activeChallenge.rewardDescription,
+            participantCount: activeChallenge._count.participants,
+            daysUntilDeadline: isUpcoming ? null : getDaysUntilJoinDeadline(activeChallenge),
+            daysUntilStart: isUpcoming ? getDaysUntilStart(activeChallenge) : null,
+            isUpcoming,
+          };
+        })()
+      : null,
   };
 
   return <HomeClient data={homeData} />;

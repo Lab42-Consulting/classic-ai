@@ -336,9 +336,13 @@ export default async function HomePage() {
     caloriesRemaining: Math.max(0, targets.calories - consumed.calories),
     targetCalories: targets.calories,
     consumedCalories: consumed.calories,
-    // Protein data for contextual prompts
+    // Macro data for display and contextual prompts
     consumedProtein: consumed.protein,
     targetProtein: targets.protein,
+    consumedCarbs: consumed.carbs,
+    targetCarbs: targets.carbs,
+    consumedFats: consumed.fats,
+    targetFats: targets.fats,
     macros: {
       protein: {
         percentage: macroPercentages.protein,

@@ -347,16 +347,16 @@ describe('Gym Branding API', () => {
         expect(data.logo).toBe(smallLogo)
       })
 
-      it('should return 400 for logo over 2MB', async () => {
-        // Create a string larger than 2MB * 1.37 (base64 overhead)
-        const largeLogo = 'data:image/png;base64,' + 'A'.repeat(3 * 1024 * 1024)
+      it('should return 400 for logo over 1MB', async () => {
+        // Create a string larger than 1MB * 1.4 (base64 overhead)
+        const largeLogo = 'data:image/png;base64,' + 'A'.repeat(1.5 * 1024 * 1024)
 
         const request = createMockRequest({ logo: largeLogo }, 'PUT')
         const response = await updateBranding(request as never)
         const data = await response.json()
 
         expect(response.status).toBe(400)
-        expect(data.error).toBe('Logo too large (max 2MB)')
+        expect(data.error).toBe('Logo too large. Max 1MB.')
       })
     })
 
@@ -367,10 +367,12 @@ describe('Gym Branding API', () => {
       })
 
       it('should update branding with all fields', async () => {
+        // Mock blob URL that will be returned after upload
+        const mockBlobUrl = 'https://test.blob.vercel-storage.com/test-image.jpg'
         const updatedGym = {
           id: mockGym.id,
           name: 'Classic Gym',
-          logo: 'data:image/png;base64,newLogo',
+          logo: mockBlobUrl,
           primaryColor: '#8b5cf6',
           secondaryColor: '#f59e0b',
         }
@@ -388,14 +390,14 @@ describe('Gym Branding API', () => {
         const data = await response.json()
 
         expect(response.status).toBe(200)
-        expect(data.logo).toBe('data:image/png;base64,newLogo')
+        expect(data.logo).toBe(mockBlobUrl)
         expect(data.primaryColor).toBe('#8b5cf6')
         expect(data.secondaryColor).toBe('#f59e0b')
 
         expect(prisma.gym.update).toHaveBeenCalledWith({
           where: { id: mockStaffAdmin.gymId },
           data: {
-            logo: 'data:image/png;base64,newLogo',
+            logo: mockBlobUrl,
             primaryColor: '#8b5cf6',
             secondaryColor: '#f59e0b',
           },

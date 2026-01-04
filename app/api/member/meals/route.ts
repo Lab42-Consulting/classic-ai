@@ -1,35 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import prisma from "@/lib/db";
-
-// Meal photo validation constants
-const MAX_MEAL_PHOTO_SIZE = 1 * 1024 * 1024; // 1MB
-const VALID_IMAGE_TYPES = ["data:image/jpeg", "data:image/png", "data:image/webp"];
-
-function validateMealPhoto(photoUrl: string | null | undefined): { valid: boolean; error?: string } {
-  if (!photoUrl) {
-    return { valid: true }; // Photo is optional for private meals
-  }
-
-  if (typeof photoUrl !== "string") {
-    return { valid: false, error: "Invalid photo format" };
-  }
-
-  if (!photoUrl.startsWith("data:image/")) {
-    return { valid: false, error: "Photo must be an image" };
-  }
-
-  // Base64 is ~1.37x larger than binary
-  if (photoUrl.length > MAX_MEAL_PHOTO_SIZE * 1.37) {
-    return { valid: false, error: "Photo too large. Max 1MB." };
-  }
-
-  if (!VALID_IMAGE_TYPES.some(type => photoUrl.startsWith(type))) {
-    return { valid: false, error: "Photo must be JPEG, PNG, or WebP" };
-  }
-
-  return { valid: true };
-}
+import { validateImageUpload, processImageUpload } from "@/lib/storage";
 
 // GET - Get meals for the logged-in member (own + coach + shared from gym)
 export async function GET(request: NextRequest) {
@@ -204,19 +176,14 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Validate photo if provided
-    const photoValidation = validateMealPhoto(photoUrl);
+    // Validate photo if provided (required when sharing)
+    const photoValidation = validateImageUpload(photoUrl, "meal", {
+      required: isShared,
+      requiredMessage: "Photo is required when sharing a meal",
+    });
     if (!photoValidation.valid) {
       return NextResponse.json(
         { error: photoValidation.error },
-        { status: 400 }
-      );
-    }
-
-    // Photo is required when sharing a meal
-    if (isShared && !photoUrl) {
-      return NextResponse.json(
-        { error: "Photo is required when sharing a meal" },
         { status: 400 }
       );
     }
@@ -278,6 +245,16 @@ export async function POST(request: NextRequest) {
           totalFats: calculatedTotals.fats,
         };
 
+    // Upload photo to blob storage if provided
+    let processedPhotoUrl: string | null = null;
+    if (photoUrl) {
+      const imageResult = await processImageUpload(photoUrl, "meal", authResult.memberId);
+      if (imageResult.error) {
+        return NextResponse.json({ error: imageResult.error }, { status: 400 });
+      }
+      processedPhotoUrl = imageResult.url;
+    }
+
     // Create meal with ingredients in a transaction
     const meal = await prisma.customMeal.create({
       data: {
@@ -289,7 +266,7 @@ export async function POST(request: NextRequest) {
         isShared,
         shareApproved: false, // Requires admin approval
         shareRequestedAt: isShared ? new Date() : null, // Track when share was requested
-        photoUrl: photoUrl || null,
+        photoUrl: processedPhotoUrl,
         ingredients: {
           create: ingredients.map((ing: {
             name: string;

@@ -1,9 +1,11 @@
 import { NextResponse } from "next/server";
 import { getMemberFromSession, getMemberAuthErrorMessage } from "@/lib/auth";
 import { prisma } from "@/lib/db";
-
-// Maximum avatar size: 500KB (base64 encoded images can be large)
-const MAX_AVATAR_SIZE = 500 * 1024;
+import {
+  validateImageUpload,
+  processImageUpload,
+  deleteImage,
+} from "@/lib/storage";
 
 export async function PATCH(request: Request) {
   try {
@@ -19,45 +21,34 @@ export async function PATCH(request: Request) {
     const body = await request.json();
     const { avatarUrl } = body;
 
-    // Validate avatar URL format (should be a base64 data URL)
-    if (avatarUrl !== null && avatarUrl !== undefined) {
-      if (typeof avatarUrl !== "string") {
-        return NextResponse.json(
-          { error: "Invalid avatar format" },
-          { status: 400 }
-        );
-      }
-
-      // Check if it's a valid data URL
-      if (!avatarUrl.startsWith("data:image/")) {
-        return NextResponse.json(
-          { error: "Avatar must be an image" },
-          { status: 400 }
-        );
-      }
-
-      // Check size limit
-      if (avatarUrl.length > MAX_AVATAR_SIZE) {
-        return NextResponse.json(
-          { error: "Avatar too large. Max 500KB." },
-          { status: 400 }
-        );
-      }
-
-      // Validate image type
-      const validTypes = ["data:image/jpeg", "data:image/png", "data:image/webp"];
-      if (!validTypes.some(type => avatarUrl.startsWith(type))) {
-        return NextResponse.json(
-          { error: "Avatar must be JPEG, PNG, or WebP" },
-          { status: 400 }
-        );
-      }
+    // Validate image before processing
+    const validation = validateImageUpload(avatarUrl, "avatar");
+    if (!validation.valid) {
+      return NextResponse.json({ error: validation.error }, { status: 400 });
     }
 
-    // Update member avatar
+    // Get current avatar URL for cleanup
+    const currentMember = await prisma.member.findUnique({
+      where: { id: authResult.memberId },
+      select: { avatarUrl: true },
+    });
+
+    // Process image upload (handles base64 -> blob conversion)
+    const imageResult = await processImageUpload(
+      avatarUrl,
+      "avatar",
+      authResult.memberId,
+      currentMember?.avatarUrl
+    );
+
+    if (imageResult.error) {
+      return NextResponse.json({ error: imageResult.error }, { status: 400 });
+    }
+
+    // Update member avatar with blob URL
     const updatedMember = await prisma.member.update({
       where: { id: authResult.memberId },
-      data: { avatarUrl: avatarUrl || null },
+      data: { avatarUrl: imageResult.url },
       select: { avatarUrl: true },
     });
 
@@ -86,6 +77,18 @@ export async function DELETE() {
       );
     }
 
+    // Get current avatar URL to delete from blob storage
+    const member = await prisma.member.findUnique({
+      where: { id: authResult.memberId },
+      select: { avatarUrl: true },
+    });
+
+    // Delete from blob storage
+    if (member?.avatarUrl) {
+      await deleteImage(member.avatarUrl);
+    }
+
+    // Update database
     await prisma.member.update({
       where: { id: authResult.memberId },
       data: { avatarUrl: null },

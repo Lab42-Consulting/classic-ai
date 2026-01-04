@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST, GET } from '@/app/api/ai/deduce-ingredient/route'
 import prisma from '@/lib/db'
 import { getSession, getMemberFromSession } from '@/lib/auth'
+import { checkAndIncrementRateLimit } from '@/lib/ai/cache'
 import {
   mockMember,
   mockMemberAuthResult,
@@ -177,10 +178,12 @@ describe('AI Deduce Ingredient API', () => {
           ...mockMember,
           subscriptionStatus: 'trial',
         } as never)
-        vi.mocked(prisma.aIUsageDaily.findUnique).mockResolvedValue({
-          ...mockAIUsageDaily,
-          count: 5, // Already at limit
-        } as never)
+        // Mock rate limit check to return "not allowed"
+        vi.mocked(checkAndIncrementRateLimit).mockResolvedValue({
+          allowed: false,
+          remaining: 0,
+          limit: 5,
+        })
 
         const request = createMockRequest({
           name: 'some ingredient',
@@ -196,10 +199,12 @@ describe('AI Deduce Ingredient API', () => {
       })
 
       it('should enforce rate limit for active members (20/day)', async () => {
-        vi.mocked(prisma.aIUsageDaily.findUnique).mockResolvedValue({
-          ...mockAIUsageDaily,
-          count: 20, // Already at limit
-        } as never)
+        // Mock rate limit check to return "not allowed"
+        vi.mocked(checkAndIncrementRateLimit).mockResolvedValue({
+          allowed: false,
+          remaining: 0,
+          limit: 20,
+        })
 
         const request = createMockRequest({
           name: 'some ingredient',
@@ -218,6 +223,12 @@ describe('AI Deduce Ingredient API', () => {
           ...mockMember,
           subscriptionStatus: 'expired',
         } as never)
+        // Mock rate limit check to return "not allowed" with 0 limit for expired
+        vi.mocked(checkAndIncrementRateLimit).mockResolvedValue({
+          allowed: false,
+          remaining: 0,
+          limit: 0,
+        })
 
         const request = createMockRequest({
           name: 'some ingredient',

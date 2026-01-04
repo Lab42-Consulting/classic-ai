@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { validateImageUpload, processImageUpload } from "@/lib/storage";
 
 // GET /api/gym/branding - Get gym branding settings
 export async function GET() {
@@ -93,19 +94,40 @@ export async function PUT(request: NextRequest) {
       );
     }
 
-    // Validate logo size if provided (max 2MB in base64)
-    if (logo && logo.length > 2 * 1024 * 1024 * 1.37) {
-      return NextResponse.json(
-        { error: "Logo too large (max 2MB)" },
-        { status: 400 }
+    // Validate logo if provided
+    if (logo !== undefined) {
+      const logoValidation = validateImageUpload(logo, "branding");
+      if (!logoValidation.valid) {
+        return NextResponse.json({ error: logoValidation.error }, { status: 400 });
+      }
+    }
+
+    // Get current gym for logo cleanup
+    const currentGym = await prisma.gym.findUnique({
+      where: { id: staff.gymId },
+      select: { logo: true },
+    });
+
+    // Process logo upload to blob storage
+    let processedLogo: string | null | undefined = undefined;
+    if (logo !== undefined) {
+      const imageResult = await processImageUpload(
+        logo,
+        "branding",
+        staff.gymId,
+        currentGym?.logo
       );
+      if (imageResult.error) {
+        return NextResponse.json({ error: imageResult.error }, { status: 400 });
+      }
+      processedLogo = imageResult.url;
     }
 
     // Update gym branding
     const updatedGym = await prisma.gym.update({
       where: { id: staff.gymId },
       data: {
-        logo: logo ?? undefined,
+        logo: processedLogo ?? undefined,
         primaryColor: primaryColor ?? undefined,
         secondaryColor: secondaryColor ?? undefined,
       },

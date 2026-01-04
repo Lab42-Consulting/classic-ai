@@ -1,5 +1,6 @@
 "use client";
 
+import { useState, useRef, useEffect } from "react";
 import { Card } from "@/components/ui/card";
 import { TranslationKeys } from "@/lib/i18n";
 
@@ -53,7 +54,23 @@ export function MealCard({
   isCoachMeal,
   t,
 }: MealCardProps) {
+  const [menuOpen, setMenuOpen] = useState(false);
+  const menuRef = useRef<HTMLDivElement>(null);
   const hasMacros = meal.totalProtein || meal.totalCarbs || meal.totalFats;
+
+  // Close menu when clicking outside
+  useEffect(() => {
+    function handleClickOutside(event: MouseEvent) {
+      if (menuRef.current && !menuRef.current.contains(event.target as Node)) {
+        setMenuOpen(false);
+      }
+    }
+
+    if (menuOpen) {
+      document.addEventListener("mousedown", handleClickOutside);
+      return () => document.removeEventListener("mousedown", handleClickOutside);
+    }
+  }, [menuOpen]);
 
   return (
     <Card className="relative overflow-hidden">
@@ -154,8 +171,9 @@ export function MealCard({
 
           {/* Menu button (only for owner) */}
           {isOwner && (onEdit || onDelete) && (
-            <div className="relative group">
+            <div className="relative" ref={menuRef}>
               <button
+                onClick={() => setMenuOpen(!menuOpen)}
                 className="p-2 rounded-lg hover:bg-background-tertiary transition-colors"
                 title={t.meals?.options || "Opcije"}
               >
@@ -175,50 +193,58 @@ export function MealCard({
               </button>
 
               {/* Dropdown */}
-              <div className="absolute right-0 top-full mt-1 bg-background-secondary border border-border rounded-xl shadow-lg opacity-0 invisible group-focus-within:opacity-100 group-focus-within:visible transition-all z-10 min-w-[140px]">
-                {onEdit && (
-                  <button
-                    onClick={onEdit}
-                    className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-background-tertiary transition-colors rounded-t-xl flex items-center gap-2"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+              {menuOpen && (
+                <div className="absolute right-0 top-full mt-1 bg-background-secondary border border-border rounded-xl shadow-lg z-10 min-w-[140px]">
+                  {onEdit && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onEdit();
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm text-foreground hover:bg-background-tertiary transition-colors rounded-t-xl flex items-center gap-2"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
-                      />
-                    </svg>
-                    {t.meals?.editMeal || "Izmeni"}
-                  </button>
-                )}
-                {onDelete && (
-                  <button
-                    onClick={onDelete}
-                    className="w-full px-4 py-3 text-left text-sm text-error hover:bg-background-tertiary transition-colors rounded-b-xl flex items-center gap-2"
-                  >
-                    <svg
-                      className="w-4 h-4"
-                      fill="none"
-                      stroke="currentColor"
-                      viewBox="0 0 24 24"
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M11 5H6a2 2 0 00-2 2v11a2 2 0 002 2h11a2 2 0 002-2v-5m-1.414-9.414a2 2 0 112.828 2.828L11.828 15H9v-2.828l8.586-8.586z"
+                        />
+                      </svg>
+                      {t.meals?.editMeal || "Izmeni"}
+                    </button>
+                  )}
+                  {onDelete && (
+                    <button
+                      onClick={() => {
+                        setMenuOpen(false);
+                        onDelete();
+                      }}
+                      className="w-full px-4 py-3 text-left text-sm text-error hover:bg-background-tertiary transition-colors rounded-b-xl flex items-center gap-2"
                     >
-                      <path
-                        strokeLinecap="round"
-                        strokeLinejoin="round"
-                        strokeWidth={2}
-                        d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
-                      />
-                    </svg>
-                    {t.meals?.deleteMeal || "Obriši"}
-                  </button>
-                )}
-              </div>
+                      <svg
+                        className="w-4 h-4"
+                        fill="none"
+                        stroke="currentColor"
+                        viewBox="0 0 24 24"
+                      >
+                        <path
+                          strokeLinecap="round"
+                          strokeLinejoin="round"
+                          strokeWidth={2}
+                          d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16"
+                        />
+                      </svg>
+                      {t.meals?.deleteMeal || "Obriši"}
+                    </button>
+                  )}
+                </div>
+              )}
             </div>
           )}
         </div>

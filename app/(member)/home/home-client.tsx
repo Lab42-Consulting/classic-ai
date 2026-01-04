@@ -97,14 +97,72 @@ const macroColors: Record<StatusType, string> = {
 };
 
 
+interface LogEntry {
+  id: string;
+  type: "meal" | "training" | "water";
+  mealSize?: string;
+  mealName?: string;
+  mealPhotoUrl?: string;
+  estimatedCalories?: number;
+  estimatedProtein?: number;
+  estimatedCarbs?: number;
+  estimatedFats?: number;
+  createdAt: string;
+}
+
 export function HomeClient({ data }: HomeClientProps) {
   const router = useRouter();
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [coachRequest, setCoachRequest] = useState<CoachRequestData | null>(data.pendingCoachRequest);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
   const [isProcessingRequest, setIsProcessingRequest] = useState(false);
+  const [showMealHistory, setShowMealHistory] = useState(false);
+  const [mealHistoryLogs, setMealHistoryLogs] = useState<LogEntry[]>([]);
+  const [mealHistoryLoading, setMealHistoryLoading] = useState(false);
+  const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
+
+  // Fetch today's meal history
+  const fetchMealHistory = async () => {
+    setMealHistoryLoading(true);
+    try {
+      const response = await fetch("/api/logs");
+      if (response.ok) {
+        const result = await response.json();
+        setMealHistoryLogs(result.logs || []);
+      }
+    } catch {
+      // Silently fail
+    } finally {
+      setMealHistoryLoading(false);
+    }
+  };
+
+  // Open meal history modal
+  const handleOpenMealHistory = () => {
+    setShowMealHistory(true);
+    fetchMealHistory();
+  };
+
+  // Format time for log entries
+  const formatLogTime = (dateStr: string) => {
+    const date = new Date(dateStr);
+    return date.toLocaleTimeString("sr-RS", { hour: "2-digit", minute: "2-digit" });
+  };
+
+  // Get meal size label
+  const getMealSizeLabel = (size?: string) => {
+    switch (size) {
+      case "small": return "Mali";
+      case "medium": return "Srednji";
+      case "large": return "Veliki";
+      case "custom": return "Prilagođen";
+      case "exact": return "Tačan unos";
+      case "saved": return "Sačuvan";
+      default: return size || "";
+    }
+  };
 
   // Filter out dismissed nudges
   const visibleNudges = data.nudges.filter((n) => !dismissedNudges.has(n.id));
@@ -401,6 +459,168 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
+      {/* Meal History Modal */}
+      {showMealHistory && (() => {
+        const mealLogs = mealHistoryLogs.filter(l => l.type === "meal");
+        const totalCalories = mealLogs.reduce((sum, l) => sum + (l.estimatedCalories || 0), 0);
+
+        return (
+          <div className="fixed inset-0 z-50 flex items-end justify-center bg-black/80" onClick={() => setShowMealHistory(false)}>
+            <div
+              className="bg-background-secondary border-t border-x border-border rounded-t-3xl w-full max-w-lg max-h-[80vh] overflow-hidden"
+              onClick={(e) => e.stopPropagation()}
+            >
+              {/* Header */}
+              <div className="flex items-center justify-between p-5 border-b border-border">
+                <div>
+                  <h3 className="text-lg font-semibold text-foreground">Današnji obroci</h3>
+                  <p className="text-sm text-foreground-muted">
+                    {new Date().toLocaleDateString("sr-RS", { weekday: "long", day: "numeric", month: "long" })}
+                  </p>
+                </div>
+                <button
+                  onClick={() => setShowMealHistory(false)}
+                  className="w-10 h-10 rounded-full bg-white/10 hover:bg-white/20 flex items-center justify-center transition-colors"
+                  aria-label="Zatvori"
+                >
+                  <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M6 18L18 6M6 6l12 12" />
+                  </svg>
+                </button>
+              </div>
+
+              {/* Content */}
+              <div className="overflow-y-auto max-h-[calc(80vh-140px)] p-5">
+                {mealHistoryLoading ? (
+                  <div className="flex items-center justify-center py-12">
+                    <div className="animate-pulse text-foreground-muted">Učitava se...</div>
+                  </div>
+                ) : mealLogs.length === 0 ? (
+                  <div className="text-center py-12">
+                    <div className="text-4xl mb-3">🍽️</div>
+                    <p className="text-foreground-muted">Još nisi uneo obroke danas</p>
+                    <button
+                      onClick={() => {
+                        setShowMealHistory(false);
+                        router.push("/log");
+                      }}
+                      className="mt-4 px-6 py-2.5 bg-accent hover:bg-accent/90 rounded-xl text-sm font-medium text-white transition-colors"
+                    >
+                      Unesi prvi obrok
+                    </button>
+                  </div>
+                ) : (
+                  <div className="space-y-2">
+                    {/* Meal entries */}
+                    {mealLogs.map((log) => {
+                      const isExpanded = expandedMealId === log.id;
+                      const hasMacros = log.estimatedProtein || log.estimatedCarbs || log.estimatedFats;
+
+                      return (
+                        <div key={log.id} className="bg-background-tertiary rounded-xl overflow-hidden">
+                          {/* Main row - clickable */}
+                          <button
+                            onClick={() => setExpandedMealId(isExpanded ? null : log.id)}
+                            className="w-full p-4 flex items-center gap-3 text-left hover:bg-white/5 transition-colors"
+                          >
+                            {/* Left: Meal info */}
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-center gap-2">
+                                <p className="font-medium text-foreground truncate">
+                                  {log.mealName || getMealSizeLabel(log.mealSize) + " obrok"}
+                                </p>
+                                {hasMacros && (
+                                  <svg
+                                    className={`w-4 h-4 text-foreground-muted transition-transform ${isExpanded ? "rotate-180" : ""}`}
+                                    fill="none"
+                                    stroke="currentColor"
+                                    viewBox="0 0 24 24"
+                                  >
+                                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                                  </svg>
+                                )}
+                              </div>
+                              <div className="flex items-center gap-2 mt-1">
+                                <span className="text-sm text-accent font-medium">
+                                  {log.estimatedCalories || 0} kcal
+                                </span>
+                                <span className="text-xs text-foreground-muted">
+                                  {formatLogTime(log.createdAt)}
+                                </span>
+                              </div>
+                            </div>
+
+                            {/* Right: Photo or icon */}
+                            {log.mealPhotoUrl ? (
+                              <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                                <img
+                                  src={log.mealPhotoUrl}
+                                  alt={log.mealName || "Obrok"}
+                                  className="w-full h-full object-cover"
+                                />
+                              </div>
+                            ) : (
+                              <div className="w-14 h-14 rounded-lg bg-emerald-500/10 flex items-center justify-center flex-shrink-0">
+                                <span className="text-2xl">🍽️</span>
+                              </div>
+                            )}
+                          </button>
+
+                          {/* Expanded: Macros */}
+                          {isExpanded && hasMacros && (
+                            <div className="px-4 pb-4 pt-0">
+                              <div className="grid grid-cols-3 gap-2 pt-3 border-t border-border/50">
+                                <div className="text-center">
+                                  <p className="text-lg font-semibold text-success">
+                                    {log.estimatedProtein || 0}g
+                                  </p>
+                                  <p className="text-xs text-foreground-muted">Proteini</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-semibold text-amber-400">
+                                    {log.estimatedCarbs || 0}g
+                                  </p>
+                                  <p className="text-xs text-foreground-muted">Ugljeni hidrati</p>
+                                </div>
+                                <div className="text-center">
+                                  <p className="text-lg font-semibold text-purple-400">
+                                    {log.estimatedFats || 0}g
+                                  </p>
+                                  <p className="text-xs text-foreground-muted">Masti</p>
+                                </div>
+                              </div>
+                            </div>
+                          )}
+                        </div>
+                      );
+                    })}
+                  </div>
+                )}
+              </div>
+
+              {/* Footer with total */}
+              {mealLogs.length > 0 && (
+                <div className="p-5 border-t border-border">
+                  <div className="flex items-center justify-between mb-3">
+                    <span className="text-sm text-foreground-muted">Ukupno danas</span>
+                    <span className="text-lg font-bold text-foreground">{totalCalories} kcal</span>
+                  </div>
+                  <button
+                    onClick={() => {
+                      setShowMealHistory(false);
+                      router.push("/log");
+                    }}
+                    className="w-full py-3 px-4 bg-accent hover:bg-accent/90 rounded-xl text-sm font-medium text-white transition-colors"
+                  >
+                    + Dodaj obrok
+                  </button>
+                </div>
+              )}
+            </div>
+          </div>
+        );
+      })()}
+
       {/* Active/Upcoming Challenge Banner */}
       {data.activeChallenge && (
         <div className="px-6 mb-4">
@@ -552,8 +772,12 @@ export function HomeClient({ data }: HomeClientProps) {
               </div>
             </div>
 
-            {/* Calorie Ring */}
-            <div className="flex justify-center py-6">
+            {/* Calorie Ring - Clickable to show meal history */}
+            <button
+              onClick={handleOpenMealHistory}
+              className="flex justify-center py-6 w-full cursor-pointer hover:opacity-90 transition-opacity"
+              aria-label="Pogledaj istoriju obroka"
+            >
               <ProgressRing
                 progress={calorieProgress}
                 size={220}
@@ -580,9 +804,15 @@ export function HomeClient({ data }: HomeClientProps) {
                       </p>
                     </>
                   )}
+                  <p className="text-xs text-foreground-muted/60 mt-2 flex items-center justify-center gap-1 animate-pulse">
+                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                    </svg>
+                    Dodirni za detalje
+                  </p>
                 </div>
               </ProgressRing>
-            </div>
+            </button>
 
             {/* Consumed / Target */}
             <div className="flex justify-center gap-8 text-center">

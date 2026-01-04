@@ -148,6 +148,7 @@ model DailyLog {
   type              String
   mealSize          String?
   mealName          String?
+  mealPhotoUrl      String?  @db.Text  // Photo from saved meal (base64)
   estimatedCalories Int?
   estimatedProtein  Int?
   estimatedCarbs    Int?

@@ -16,6 +16,7 @@ interface ImageCropperProps {
   locale?: "sr" | "en";
   outputWidth?: number;  // Output image width (default: 256)
   outputHeight?: number; // Output image height (default: 256)
+  maxOutputSizeBytes?: number; // Max output size in bytes (default: 1MB for meals)
 }
 
 function centerAspectCrop(
@@ -48,6 +49,7 @@ export function ImageCropper({
   locale = "sr",
   outputWidth = 256,
   outputHeight = 256,
+  maxOutputSizeBytes = 1024 * 1024, // Default 1MB for meals
 }: ImageCropperProps) {
   const [imgSrc, setImgSrc] = useState<string>("");
   const [crop, setCrop] = useState<Crop>();
@@ -55,6 +57,8 @@ export function ImageCropper({
   const imgRef = useRef<HTMLImageElement>(null);
   const fileInputRef = useRef<HTMLInputElement>(null);
   const [processing, setProcessing] = useState(false);
+  const [processingStatus, setProcessingStatus] = useState<string>("");
+  const [error, setError] = useState<string>("");
 
   const t = {
     sr: {
@@ -64,8 +68,12 @@ export function ImageCropper({
       save: "Sačuvaj",
       cancel: "Otkaži",
       saving: "Čuvam...",
+      compressing: "Kompresija slike...",
       dragHint: "Prevuci za pozicioniranje",
       maxSize: "Max 5MB, JPEG/PNG/WebP",
+      errorTooLarge: "Slika je prevelika. Maksimum je 5MB.",
+      errorInvalidType: "Nevažeći format. Koristi JPEG, PNG ili WebP.",
+      errorCompressionFailed: "Nije moguće kompresovati sliku dovoljno.",
     },
     en: {
       title: title || "Change avatar",
@@ -74,8 +82,12 @@ export function ImageCropper({
       save: "Save",
       cancel: "Cancel",
       saving: "Saving...",
+      compressing: "Compressing image...",
       dragHint: "Drag to position",
       maxSize: "Max 5MB, JPEG/PNG/WebP",
+      errorTooLarge: "Image is too large. Maximum is 5MB.",
+      errorInvalidType: "Invalid format. Use JPEG, PNG, or WebP.",
+      errorCompressionFailed: "Unable to compress image enough.",
     },
   }[locale];
 
@@ -83,13 +95,17 @@ export function ImageCropper({
     const file = e.target.files?.[0];
     if (!file) return;
 
+    setError("");
+
     // Validate file type
     if (!file.type.startsWith("image/")) {
+      setError(t.errorInvalidType);
       return;
     }
 
     // Validate file size (5MB max for input, will be compressed on save)
     if (file.size > 5 * 1024 * 1024) {
+      setError(t.errorTooLarge);
       return;
     }
 
@@ -98,12 +114,20 @@ export function ImageCropper({
       setImgSrc(reader.result as string);
     };
     reader.readAsDataURL(file);
-  }, []);
+  }, [t.errorInvalidType, t.errorTooLarge]);
 
   const handleImageLoad = useCallback((e: React.SyntheticEvent<HTMLImageElement>) => {
     const { width, height } = e.currentTarget;
     setCrop(centerAspectCrop(width, height, aspectRatio));
   }, [aspectRatio]);
+
+  // Calculate base64 size in bytes (approximation: base64 adds ~37% overhead)
+  const getBase64SizeBytes = (base64: string): number => {
+    // Remove data URL prefix to get just the base64 content
+    const base64Content = base64.split(",")[1] || base64;
+    // Base64 encodes 3 bytes into 4 characters, so multiply by 3/4
+    return Math.ceil((base64Content.length * 3) / 4);
+  };
 
   const getCroppedImage = useCallback(async (): Promise<string | null> => {
     if (!imgRef.current || !completedCrop) return null;
@@ -141,28 +165,54 @@ export function ImageCropper({
       outputHeight
     );
 
-    // Convert to base64 with compression (0.80 for larger images to keep under size limits)
-    const quality = outputWidth > 256 ? 0.80 : 0.85;
-    return canvas.toDataURL("image/jpeg", quality);
-  }, [completedCrop, outputWidth, outputHeight]);
+    // Adaptive compression: start at high quality and reduce until under size limit
+    let quality = 0.92;
+    const minQuality = 0.3;
+    let result = canvas.toDataURL("image/jpeg", quality);
+    let iterations = 0;
+    const maxIterations = 10;
+
+    while (getBase64SizeBytes(result) > maxOutputSizeBytes && quality > minQuality && iterations < maxIterations) {
+      quality -= 0.08;
+      result = canvas.toDataURL("image/jpeg", quality);
+      iterations++;
+    }
+
+    // If still too large after max compression, return null to show error
+    if (getBase64SizeBytes(result) > maxOutputSizeBytes) {
+      return null;
+    }
+
+    return result;
+  }, [completedCrop, outputWidth, outputHeight, maxOutputSizeBytes]);
 
   const handleSave = useCallback(async () => {
     setProcessing(true);
+    setProcessingStatus(t.compressing);
+    setError("");
+
     try {
       const croppedImageUrl = await getCroppedImage();
       if (croppedImageUrl) {
+        setProcessingStatus(t.saving);
         onSave(croppedImageUrl);
         handleClose();
+      } else {
+        // Compression failed - image still too large
+        setError(t.errorCompressionFailed);
       }
     } finally {
       setProcessing(false);
+      setProcessingStatus("");
     }
-  }, [getCroppedImage, onSave]);
+  }, [getCroppedImage, onSave, t.compressing, t.saving, t.errorCompressionFailed]);
 
   const handleClose = useCallback(() => {
     setImgSrc("");
     setCrop(undefined);
     setCompletedCrop(undefined);
+    setError("");
+    setProcessingStatus("");
     onClose();
   }, [onClose]);
 
@@ -236,6 +286,13 @@ export function ImageCropper({
           </div>
         )}
 
+        {/* Error message */}
+        {error && (
+          <div className="p-3 bg-error/10 border border-error/20 rounded-xl">
+            <p className="text-sm text-error text-center">{error}</p>
+          </div>
+        )}
+
         <div className="flex gap-3 pt-2">
           <Button
             variant="secondary"
@@ -250,7 +307,7 @@ export function ImageCropper({
             onClick={handleSave}
             disabled={!completedCrop || processing}
           >
-            {processing ? t.saving : t.save}
+            {processing ? processingStatus || t.saving : t.save}
           </Button>
         </div>
       </div>

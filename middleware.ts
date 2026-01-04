@@ -1,6 +1,18 @@
 import { NextRequest, NextResponse } from "next/server";
 import { verifySession } from "@/lib/auth";
 
+// Request body size limits (in bytes)
+const MAX_BODY_SIZE = 5 * 1024 * 1024; // 5MB default
+const MAX_IMAGE_UPLOAD_SIZE = 2 * 1024 * 1024; // 2MB for image uploads
+
+// Routes that handle image uploads (may have larger payloads)
+const imageUploadPaths = [
+  "/api/member/avatar",
+  "/api/member/meals",
+  "/api/gym/branding",
+  "/api/logs",
+];
+
 const publicPaths = [
   "/login",
   "/staff-login",
@@ -18,6 +30,28 @@ const staffPaths = ["/dashboard", "/members", "/register"];
 
 export async function middleware(request: NextRequest) {
   const { pathname } = request.nextUrl;
+
+  // Check request body size for POST/PUT/PATCH requests
+  if (["POST", "PUT", "PATCH"].includes(request.method)) {
+    const contentLength = request.headers.get("content-length");
+    if (contentLength) {
+      const size = parseInt(contentLength, 10);
+
+      // Determine max size based on route
+      const isImageUpload = imageUploadPaths.some((path) =>
+        pathname.startsWith(path)
+      );
+      const maxSize = isImageUpload ? MAX_IMAGE_UPLOAD_SIZE : MAX_BODY_SIZE;
+
+      if (size > maxSize) {
+        const maxSizeMB = Math.round(maxSize / (1024 * 1024));
+        return NextResponse.json(
+          { error: `Request too large. Max ${maxSizeMB}MB allowed.` },
+          { status: 413 }
+        );
+      }
+    }
+  }
 
   // Allow public paths
   if (publicPaths.some((path) => pathname.startsWith(path))) {

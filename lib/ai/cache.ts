@@ -2,6 +2,7 @@
 // Provides persistent caching and rate limiting
 
 import prisma from "@/lib/db";
+import { Prisma } from "@prisma/client";
 
 // Cache configuration
 const CACHE_TTL_DAYS = 7; // Cache responses for 7 days
@@ -138,6 +139,117 @@ export async function incrementUsage(memberId: string): Promise<void> {
       count: { increment: 1 },
     },
   });
+}
+
+/**
+ * Atomic check and increment rate limit
+ * This prevents race conditions where concurrent requests could exceed the limit.
+ *
+ * Strategy: Increment first, then check. If over limit, decrement and reject.
+ * This is safer than check-then-increment which has a TOCTOU vulnerability.
+ *
+ * @param memberId - The member's ID
+ * @param subscriptionStatus - Member's subscription status
+ * @returns Whether the request is allowed and usage info
+ */
+export async function checkAndIncrementRateLimit(
+  memberId: string,
+  subscriptionStatus: string
+): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  const status = subscriptionStatus as SubscriptionStatus;
+  const limit = RATE_LIMITS[status] ?? 0;
+
+  if (limit === 0) {
+    return { allowed: false, remaining: 0, limit: 0 };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Use transaction with Serializable isolation to prevent race conditions
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Increment first (atomic upsert)
+      const usage = await tx.aIUsageDaily.upsert({
+        where: {
+          memberId_date: {
+            memberId,
+            date: today,
+          },
+        },
+        create: {
+          memberId,
+          date: today,
+          count: 1,
+        },
+        update: {
+          count: { increment: 1 },
+        },
+      });
+
+      // Check if we exceeded the limit
+      if (usage.count > limit) {
+        // Roll back the increment
+        await tx.aIUsageDaily.update({
+          where: {
+            memberId_date: {
+              memberId,
+              date: today,
+            },
+          },
+          data: {
+            count: { decrement: 1 },
+          },
+        });
+
+        return {
+          allowed: false,
+          remaining: 0,
+          limit,
+        };
+      }
+
+      // Request allowed
+      return {
+        allowed: true,
+        remaining: Math.max(0, limit - usage.count),
+        limit,
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 5000,
+    }
+  );
+
+  return result;
+}
+
+/**
+ * Decrement usage count (rollback for failed AI requests)
+ * Use this to restore quota if the AI request fails after rate limit was consumed.
+ *
+ * @param memberId - The member's ID
+ */
+export async function decrementUsage(memberId: string): Promise<void> {
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  try {
+    await prisma.aIUsageDaily.update({
+      where: {
+        memberId_date: {
+          memberId,
+          date: today,
+        },
+      },
+      data: {
+        count: { decrement: 1 },
+      },
+    });
+  } catch {
+    // If record doesn't exist, nothing to decrement
+  }
 }
 
 // Get cached response from database

@@ -9,8 +9,8 @@ import {
   Goal,
 } from "@/lib/calculations";
 import {
-  checkRateLimit,
-  incrementUsage,
+  checkAndIncrementRateLimit,
+  decrementUsage,
   getCachedResponse,
   cacheResponse,
   checkGymBudget,
@@ -50,8 +50,9 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Check rate limit based on subscription status (trial: 5/day, active: 20/day)
-    const rateLimit = await checkRateLimit(authResult.memberId, member.subscriptionStatus);
+    // Check and atomically increment rate limit (prevents race conditions)
+    // Trial: 5/day, Active: 20/day
+    const rateLimit = await checkAndIncrementRateLimit(authResult.memberId, member.subscriptionStatus);
     if (!rateLimit.allowed) {
       const message = member.subscriptionStatus === "trial"
         ? "Dostigao si dnevni limit poruka (5). Nadogradi članarinu za više poruka."
@@ -95,11 +96,9 @@ export async function POST(request: NextRequest) {
       : [];
 
     // Check cache for common questions (saves API costs)
+    // Usage already incremented atomically above
     const cachedResponse = await getCachedResponse(message);
     if (cachedResponse) {
-      // Increment usage even for cached responses
-      await incrementUsage(authResult.memberId);
-
       // Save to chat history
       await prisma.chatMessage.createMany({
         data: [
@@ -111,7 +110,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({
         response: cachedResponse,
         cached: true,
-        remaining: rateLimit.remaining - 1,
+        remaining: rateLimit.remaining,
         limit: rateLimit.limit,
       });
     }
@@ -254,17 +253,14 @@ export async function POST(request: NextRequest) {
 
     const aiResponse = await generateAIResponse(conversationHistory, context);
 
-    // Track usage and costs (only if we actually called the API)
+    // Track usage and costs (usage already incremented atomically at rate limit check)
     if (!aiResponse.error) {
       await Promise.all([
-        incrementUsage(authResult.memberId),
         trackAIUsage(member.gymId, aiResponse.tokensIn, aiResponse.tokensOut),
         cacheResponse(message, aiResponse.text),
       ]);
-    } else {
-      // Still increment usage on error to prevent abuse
-      await incrementUsage(authResult.memberId);
     }
+    // Note: We don't refund usage on AI errors to prevent abuse
 
     // Save to chat history
     await prisma.chatMessage.createMany({
@@ -277,7 +273,7 @@ export async function POST(request: NextRequest) {
     return NextResponse.json({
       response: aiResponse.text,
       cached: false,
-      remaining: rateLimit.remaining - 1,
+      remaining: rateLimit.remaining,
       limit: rateLimit.limit,
     });
   } catch (error) {

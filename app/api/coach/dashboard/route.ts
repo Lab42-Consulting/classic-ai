@@ -26,6 +26,18 @@ interface MemberStats {
   alerts: string[];
 }
 
+// Helper to group array by a key
+function groupBy<T>(array: T[], key: keyof T): Map<string, T[]> {
+  const map = new Map<string, T[]>();
+  for (const item of array) {
+    const k = String(item[key]);
+    const group = map.get(k) || [];
+    group.push(item);
+    map.set(k, group);
+  }
+  return map;
+}
+
 export async function GET() {
   try {
     const session = await getSession();
@@ -90,6 +102,22 @@ export async function GET() {
       },
     });
 
+    // Early return if no members
+    if (members.length === 0) {
+      return NextResponse.json({
+        coachName: staff.name,
+        isCoach,
+        stats: {
+          total: 0,
+          onTrack: 0,
+          slipping: 0,
+          offTrack: 0,
+          needsAttention: 0,
+        },
+        members: [],
+      });
+    }
+
     // Date calculations
     const now = new Date();
     const today = new Date(now);
@@ -119,248 +147,269 @@ export async function GET() {
     // Calculate how many days have passed this week (1 = Monday, 7 = Sunday)
     const daysPassedThisWeek = dayOfWeek === 0 ? 7 : dayOfWeek;
 
-    // Process each member
-    const membersWithStats: MemberStats[] = await Promise.all(
-      members.map(async (member) => {
-        // Get logs from this week (Monday to today)
-        const thisWeekLogs = await prisma.dailyLog.findMany({
-          where: {
-            memberId: member.id,
-            date: { gte: mondayOfThisWeek },
-          },
-          select: {
-            date: true,
-            type: true,
-            estimatedCalories: true,
-            estimatedProtein: true,
-          },
-          orderBy: { date: "desc" },
-        });
+    // Get all member IDs for batch queries
+    const allMemberIds = members.map(m => m.id);
 
-        // Get last 30 days logs for streak calculation and activity tracking
-        const last30DaysLogs = await prisma.dailyLog.findMany({
-          where: {
-            memberId: member.id,
-            date: { gte: thirtyDaysAgo },
-          },
-          select: { date: true, type: true },
-          orderBy: { date: "desc" },
-        });
+    // OPTIMIZED: Batch fetch all data with 3 queries instead of 3N queries
+    const [allThisWeekLogs, allLast30DaysLogs, allRecentCheckins] = await Promise.all([
+      // Query 1: This week's logs for all members
+      prisma.dailyLog.findMany({
+        where: {
+          memberId: { in: allMemberIds },
+          date: { gte: mondayOfThisWeek },
+        },
+        select: {
+          memberId: true,
+          date: true,
+          type: true,
+          estimatedCalories: true,
+          estimatedProtein: true,
+        },
+        orderBy: { date: "desc" },
+      }),
+      // Query 2: Last 30 days logs for all members
+      prisma.dailyLog.findMany({
+        where: {
+          memberId: { in: allMemberIds },
+          date: { gte: thirtyDaysAgo },
+        },
+        select: {
+          memberId: true,
+          date: true,
+          type: true,
+        },
+        orderBy: { date: "desc" },
+      }),
+      // Query 3: Recent check-ins for all members (get more than needed, will filter per member)
+      prisma.weeklyCheckin.findMany({
+        where: { memberId: { in: allMemberIds } },
+        orderBy: [{ year: "desc" }, { weekNumber: "desc" }],
+        select: {
+          memberId: true,
+          weight: true,
+          weekNumber: true,
+          year: true,
+        },
+      }),
+    ]);
 
-        // Get recent check-ins for weight trend
-        const recentCheckins = await prisma.weeklyCheckin.findMany({
-          where: { memberId: member.id },
-          orderBy: [{ year: "desc" }, { weekNumber: "desc" }],
-          take: 4,
-          select: { weight: true, weekNumber: true, year: true },
-        });
+    // Index all data by memberId for O(1) lookup
+    const thisWeekLogsByMember = groupBy(allThisWeekLogs, "memberId");
+    const last30DaysLogsByMember = groupBy(allLast30DaysLogs, "memberId");
+    const checkinsByMember = groupBy(allRecentCheckins, "memberId");
 
-        // Check if current week check-in is done
-        const hasCurrentWeekCheckin = recentCheckins.some(
-          c => c.weekNumber === currentWeek.week && c.year === currentWeek.year
-        );
+    // Process each member (now synchronous - no async needed)
+    const membersWithStats: MemberStats[] = members.map((member) => {
+      // Get this member's data from the indexed maps
+      const thisWeekLogs = thisWeekLogsByMember.get(member.id) || [];
+      const last30DaysLogs = last30DaysLogsByMember.get(member.id) || [];
+      const allCheckins = checkinsByMember.get(member.id) || [];
+      const recentCheckins = allCheckins.slice(0, 4); // Take only 4 most recent
 
-        // Check if LAST week's check-in was done (more important for activity status)
-        const lastWeek = currentWeek.week === 1
-          ? { week: 52, year: currentWeek.year - 1 }
-          : { week: currentWeek.week - 1, year: currentWeek.year };
-        const hasLastWeekCheckin = recentCheckins.some(
-          c => c.weekNumber === lastWeek.week && c.year === lastWeek.year
-        );
+      // Check if current week check-in is done
+      const hasCurrentWeekCheckin = recentCheckins.some(
+        c => c.weekNumber === currentWeek.week && c.year === currentWeek.year
+      );
 
-        // Calculate targets
-        const targets = calculateDailyTargets(member.weight || 70, member.goal as Goal);
+      // Check if LAST week's check-in was done (more important for activity status)
+      const lastWeek = currentWeek.week === 1
+        ? { week: 52, year: currentWeek.year - 1 }
+        : { week: currentWeek.week - 1, year: currentWeek.year };
+      const hasLastWeekCheckin = recentCheckins.some(
+        c => c.weekNumber === lastWeek.week && c.year === lastWeek.year
+      );
 
-        // Group logs by date for analysis
-        const logsByDate = new Map<string, typeof thisWeekLogs>();
-        for (const log of thisWeekLogs) {
-          const dateKey = new Date(log.date).toISOString().split("T")[0];
-          if (!logsByDate.has(dateKey)) {
-            logsByDate.set(dateKey, []);
-          }
-          logsByDate.get(dateKey)!.push(log);
+      // Calculate targets
+      const targets = calculateDailyTargets(member.weight || 70, member.goal as Goal);
+
+      // Group logs by date for analysis
+      const logsByDate = new Map<string, typeof thisWeekLogs>();
+      for (const log of thisWeekLogs) {
+        const dateKey = new Date(log.date).toISOString().split("T")[0];
+        if (!logsByDate.has(dateKey)) {
+          logsByDate.set(dateKey, []);
         }
+        logsByDate.get(dateKey)!.push(log);
+      }
 
-        // Calculate weekly stats
-        let weeklyTrainingSessions = 0;
-        let daysWithMeals = 0;
-        let daysWithWater = 0;
-        let totalCalorieAdherence = 0;
-        let totalProteinAdherence = 0;
-        let daysWithCalories = 0;
-        let daysWithGoodCalories = 0; // Days within 70-130% of target
+      // Calculate weekly stats
+      let weeklyTrainingSessions = 0;
+      let daysWithMeals = 0;
+      let daysWithWater = 0;
+      let totalCalorieAdherence = 0;
+      let totalProteinAdherence = 0;
+      let daysWithCalories = 0;
+      let daysWithGoodCalories = 0; // Days within 70-130% of target
 
-        for (const [, dayLogs] of logsByDate) {
-          weeklyTrainingSessions += dayLogs.filter(l => l.type === "training").length;
-          if (dayLogs.some(l => l.type === "meal")) daysWithMeals++;
-          if (dayLogs.some(l => l.type === "water")) daysWithWater++;
+      for (const [, dayLogs] of logsByDate) {
+        weeklyTrainingSessions += dayLogs.filter(l => l.type === "training").length;
+        if (dayLogs.some(l => l.type === "meal")) daysWithMeals++;
+        if (dayLogs.some(l => l.type === "water")) daysWithWater++;
 
-          const dayCalories = dayLogs.reduce((sum, l) => sum + (l.estimatedCalories || 0), 0);
-          if (dayCalories > 0) {
-            const adherencePercent = (dayCalories / targets.calories) * 100;
-            totalCalorieAdherence += Math.min(adherencePercent, 150);
-            daysWithCalories++;
-            // Check if within healthy range (70-130%)
-            if (adherencePercent >= 70 && adherencePercent <= 130) {
-              daysWithGoodCalories++;
-            }
-          }
-
-          const dayProtein = dayLogs.reduce((sum, l) => sum + (l.estimatedProtein || 0), 0);
-          if (dayProtein > 0) {
-            totalProteinAdherence += Math.min((dayProtein / targets.protein) * 100, 150);
-          }
-        }
-
-        const calorieAdherence = daysWithCalories > 0
-          ? Math.round(totalCalorieAdherence / daysWithCalories)
-          : 0;
-        const proteinAdherence = daysWithCalories > 0
-          ? Math.round(totalProteinAdherence / daysWithCalories)
-          : 0;
-
-        // Calculate water consistency (percentage of days with water logged)
-        const waterConsistency = daysPassedThisWeek > 0
-          ? Math.round((daysWithWater / daysPassedThisWeek) * 100)
-          : 0;
-
-        // Calculate available days for normalization (handles new members and week resets)
-        const availableDays = calculateAvailableDays(
-          member.createdAt,
-          member.weekResetAt,
-          mondayOfThisWeek
-        );
-
-        // Calculate consistency score with normalization
-        const consistencyScore = calculateConsistencyScore({
-          trainingSessions: weeklyTrainingSessions,
-          daysWithMeals,
-          avgCalorieAdherence: calorieAdherence,
-          avgProteinAdherence: proteinAdherence,
-          waterConsistency: daysWithWater,
-          availableDays,
-        });
-
-        // Calculate streak (consecutive days with any activity)
-        const uniqueDates = [...new Set(last30DaysLogs.map(l =>
-          new Date(l.date).toISOString().split("T")[0]
-        ))].sort().reverse();
-
-        let streak = 0;
-        const todayStr = today.toISOString().split("T")[0];
-        let checkDate = new Date(today);
-
-        for (let i = 0; i < uniqueDates.length && i < 30; i++) {
-          const expectedDate = checkDate.toISOString().split("T")[0];
-          if (uniqueDates.includes(expectedDate)) {
-            streak++;
-            checkDate.setDate(checkDate.getDate() - 1);
-          } else if (expectedDate !== todayStr) {
-            break;
-          } else {
-            checkDate.setDate(checkDate.getDate() - 1);
+        const dayCalories = dayLogs.reduce((sum, l) => sum + (l.estimatedCalories || 0), 0);
+        if (dayCalories > 0) {
+          const adherencePercent = (dayCalories / targets.calories) * 100;
+          totalCalorieAdherence += Math.min(adherencePercent, 150);
+          daysWithCalories++;
+          // Check if within healthy range (70-130%)
+          if (adherencePercent >= 70 && adherencePercent <= 130) {
+            daysWithGoodCalories++;
           }
         }
 
-        // Last activity
-        const lastActivityDate = last30DaysLogs[0]?.date || null;
-        const daysSinceActivity = lastActivityDate
-          ? Math.floor((now.getTime() - new Date(lastActivityDate).getTime()) / (1000 * 60 * 60 * 24))
-          : 999;
-
-        // Weight trend (compare first and last of 4 recent checkins)
-        let weightTrend: "up" | "down" | "stable" = "stable";
-        let weightChange = 0;
-
-        if (recentCheckins.length >= 2) {
-          const oldest = recentCheckins[recentCheckins.length - 1].weight;
-          const newest = recentCheckins[0].weight;
-          weightChange = Math.round((newest - oldest) * 10) / 10;
-
-          if (weightChange < -0.5) weightTrend = "down";
-          else if (weightChange > 0.5) weightTrend = "up";
+        const dayProtein = dayLogs.reduce((sum, l) => sum + (l.estimatedProtein || 0), 0);
+        if (dayProtein > 0) {
+          totalProteinAdherence += Math.min((dayProtein / targets.protein) * 100, 150);
         }
+      }
 
-        // Determine activity status based on:
-        // - Recent activity (logging anything)
-        // - Calorie adherence (within healthy range 70-130%)
-        // - Water logging consistency
-        // - Missed last week's check-in
-        // Note: Training frequency is NOT used - it varies per person
-        let activityStatus: ActivityStatus;
+      const calorieAdherence = daysWithCalories > 0
+        ? Math.round(totalCalorieAdherence / daysWithCalories)
+        : 0;
+      const proteinAdherence = daysWithCalories > 0
+        ? Math.round(totalProteinAdherence / daysWithCalories)
+        : 0;
 
-        // Calculate quality metrics
-        const hasRecentActivity = daysSinceActivity <= 2;
-        const isLoggingConsistently = daysWithMeals >= Math.max(1, daysPassedThisWeek - 1);
-        const hasGoodCalorieAdherence = daysWithCalories > 0 &&
-          (daysWithGoodCalories / daysWithCalories) >= 0.5; // 50%+ days in healthy range
-        const hasGoodWaterLogging = waterConsistency >= 50;
+      // Calculate water consistency (percentage of days with water logged)
+      const waterConsistency = daysPassedThisWeek > 0
+        ? Math.round((daysWithWater / daysPassedThisWeek) * 100)
+        : 0;
 
-        if (hasRecentActivity && isLoggingConsistently && hasGoodCalorieAdherence) {
-          activityStatus = "on_track";
-        } else if (daysSinceActivity >= 7 || (daysPassedThisWeek >= 3 && daysWithMeals === 0)) {
-          activityStatus = "off_track";
+      // Calculate available days for normalization (handles new members and week resets)
+      const availableDays = calculateAvailableDays(
+        member.createdAt,
+        member.weekResetAt,
+        mondayOfThisWeek
+      );
+
+      // Calculate consistency score with normalization
+      const consistencyScore = calculateConsistencyScore({
+        trainingSessions: weeklyTrainingSessions,
+        daysWithMeals,
+        avgCalorieAdherence: calorieAdherence,
+        avgProteinAdherence: proteinAdherence,
+        waterConsistency: daysWithWater,
+        availableDays,
+      });
+
+      // Calculate streak (consecutive days with any activity)
+      const uniqueDates = [...new Set(last30DaysLogs.map(l =>
+        new Date(l.date).toISOString().split("T")[0]
+      ))].sort().reverse();
+
+      let streak = 0;
+      const todayStr = today.toISOString().split("T")[0];
+      const checkDate = new Date(today);
+
+      for (let i = 0; i < uniqueDates.length && i < 30; i++) {
+        const expectedDate = checkDate.toISOString().split("T")[0];
+        if (uniqueDates.includes(expectedDate)) {
+          streak++;
+          checkDate.setDate(checkDate.getDate() - 1);
+        } else if (expectedDate !== todayStr) {
+          break;
         } else {
-          activityStatus = "slipping";
+          checkDate.setDate(checkDate.getDate() - 1);
         }
+      }
 
-        // Generate alerts
-        const alerts: string[] = [];
+      // Last activity
+      const lastActivityDate = last30DaysLogs[0]?.date || null;
+      const daysSinceActivity = lastActivityDate
+        ? Math.floor((now.getTime() - new Date(lastActivityDate).getTime()) / (1000 * 60 * 60 * 24))
+        : 999;
 
-        // No recent activity
-        if (daysSinceActivity >= 5) {
-          alerts.push(`Nema aktivnosti ${daysSinceActivity} dana`);
-        }
+      // Weight trend (compare first and last of 4 recent checkins)
+      let weightTrend: "up" | "down" | "stable" = "stable";
+      let weightChange = 0;
 
-        // Missed last week's check-in (weigh-in)
-        if (!hasLastWeekCheckin) {
-          alerts.push("Propušten nedeljni pregled");
-        }
+      if (recentCheckins.length >= 2) {
+        const oldest = recentCheckins[recentCheckins.length - 1].weight;
+        const newest = recentCheckins[0].weight;
+        weightChange = Math.round((newest - oldest) * 10) / 10;
 
-        // Current week check-in reminder (Sunday only)
-        if (!hasCurrentWeekCheckin && now.getDay() === 0) {
-          alerts.push("Uradi nedeljni pregled");
-        }
+        if (weightChange < -0.5) weightTrend = "down";
+        else if (weightChange > 0.5) weightTrend = "up";
+      }
 
-        // Calorie issues
-        if (daysWithCalories >= 2 && calorieAdherence < 70) {
-          alerts.push("Kalorije ispod cilja");
-        } else if (daysWithCalories >= 2 && calorieAdherence > 130) {
-          alerts.push("Kalorije iznad cilja");
-        }
+      // Determine activity status based on:
+      // - Recent activity (logging anything)
+      // - Calorie adherence (within healthy range 70-130%)
+      // - Water logging consistency
+      // - Missed last week's check-in
+      // Note: Training frequency is NOT used - it varies per person
+      let activityStatus: ActivityStatus;
 
-        // Protein issues
-        if (proteinAdherence > 0 && proteinAdherence < 70) {
-          alerts.push("Protein ispod cilja");
-        }
+      // Calculate quality metrics
+      const hasRecentActivity = daysSinceActivity <= 2;
+      const isLoggingConsistently = daysWithMeals >= Math.max(1, daysPassedThisWeek - 1);
+      const hasGoodCalorieAdherence = daysWithCalories > 0 &&
+        (daysWithGoodCalories / daysWithCalories) >= 0.5; // 50%+ days in healthy range
 
-        // Water logging
-        if (daysPassedThisWeek >= 3 && waterConsistency < 30) {
-          alerts.push("Slabo unos vode");
-        }
+      if (hasRecentActivity && isLoggingConsistently && hasGoodCalorieAdherence) {
+        activityStatus = "on_track";
+      } else if (daysSinceActivity >= 7 || (daysPassedThisWeek >= 3 && daysWithMeals === 0)) {
+        activityStatus = "off_track";
+      } else {
+        activityStatus = "slipping";
+      }
 
-        return {
-          id: member.id,
-          memberId: member.memberId,
-          name: member.name,
-          avatarUrl: member.avatarUrl,
-          goal: member.goal,
-          currentWeight: member.weight,
-          activityStatus,
-          consistencyScore,
-          streak,
-          lastActivityDate: lastActivityDate?.toISOString() || null,
-          daysSinceActivity,
-          weeklyTrainingSessions,
-          calorieAdherence,
-          proteinAdherence,
-          weightTrend,
-          weightChange,
-          missedCheckin: !hasCurrentWeekCheckin,
-          alerts,
-        };
-      })
-    );
+      // Generate alerts
+      const alerts: string[] = [];
+
+      // No recent activity
+      if (daysSinceActivity >= 5) {
+        alerts.push(`Nema aktivnosti ${daysSinceActivity} dana`);
+      }
+
+      // Missed last week's check-in (weigh-in)
+      if (!hasLastWeekCheckin) {
+        alerts.push("Propušten nedeljni pregled");
+      }
+
+      // Current week check-in reminder (Sunday only)
+      if (!hasCurrentWeekCheckin && now.getDay() === 0) {
+        alerts.push("Uradi nedeljni pregled");
+      }
+
+      // Calorie issues
+      if (daysWithCalories >= 2 && calorieAdherence < 70) {
+        alerts.push("Kalorije ispod cilja");
+      } else if (daysWithCalories >= 2 && calorieAdherence > 130) {
+        alerts.push("Kalorije iznad cilja");
+      }
+
+      // Protein issues
+      if (proteinAdherence > 0 && proteinAdherence < 70) {
+        alerts.push("Protein ispod cilja");
+      }
+
+      // Water logging
+      if (daysPassedThisWeek >= 3 && waterConsistency < 30) {
+        alerts.push("Slabo unos vode");
+      }
+
+      return {
+        id: member.id,
+        memberId: member.memberId,
+        name: member.name,
+        avatarUrl: member.avatarUrl,
+        goal: member.goal,
+        currentWeight: member.weight,
+        activityStatus,
+        consistencyScore,
+        streak,
+        lastActivityDate: lastActivityDate?.toISOString() || null,
+        daysSinceActivity,
+        weeklyTrainingSessions,
+        calorieAdherence,
+        proteinAdherence,
+        weightTrend,
+        weightChange,
+        missedCheckin: !hasCurrentWeekCheckin,
+        alerts,
+      };
+    });
 
     // Sort by priority: off_track first, then slipping, then on_track
     const priorityOrder: Record<ActivityStatus, number> = {

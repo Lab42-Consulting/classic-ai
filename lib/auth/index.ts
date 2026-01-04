@@ -14,6 +14,8 @@ export interface SessionPayload {
   userType: "member" | "staff";
   gymId: string;
   exp?: number;
+  // For staff users: cached linked member ID to avoid DB lookups
+  linkedMemberId?: string;
 }
 
 export async function hashPin(pin: string): Promise<string> {
@@ -48,6 +50,11 @@ export async function verifySession(token: string): Promise<SessionPayload | nul
         userType: payload.userType,
         gymId: payload.gymId,
         exp: payload.exp,
+        // Include linkedMemberId if present (for staff users)
+        linkedMemberId:
+          typeof payload.linkedMemberId === "string"
+            ? payload.linkedMemberId
+            : undefined,
       };
     }
 
@@ -128,14 +135,14 @@ export type MemberAuthError =
  * This is the primary authentication helper for all member-facing API routes.
  * It handles the dual-role case where a coach/admin has a linked member account.
  *
+ * Performance optimization: For staff users, linkedMemberId is cached in the JWT
+ * to avoid a database lookup on every request. Falls back to DB query for old sessions.
+ *
  * @returns MemberAuthResult on success, or { error: MemberAuthError } on failure
  */
 export async function getMemberFromSession(): Promise<
   MemberAuthResult | { error: MemberAuthError }
 > {
-  // Import prisma here to avoid circular dependency issues
-  const { prisma } = await import("@/lib/db");
-
   const session = await getSession();
 
   if (!session) {
@@ -153,6 +160,18 @@ export async function getMemberFromSession(): Promise<
 
   // Staff user - check for linked member account
   if (session.userType === "staff") {
+    // Use cached linkedMemberId from JWT if available (avoids DB lookup)
+    if (session.linkedMemberId) {
+      return {
+        memberId: session.linkedMemberId,
+        gymId: session.gymId,
+        isStaffMember: true,
+        staffId: session.userId,
+      };
+    }
+
+    // Fallback for old sessions: query database
+    const { prisma } = await import("@/lib/db");
     const staff = await prisma.staff.findUnique({
       where: { id: session.userId },
       select: { linkedMemberId: true },

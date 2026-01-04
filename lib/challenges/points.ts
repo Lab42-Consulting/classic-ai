@@ -4,19 +4,36 @@
  */
 
 import prisma from "@/lib/db";
+import { Prisma, PrismaClient } from "@prisma/client";
 import { calculateStreakBonus } from "./index";
 
 export type LogType = "meal" | "training" | "water";
+
+// Pagination defaults for leaderboard queries
+const DEFAULT_LEADERBOARD_LIMIT = 50;
+const MAX_LEADERBOARD_LIMIT = 200;
+
+// Transaction client type
+type TransactionClient = Omit<
+  PrismaClient,
+  "$connect" | "$disconnect" | "$on" | "$transaction" | "$use" | "$extends"
+>;
 
 /**
  * Check if member has a valid gym check-in for today
  * Returns true if:
  * - Gym does NOT require check-in (no checkinSecret)
  * - Gym requires check-in AND member has checked in today
+ *
+ * @param memberId - The member's ID
+ * @param tx - Optional transaction client for atomic operations
  */
-async function hasValidGymCheckin(memberId: string): Promise<boolean> {
+async function hasValidGymCheckin(
+  memberId: string,
+  tx: TransactionClient = prisma
+): Promise<boolean> {
   // First, get the member's gym to check if check-in is required
-  const member = await prisma.member.findUnique({
+  const member = await tx.member.findUnique({
     where: { id: memberId },
     select: {
       gymId: true,
@@ -41,7 +58,7 @@ async function hasValidGymCheckin(memberId: string): Promise<boolean> {
   const today = new Date();
   today.setUTCHours(0, 0, 0, 0);
 
-  const checkin = await prisma.gymCheckin.findUnique({
+  const checkin = await tx.gymCheckin.findUnique({
     where: {
       memberId_date: {
         memberId,
@@ -60,6 +77,9 @@ async function hasValidGymCheckin(memberId: string): Promise<boolean> {
  * IMPORTANT: Training points require a valid gym check-in for the day
  * (anti-cheating measure - members must be physically at the gym)
  *
+ * Uses Serializable isolation to prevent race conditions where concurrent
+ * requests could double-award points or incorrectly calculate streaks.
+ *
  * @param memberId - The member's ID
  * @param logType - Type of log: meal, training, or water
  * @returns Object indicating if points were awarded and reason if not
@@ -69,76 +89,86 @@ export async function awardPointsForLog(
   logType: LogType
 ): Promise<{ awarded: boolean; reason?: string }> {
   try {
-    const now = new Date();
+    const result = await prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
 
-    // Find active challenge participation for this member
-    const participation = await prisma.challengeParticipant.findFirst({
-      where: {
-        memberId,
-        challenge: {
-          status: { in: ["registration", "active"] },
-          startDate: { lte: now },
-          endDate: { gte: now },
-        },
-      },
-      include: {
-        challenge: true,
-      },
-    });
+        // Find active challenge participation for this member
+        const participation = await tx.challengeParticipant.findFirst({
+          where: {
+            memberId,
+            challenge: {
+              status: { in: ["registration", "active"] },
+              startDate: { lte: now },
+              endDate: { gte: now },
+            },
+          },
+          include: {
+            challenge: true,
+          },
+        });
 
-    // No active participation, nothing to do
-    if (!participation) {
-      return { awarded: false, reason: "not_participating" };
-    }
-
-    const challenge = participation.challenge;
-
-    // Determine points based on log type
-    let pointsToAdd = 0;
-    let pointField: "mealPoints" | "trainingPoints" | "waterPoints";
-
-    switch (logType) {
-      case "meal":
-        pointsToAdd = challenge.pointsPerMeal;
-        pointField = "mealPoints";
-        break;
-      case "training":
-        // Training requires gym check-in verification
-        const hasCheckin = await hasValidGymCheckin(memberId);
-        if (!hasCheckin) {
-          // Log training but don't award challenge points
-          return { awarded: false, reason: "no_gym_checkin" };
+        // No active participation, nothing to do
+        if (!participation) {
+          return { awarded: false, reason: "not_participating" } as const;
         }
-        pointsToAdd = challenge.pointsPerTraining;
-        pointField = "trainingPoints";
-        break;
-      case "water":
-        pointsToAdd = challenge.pointsPerWater;
-        pointField = "waterPoints";
-        break;
-    }
 
-    // Calculate streak bonus
-    const { newStreak, awardBonus } = calculateStreakBonus(
-      participation.lastActiveDate,
-      participation.currentStreak
+        const challenge = participation.challenge;
+
+        // Determine points based on log type
+        let pointsToAdd = 0;
+        let pointField: "mealPoints" | "trainingPoints" | "waterPoints";
+
+        switch (logType) {
+          case "meal":
+            pointsToAdd = challenge.pointsPerMeal;
+            pointField = "mealPoints";
+            break;
+          case "training":
+            // Training requires gym check-in verification (use transaction client)
+            const hasCheckin = await hasValidGymCheckin(memberId, tx);
+            if (!hasCheckin) {
+              // Log training but don't award challenge points
+              return { awarded: false, reason: "no_gym_checkin" } as const;
+            }
+            pointsToAdd = challenge.pointsPerTraining;
+            pointField = "trainingPoints";
+            break;
+          case "water":
+            pointsToAdd = challenge.pointsPerWater;
+            pointField = "waterPoints";
+            break;
+        }
+
+        // Calculate streak bonus
+        const { newStreak, awardBonus } = calculateStreakBonus(
+          participation.lastActiveDate,
+          participation.currentStreak
+        );
+
+        const streakPointsToAdd = awardBonus ? challenge.streakBonus : 0;
+
+        // Update participant points atomically within transaction
+        await tx.challengeParticipant.update({
+          where: { id: participation.id },
+          data: {
+            [pointField]: { increment: pointsToAdd },
+            totalPoints: { increment: pointsToAdd + streakPointsToAdd },
+            streakPoints: { increment: streakPointsToAdd },
+            currentStreak: newStreak,
+            lastActiveDate: now,
+          },
+        });
+
+        return { awarded: true } as const;
+      },
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 5000, // 5 second timeout to prevent deadlocks
+      }
     );
 
-    const streakPointsToAdd = awardBonus ? challenge.streakBonus : 0;
-
-    // Update participant points
-    await prisma.challengeParticipant.update({
-      where: { id: participation.id },
-      data: {
-        [pointField]: { increment: pointsToAdd },
-        totalPoints: { increment: pointsToAdd + streakPointsToAdd },
-        streakPoints: { increment: streakPointsToAdd },
-        currentStreak: newStreak,
-        lastActiveDate: now,
-      },
-    });
-
-    return { awarded: true };
+    return result;
   } catch (error) {
     // Log error but don't throw - point awarding should not break logging
     console.error("Error awarding points for log:", error);
@@ -150,42 +180,53 @@ export async function awardPointsForLog(
  * Award points to a member for completing a weekly check-in
  * Only awards points if member is participating in an active challenge
  *
+ * Uses Serializable isolation to prevent race conditions where concurrent
+ * requests could double-award check-in points.
+ *
  * @param memberId - The member's ID
  */
 export async function awardPointsForCheckin(memberId: string): Promise<void> {
   try {
-    const now = new Date();
+    await prisma.$transaction(
+      async (tx) => {
+        const now = new Date();
 
-    // Find active challenge participation for this member
-    const participation = await prisma.challengeParticipant.findFirst({
-      where: {
-        memberId,
-        challenge: {
-          status: { in: ["registration", "active"] },
-          startDate: { lte: now },
-          endDate: { gte: now },
-        },
+        // Find active challenge participation for this member
+        const participation = await tx.challengeParticipant.findFirst({
+          where: {
+            memberId,
+            challenge: {
+              status: { in: ["registration", "active"] },
+              startDate: { lte: now },
+              endDate: { gte: now },
+            },
+          },
+          include: {
+            challenge: true,
+          },
+        });
+
+        // No active participation, nothing to do
+        if (!participation) {
+          return;
+        }
+
+        const pointsToAdd = participation.challenge.pointsPerCheckin;
+
+        // Update participant points atomically within transaction
+        await tx.challengeParticipant.update({
+          where: { id: participation.id },
+          data: {
+            checkinPoints: { increment: pointsToAdd },
+            totalPoints: { increment: pointsToAdd },
+          },
+        });
       },
-      include: {
-        challenge: true,
-      },
-    });
-
-    // No active participation, nothing to do
-    if (!participation) {
-      return;
-    }
-
-    const pointsToAdd = participation.challenge.pointsPerCheckin;
-
-    // Update participant points
-    await prisma.challengeParticipant.update({
-      where: { id: participation.id },
-      data: {
-        checkinPoints: { increment: pointsToAdd },
-        totalPoints: { increment: pointsToAdd },
-      },
-    });
+      {
+        isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+        timeout: 5000, // 5 second timeout to prevent deadlocks
+      }
+    );
   } catch (error) {
     // Log error but don't throw - point awarding should not break check-in
     console.error("Error awarding points for checkin:", error);
@@ -197,12 +238,18 @@ export async function awardPointsForCheckin(memberId: string): Promise<void> {
  * Sorted by total points (desc), then by join date (asc) for tie-breaking
  *
  * @param challengeId - The challenge ID
- * @param limit - Optional limit for number of results
+ * @param limit - Optional limit for number of results (default: 50, max: 200)
  */
 export async function getChallengeLeaderboard(
   challengeId: string,
   limit?: number
 ) {
+  // Apply pagination defaults and max limit to prevent unbounded queries
+  const effectiveLimit = Math.min(
+    limit ?? DEFAULT_LEADERBOARD_LIMIT,
+    MAX_LEADERBOARD_LIMIT
+  );
+
   return prisma.challengeParticipant.findMany({
     where: { challengeId },
     include: {
@@ -219,7 +266,7 @@ export async function getChallengeLeaderboard(
       { totalPoints: "desc" },
       { joinedAt: "asc" }, // Earlier joiners rank higher on tie
     ],
-    take: limit,
+    take: effectiveLimit,
   });
 }
 

@@ -9,8 +9,7 @@ import {
 } from "@/lib/ai/agents";
 import { calculateDailyTargets, Goal } from "@/lib/calculations";
 import {
-  checkRateLimit,
-  incrementUsage,
+  checkAndIncrementRateLimit,
   checkGymBudget,
   trackAIUsage,
 } from "@/lib/ai/cache";
@@ -66,8 +65,8 @@ export async function POST(
       );
     }
 
-    // Check rate limit
-    const rateLimit = await checkRateLimit(
+    // Check and atomically increment rate limit (prevents race conditions)
+    const rateLimit = await checkAndIncrementRateLimit(
       authResult.memberId,
       member.subscriptionStatus
     );
@@ -226,14 +225,9 @@ export async function POST(
       coachKnowledge
     );
 
-    // Track usage and costs
+    // Track usage and costs (usage already incremented atomically at rate limit check)
     if (!aiResponse.error) {
-      await Promise.all([
-        incrementUsage(authResult.memberId),
-        trackAIUsage(member.gymId, aiResponse.tokensIn, aiResponse.tokensOut),
-      ]);
-    } else {
-      await incrementUsage(authResult.memberId);
+      await trackAIUsage(member.gymId, aiResponse.tokensIn, aiResponse.tokensOut);
     }
 
     // Save to chat history with agent type
@@ -256,7 +250,7 @@ export async function POST(
 
     return NextResponse.json({
       response: aiResponse.text,
-      remaining: rateLimit.remaining - 1,
+      remaining: rateLimit.remaining,
       limit: rateLimit.limit,
     });
   } catch (error) {

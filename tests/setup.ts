@@ -166,6 +166,18 @@ vi.mock('@/lib/auth', () => ({
   generateStaffId: vi.fn(),
 }))
 
+// Mock AI cache module (rate limiting)
+vi.mock('@/lib/ai/cache', () => ({
+  checkAndIncrementRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 20 }),
+  decrementUsage: vi.fn().mockResolvedValue(undefined),
+  checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 20 }),
+  incrementUsage: vi.fn().mockResolvedValue(undefined),
+  trackUsage: vi.fn().mockResolvedValue(undefined),
+  checkCache: vi.fn().mockResolvedValue(null),
+  setCache: vi.fn().mockResolvedValue(undefined),
+  cleanupOldCache: vi.fn().mockResolvedValue(undefined),
+}))
+
 // Mock QRCode
 vi.mock('qrcode', () => ({
   default: {
@@ -185,6 +197,24 @@ vi.mock('@anthropic-ai/sdk', () => ({
     },
   })),
 }))
+
+// Mock Vercel Blob
+const mockBlobResult = {
+  url: 'https://test.blob.vercel-storage.com/test-image.jpg',
+  downloadUrl: 'https://test.blob.vercel-storage.com/test-image.jpg',
+  pathname: 'test-image.jpg',
+  contentType: 'image/jpeg',
+  contentDisposition: 'attachment; filename="test-image.jpg"',
+}
+
+vi.mock('@vercel/blob', () => {
+  return {
+    put: vi.fn(() => Promise.resolve(mockBlobResult)),
+    del: vi.fn(() => Promise.resolve(undefined)),
+    head: vi.fn(() => Promise.resolve(null)),
+    list: vi.fn(() => Promise.resolve({ blobs: [] })),
+  }
+})
 
 // Reset all mocks before each test
 beforeEach(() => {

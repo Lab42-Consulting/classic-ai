@@ -3,6 +3,7 @@ import { getSession, getMemberFromSession, getMemberAuthErrorMessage } from "@/l
 import prisma from "@/lib/db";
 import Anthropic from "@anthropic-ai/sdk";
 import { lookupIngredient, searchIngredients } from "@/lib/nutrition/ingredient-lookup";
+import { checkAndIncrementRateLimit } from "@/lib/ai/cache";
 
 const INGREDIENT_DEDUCTION_PROMPT = `You are a nutrition database assistant. Given an ingredient name and portion size, provide accurate nutritional estimates.
 
@@ -27,69 +28,6 @@ interface DeducedNutrition {
   fats: number;
 }
 
-// Rate limit check - uses the same daily limit as other AI features
-async function checkRateLimit(memberId: string, subscriptionStatus: string): Promise<{
-  allowed: boolean;
-  remaining: number;
-  limit: number;
-}> {
-  const limits: Record<string, number> = {
-    trial: 5,
-    active: 20,
-    expired: 0,
-    cancelled: 0,
-  };
-
-  const limit = limits[subscriptionStatus] || 0;
-
-  if (limit === 0) {
-    return { allowed: false, remaining: 0, limit: 0 };
-  }
-
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  const usage = await prisma.aIUsageDaily.findUnique({
-    where: {
-      memberId_date: {
-        memberId,
-        date: today,
-      },
-    },
-  });
-
-  const currentCount = usage?.count || 0;
-  const remaining = Math.max(0, limit - currentCount);
-
-  return {
-    allowed: currentCount < limit,
-    remaining,
-    limit,
-  };
-}
-
-// Increment usage counter
-async function incrementUsage(memberId: string): Promise<void> {
-  const today = new Date();
-  today.setHours(0, 0, 0, 0);
-
-  await prisma.aIUsageDaily.upsert({
-    where: {
-      memberId_date: {
-        memberId,
-        date: today,
-      },
-    },
-    update: {
-      count: { increment: 1 },
-    },
-    create: {
-      memberId,
-      date: today,
-      count: 1,
-    },
-  });
-}
 
 // Call AI to deduce nutrition
 async function callAI(name: string, portionSize: string): Promise<DeducedNutrition | null> {
@@ -218,8 +156,8 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ error: "Member not found" }, { status: 404 });
       }
 
-      // Check rate limit
-      const rateLimit = await checkRateLimit(memberId, member.subscriptionStatus);
+      // Check and atomically increment rate limit (prevents race conditions)
+      const rateLimit = await checkAndIncrementRateLimit(memberId, member.subscriptionStatus);
 
       if (!rateLimit.allowed) {
         return NextResponse.json(
@@ -236,7 +174,7 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Call AI
+      // Call AI (usage already incremented atomically above)
       const aiResult = await callAI(name.trim(), portionSize.trim());
 
       if (!aiResult) {
@@ -252,16 +190,13 @@ export async function POST(request: NextRequest) {
         );
       }
 
-      // Increment usage counter
-      await incrementUsage(memberId);
-
       // Return AI result
       return NextResponse.json({
         success: true,
         source: "ai",
         confidence: "medium",
         ...aiResult,
-        remaining: rateLimit.remaining - 1,
+        remaining: rateLimit.remaining,
         limit: rateLimit.limit,
       });
     }

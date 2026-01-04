@@ -52,6 +52,8 @@ export async function POST(request: NextRequest) {
       userId: staff.id,
       userType: "staff",
       gymId: staff.gymId,
+      // Cache linkedMemberId in JWT to avoid DB lookup on every request
+      linkedMemberId: staff.linkedMember?.id,
     });
 
     await setSessionCookie(token);

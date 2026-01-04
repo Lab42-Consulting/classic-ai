@@ -70,8 +70,8 @@ export function ImageCropper({
       saving: "Čuvam...",
       compressing: "Kompresija slike...",
       dragHint: "Prevuci za pozicioniranje",
-      maxSize: "Max 5MB, JPEG/PNG/WebP",
-      errorTooLarge: "Slika je prevelika. Maksimum je 5MB.",
+      maxSize: "JPEG/PNG/WebP/HEIC",
+      errorTooLarge: "Slika je prevelika. Maksimum je 10MB.",
       errorInvalidType: "Nevažeći format. Koristi JPEG, PNG ili WebP.",
       errorCompressionFailed: "Nije moguće kompresovati sliku dovoljno.",
     },
@@ -84,8 +84,8 @@ export function ImageCropper({
       saving: "Saving...",
       compressing: "Compressing image...",
       dragHint: "Drag to position",
-      maxSize: "Max 5MB, JPEG/PNG/WebP",
-      errorTooLarge: "Image is too large. Maximum is 5MB.",
+      maxSize: "JPEG/PNG/WebP/HEIC",
+      errorTooLarge: "Image is too large. Maximum is 10MB.",
       errorInvalidType: "Invalid format. Use JPEG, PNG, or WebP.",
       errorCompressionFailed: "Unable to compress image enough.",
     },
@@ -97,14 +97,26 @@ export function ImageCropper({
 
     setError("");
 
-    // Validate file type
-    if (!file.type.startsWith("image/")) {
+    // Validate file type - be lenient since mobile browsers may have empty/wrong file.type
+    // Trust the accept attribute filter, but reject obviously non-image files
+    const fileType = file.type || "";
+    const fileName = file.name.toLowerCase();
+    const isImage = fileType.startsWith("image/") ||
+      fileName.endsWith(".jpg") ||
+      fileName.endsWith(".jpeg") ||
+      fileName.endsWith(".png") ||
+      fileName.endsWith(".webp") ||
+      fileName.endsWith(".heic") ||
+      fileName.endsWith(".heif");
+
+    if (!isImage) {
       setError(t.errorInvalidType);
       return;
     }
 
-    // Validate file size (5MB max for input, will be compressed on save)
-    if (file.size > 5 * 1024 * 1024) {
+    // Validate file size (10MB max for input - generous limit since we compress on save)
+    // iPhones converting HEIC→JPEG can inflate file size significantly
+    if (file.size > 10 * 1024 * 1024) {
       setError(t.errorTooLarge);
       return;
     }
@@ -226,7 +238,7 @@ export function ImageCropper({
         <input
           ref={fileInputRef}
           type="file"
-          accept="image/jpeg,image/png,image/webp"
+          accept="image/jpeg,image/png,image/webp,image/heic,image/heif"
           onChange={handleFileSelect}
           className="hidden"
         />

@@ -1,6 +1,6 @@
 "use client";
 
-import { useState } from "react";
+import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import {
   Button,
@@ -59,6 +59,10 @@ interface HomeData {
   consumedCalories: number;
   consumedProtein: number;
   targetProtein: number;
+  consumedCarbs: number;
+  targetCarbs: number;
+  consumedFats: number;
+  targetFats: number;
   macros: {
     protein: { percentage: number; status: StatusType };
     carbs: { percentage: number; status: StatusType };
@@ -120,8 +124,29 @@ export function HomeClient({ data }: HomeClientProps) {
   const [mealHistoryLogs, setMealHistoryLogs] = useState<LogEntry[]>([]);
   const [mealHistoryLoading, setMealHistoryLoading] = useState(false);
   const [expandedMealId, setExpandedMealId] = useState<string | null>(null);
+  const [ringView, setRingView] = useState<"calories" | "macros">("calories");
+  const [touchStart, setTouchStart] = useState<number | null>(null);
+  const [animatedMacros, setAnimatedMacros] = useState({ protein: 0, carbs: 0, fats: 0 });
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
+
+  // Animate macro ring when switching to macro view
+  useEffect(() => {
+    if (ringView === "macros") {
+      // Animate to actual values after a brief delay (starts from 0)
+      const timer = setTimeout(() => {
+        setAnimatedMacros({
+          protein: data.macros.protein.percentage,
+          carbs: data.macros.carbs.percentage,
+          fats: data.macros.fats.percentage,
+        });
+      }, 50);
+      return () => clearTimeout(timer);
+    } else {
+      // Reset to 0 when switching away from macros view
+      setAnimatedMacros({ protein: 0, carbs: 0, fats: 0 });
+    }
+  }, [ringView, data.macros.protein.percentage, data.macros.carbs.percentage, data.macros.fats.percentage]);
 
   // Fetch today's meal history
   const fetchMealHistory = async () => {
@@ -295,6 +320,30 @@ export function HomeClient({ data }: HomeClientProps) {
       .join("")
       .toUpperCase()
       .slice(0, 2);
+  };
+
+  // Handle swipe gestures for ring view toggle
+  const handleTouchStart = (e: React.TouchEvent) => {
+    setTouchStart(e.touches[0].clientX);
+  };
+
+  const handleTouchEnd = (e: React.TouchEvent) => {
+    if (touchStart === null) return;
+
+    const touchEnd = e.changedTouches[0].clientX;
+    const diff = touchStart - touchEnd;
+    const minSwipeDistance = 50;
+
+    if (Math.abs(diff) > minSwipeDistance) {
+      // Swipe detected - toggle view
+      setRingView(prev => prev === "calories" ? "macros" : "calories");
+    }
+    setTouchStart(null);
+  };
+
+  const handleRingTap = () => {
+    // Tap always opens meal history
+    handleOpenMealHistory();
   };
 
   return (
@@ -772,62 +821,198 @@ export function HomeClient({ data }: HomeClientProps) {
               </div>
             </div>
 
-            {/* Calorie Ring - Clickable to show meal history */}
-            <button
-              onClick={handleOpenMealHistory}
-              className="flex justify-center py-6 w-full cursor-pointer hover:opacity-90 transition-opacity"
-              aria-label="Pogledaj istoriju obroka"
+            {/* Progress Ring - Swipe to toggle view, tap for meal history */}
+            <div
+              onTouchStart={handleTouchStart}
+              onTouchEnd={handleTouchEnd}
+              className="relative"
             >
-              <ProgressRing
-                progress={calorieProgress}
-                size={220}
-                strokeWidth={14}
-                showOverflow={true}
+              <button
+                onClick={handleRingTap}
+                className="flex justify-center pt-6 pb-3 w-full cursor-pointer hover:opacity-90 transition-opacity"
+                aria-label="Pogledaj istoriju obroka"
               >
-                <div className="text-center">
-                  {isOverCalories ? (
-                    <>
-                      <div className="text-5xl text-display text-number text-error">
-                        +<AnimatedNumber value={caloriesOver} />
-                      </div>
-                      <p className="text-error text-sm mt-1">
-                        {t.home.caloriesOver}
-                      </p>
-                    </>
-                  ) : (
-                    <>
-                      <div className="text-5xl text-display text-number text-foreground">
-                        <AnimatedNumber value={data.caloriesRemaining} />
-                      </div>
-                      <p className="text-foreground-muted text-sm mt-1">
-                        {t.home.caloriesLeft}
-                      </p>
-                    </>
-                  )}
-                  <p className="text-xs text-foreground-muted/60 mt-2 flex items-center justify-center gap-1 animate-pulse">
-                    <svg className="w-3 h-3" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 15l-2 5L9 9l11 4-5 2zm0 0l5 5M7.188 2.239l.777 2.897M5.136 7.965l-2.898-.777M13.95 4.05l-2.122 2.122m-5.657 5.656l-2.12 2.122" />
+                {ringView === "calories" ? (
+                  // Calorie Ring - Single color progress
+                  <ProgressRing
+                    progress={calorieProgress}
+                    size={220}
+                    strokeWidth={14}
+                    showOverflow={true}
+                  >
+                    <div className="text-center">
+                      {isOverCalories ? (
+                        <>
+                          <div className="text-5xl text-display text-number text-error">
+                            +<AnimatedNumber value={caloriesOver} />
+                          </div>
+                          <p className="text-error text-sm mt-1">
+                            {t.home.caloriesOver}
+                          </p>
+                        </>
+                      ) : (
+                        <>
+                          <div className="text-5xl text-display text-number text-foreground">
+                            <AnimatedNumber value={data.caloriesRemaining} />
+                          </div>
+                          <p className="text-foreground-muted text-sm mt-1">
+                            {t.home.caloriesLeft}
+                          </p>
+                        </>
+                      )}
+                    </div>
+                  </ProgressRing>
+                ) : (
+                  // Macro Ring - Multi-segment colored ring
+                  <div className="relative inline-flex items-center justify-center">
+                    <svg
+                      width={244}
+                      height={244}
+                      className="transform -rotate-90"
+                      style={{ overflow: "visible" }}
+                    >
+                      {/* Background circle */}
+                      <circle
+                        cx={122}
+                        cy={122}
+                        r={103}
+                        fill="none"
+                        stroke="var(--background-tertiary)"
+                        strokeWidth={14}
+                      />
+                      {/* Protein arc (green) - starts at top */}
+                      <circle
+                        cx={122}
+                        cy={122}
+                        r={103}
+                        fill="none"
+                        stroke="#22c55e"
+                        strokeWidth={14}
+                        strokeLinecap="round"
+                        strokeDasharray={`${(Math.min(animatedMacros.protein, 100) / 100) * 215} 647`}
+                        strokeDashoffset={0}
+                        className="transition-all duration-[1500ms] ease-out"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(34, 197, 94, 0.4))" }}
+                      />
+                      {/* Carbs arc (amber) - starts at 120deg */}
+                      <circle
+                        cx={122}
+                        cy={122}
+                        r={103}
+                        fill="none"
+                        stroke="#fbbf24"
+                        strokeWidth={14}
+                        strokeLinecap="round"
+                        strokeDasharray={`${(Math.min(animatedMacros.carbs, 100) / 100) * 215} 647`}
+                        strokeDashoffset={-215}
+                        className="transition-all duration-[1500ms] ease-out"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(251, 191, 36, 0.4))" }}
+                      />
+                      {/* Fats arc (purple) - starts at 240deg */}
+                      <circle
+                        cx={122}
+                        cy={122}
+                        r={103}
+                        fill="none"
+                        stroke="#a855f7"
+                        strokeWidth={14}
+                        strokeLinecap="round"
+                        strokeDasharray={`${(Math.min(animatedMacros.fats, 100) / 100) * 215} 647`}
+                        strokeDashoffset={-430}
+                        className="transition-all duration-[1500ms] ease-out"
+                        style={{ filter: "drop-shadow(0 0 6px rgba(168, 85, 247, 0.4))" }}
+                      />
                     </svg>
-                    Dodirni za detalje
-                  </p>
-                </div>
-              </ProgressRing>
-            </button>
+                    {/* Center content */}
+                    <div className="absolute inset-0 flex items-center justify-center">
+                      <div className="text-center">
+                        <div className="flex items-center justify-center gap-4">
+                          <div className="text-center">
+                            <div>
+                              <span className="text-2xl font-bold text-number text-emerald-400">{data.consumedProtein}</span>
+                              <span className="text-sm text-emerald-400/50">g</span>
+                            </div>
+                            <p className="text-[10px] text-emerald-400/60 mt-0.5">Proteini</p>
+                          </div>
+                          <div className="text-center">
+                            <div>
+                              <span className="text-2xl font-bold text-number text-amber-400">{data.consumedCarbs}</span>
+                              <span className="text-sm text-amber-400/50">g</span>
+                            </div>
+                            <p className="text-[10px] text-amber-400/60 mt-0.5">Ugljeni</p>
+                          </div>
+                          <div className="text-center">
+                            <div>
+                              <span className="text-2xl font-bold text-number text-purple-400">{data.consumedFats}</span>
+                              <span className="text-sm text-purple-400/50">g</span>
+                            </div>
+                            <p className="text-[10px] text-purple-400/60 mt-0.5">Masti</p>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                )}
+              </button>
+            </div>
 
-            {/* Consumed / Target */}
-            <div className="flex justify-center gap-8 text-center">
-              <div>
-                <p className={`text-2xl font-semibold text-number ${isOverCalories ? "text-error" : "text-foreground"}`}>
-                  <AnimatedNumber value={data.consumedCalories} />
-                </p>
-                <p className="text-xs text-foreground-muted">{t.home.consumed}</p>
+            {/* Stats below ring - changes based on view */}
+            {ringView === "calories" ? (
+              <div className="flex items-center justify-center text-center">
+                <div className="w-20 text-right">
+                  <p className={`text-2xl font-semibold text-number ${isOverCalories ? "text-error" : "text-foreground"}`}>
+                    <AnimatedNumber value={data.consumedCalories} />
+                  </p>
+                  <p className="text-xs text-foreground-muted">{t.home.consumed}</p>
+                </div>
+                <div className="w-px h-10 bg-border mx-6" />
+                <div className="w-20 text-left">
+                  <p className="text-2xl font-semibold text-number text-foreground">
+                    {data.targetCalories.toLocaleString()}
+                  </p>
+                  <p className="text-xs text-foreground-muted">{t.home.target}</p>
+                </div>
               </div>
-              <div className="w-px bg-border" />
-              <div>
-                <p className="text-2xl font-semibold text-number text-foreground">
-                  {data.targetCalories.toLocaleString()}
-                </p>
-                <p className="text-xs text-foreground-muted">{t.home.target}</p>
+            ) : (
+              <div className="flex items-center justify-center gap-6">
+                <div className="text-center">
+                  <p className="text-xl font-semibold text-number text-emerald-400">
+                    {data.targetProtein}g
+                  </p>
+                  <p className="text-xs text-foreground-muted">cilj P</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-semibold text-number text-amber-400">
+                    {data.targetCarbs}g
+                  </p>
+                  <p className="text-xs text-foreground-muted">cilj U</p>
+                </div>
+                <div className="text-center">
+                  <p className="text-xl font-semibold text-number text-purple-400">
+                    {data.targetFats}g
+                  </p>
+                  <p className="text-xs text-foreground-muted">cilj M</p>
+                </div>
+              </div>
+            )}
+
+            {/* View Toggle */}
+            <div className="flex justify-center mt-3">
+              <div className="inline-flex items-center gap-1 px-1.5 py-1 rounded-full bg-white/[0.03]">
+                <button
+                  onClick={() => setRingView("calories")}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    ringView === "calories" ? "w-3 bg-accent" : "w-1 bg-white/15"
+                  }`}
+                  aria-label="Prikaži kalorije"
+                />
+                <button
+                  onClick={() => setRingView("macros")}
+                  className={`h-1 rounded-full transition-all duration-300 ${
+                    ringView === "macros" ? "w-3 bg-accent" : "w-1 bg-white/15"
+                  }`}
+                  aria-label="Prikaži makronutrijente"
+                />
               </div>
             </div>
 
@@ -870,7 +1055,7 @@ export function HomeClient({ data }: HomeClientProps) {
           </GlassCard>
         </SlideUp>
 
-        {/* Macro Distribution */}
+        {/* Macro Distribution - commented out, now integrated into ring toggle
         <SlideUp delay={200}>
           <GlassCard>
             <h3 className="text-label mb-4">{t.home.macroBalance}</h3>
@@ -898,6 +1083,7 @@ export function HomeClient({ data }: HomeClientProps) {
             </div>
           </GlassCard>
         </SlideUp>
+        */}
 
         {/* Today's Stats Row */}
         <SlideUp delay={300}>

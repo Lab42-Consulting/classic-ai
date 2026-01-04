@@ -16,7 +16,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { type, mealSize, mealName, customCalories, customProtein, customCarbs, customFats } = body;
+    const { type, mealSize, mealName, mealPhotoUrl, customCalories, customProtein, customCarbs, customFats } = body;
 
     if (!type || !["meal", "training", "water"].includes(type)) {
       return NextResponse.json(
@@ -38,6 +38,7 @@ export async function POST(request: NextRequest) {
       type: string;
       mealSize?: string;
       mealName?: string;
+      mealPhotoUrl?: string;
       estimatedCalories?: number;
       estimatedProtein?: number;
       estimatedCarbs?: number;
@@ -68,6 +69,7 @@ export async function POST(request: NextRequest) {
           ...logData,
           mealSize,
           mealName: mealName || undefined,
+          mealPhotoUrl: mealPhotoUrl || undefined,
           estimatedCalories: customCalories,
           estimatedProtein: customProtein || undefined,
           estimatedCarbs: customCarbs || undefined,

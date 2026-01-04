@@ -16,6 +16,7 @@ interface SavedMeal {
   totalProtein?: number | null;
   totalCarbs?: number | null;
   totalFats?: number | null;
+  photoUrl?: string | null;
   ingredients: { name: string }[];
   isCoachMeal?: boolean;
   coachName?: string;
@@ -137,6 +138,7 @@ function LogPageContent() {
         type: string;
         mealSize?: string;
         mealName?: string;
+        mealPhotoUrl?: string;
         customCalories?: number;
         customProtein?: number;
         customCarbs?: number;
@@ -151,6 +153,7 @@ function LogPageContent() {
           // Exact macros mode with coach meal selected
           payload.mealSize = "saved";
           payload.mealName = selectedSavedMeal.name;
+          payload.mealPhotoUrl = selectedSavedMeal.photoUrl || undefined;
           payload.customCalories = selectedSavedMeal.totalCalories;
           payload.customProtein = selectedSavedMeal.totalProtein || undefined;
           payload.customCarbs = selectedSavedMeal.totalCarbs || undefined;
@@ -166,6 +169,7 @@ function LogPageContent() {
           // Saved meal mode: use saved meal values
           payload.mealSize = "saved";
           payload.mealName = selectedSavedMeal.name;
+          payload.mealPhotoUrl = selectedSavedMeal.photoUrl || undefined;
           payload.customCalories = selectedSavedMeal.totalCalories;
           payload.customProtein = selectedSavedMeal.totalProtein || undefined;
           payload.customCarbs = selectedSavedMeal.totalCarbs || undefined;

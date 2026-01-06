@@ -49,6 +49,30 @@ interface ChallengeData {
   } | null;
 }
 
+interface SessionRequestData {
+  id: string;
+  coachId: string;
+  coachName: string;
+  sessionType: string;
+  proposedAt: string;
+  duration: number;
+  location: string;
+  note: string | null;
+  status: string;
+  counterCount: number;
+  lastActionAt: string;
+}
+
+interface UpcomingSessionData {
+  id: string;
+  coachId: string;
+  coachName: string;
+  sessionType: string;
+  scheduledAt: string;
+  duration: number;
+  location: string;
+}
+
 interface HomeData {
   memberName: string;
   memberAvatarUrl: string | null;
@@ -80,6 +104,9 @@ interface HomeData {
   isStaffMember: boolean;
   // Active challenge
   activeChallenge: ChallengeData | null;
+  // Session scheduling
+  pendingSessionRequests: SessionRequestData[];
+  upcomingSessions: UpcomingSessionData[];
 }
 
 interface HomeClientProps {
@@ -669,6 +696,94 @@ export function HomeClient({ data }: HomeClientProps) {
           </div>
         );
       })()}
+
+      {/* Pending Session Requests Banner */}
+      {data.pendingSessionRequests.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={30}>
+            <button
+              onClick={() => router.push("/sessions")}
+              className="w-full relative bg-gradient-to-r from-accent/20 to-accent/5 border border-accent/30 rounded-2xl p-5 text-left hover:bg-accent/10 transition-colors"
+            >
+              <div className="flex items-center gap-4">
+                <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-2xl">📅</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <div className="flex items-center gap-2 mb-1">
+                    <h3 className="text-lg font-semibold text-accent">
+                      {data.pendingSessionRequests.length === 1
+                        ? "Zahtev za termin"
+                        : `${data.pendingSessionRequests.length} zahteva za termine`}
+                    </h3>
+                    <span className="flex h-2 w-2">
+                      <span className="animate-ping absolute inline-flex h-2 w-2 rounded-full bg-accent opacity-75"></span>
+                      <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                    </span>
+                  </div>
+                  <p className="text-sm text-foreground-muted">
+                    {data.pendingSessionRequests[0].coachName} -{" "}
+                    {data.pendingSessionRequests[0].sessionType === "training"
+                      ? "Trening"
+                      : data.pendingSessionRequests[0].sessionType === "consultation"
+                      ? "Konsultacija"
+                      : "Pregled"}
+                    {data.pendingSessionRequests.length > 1 && ` i još ${data.pendingSessionRequests.length - 1}`}
+                  </p>
+                  <p className="text-xs text-accent mt-1">Pogledaj i odgovori →</p>
+                </div>
+                <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          </SlideUp>
+        </div>
+      )}
+
+      {/* Upcoming Sessions Banner */}
+      {data.upcomingSessions.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={40}>
+            <button
+              onClick={() => router.push("/sessions")}
+              className="w-full relative bg-gradient-to-r from-emerald-500/15 to-emerald-500/5 border border-emerald-500/20 rounded-2xl p-4 text-left hover:bg-emerald-500/10 transition-colors"
+            >
+              <div className="flex items-center gap-3">
+                <div className="w-10 h-10 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-lg">✓</span>
+                </div>
+                <div className="flex-1 min-w-0">
+                  <p className="text-sm font-medium text-emerald-400">
+                    Sledeći termin:{" "}
+                    {new Date(data.upcomingSessions[0].scheduledAt).toLocaleDateString("sr-RS", {
+                      weekday: "short",
+                      day: "numeric",
+                      month: "short",
+                    })}{" "}
+                    u{" "}
+                    {new Date(data.upcomingSessions[0].scheduledAt).toLocaleTimeString("sr-RS", {
+                      hour: "2-digit",
+                      minute: "2-digit",
+                    })}
+                  </p>
+                  <p className="text-xs text-foreground-muted">
+                    {data.upcomingSessions[0].sessionType === "training"
+                      ? "Trening"
+                      : data.upcomingSessions[0].sessionType === "consultation"
+                      ? "Konsultacija"
+                      : "Pregled"}{" "}
+                    sa {data.upcomingSessions[0].coachName}
+                  </p>
+                </div>
+                <svg className="w-4 h-4 text-emerald-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                </svg>
+              </div>
+            </button>
+          </SlideUp>
+        </div>
+      )}
 
       {/* Active/Upcoming Challenge Banner */}
       {data.activeChallenge && (
@@ -1269,11 +1384,11 @@ export function HomeClient({ data }: HomeClientProps) {
             </button>
             {/* Row 2 */}
             <button
-              onClick={() => router.push("/find-coach")}
+              onClick={() => router.push(data.hasCoach ? "/sessions" : "/find-coach")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">👨‍🏫</span>
-              <span className="text-sm text-foreground-muted">Trener</span>
+              <span className="text-2xl block mb-2">{data.hasCoach ? "📅" : "👨‍🏫"}</span>
+              <span className="text-sm text-foreground-muted">{data.hasCoach ? "Termini" : "Trener"}</span>
             </button>
             <button
               onClick={() => router.push("/supplements")}

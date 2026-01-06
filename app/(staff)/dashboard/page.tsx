@@ -71,6 +71,17 @@ interface MemberRequest {
   createdAt: string;
 }
 
+interface SessionRequestPreview {
+  id: string;
+  memberName: string;
+  memberAvatarUrl: string | null;
+  sessionType: string;
+  proposedAt: string;
+  duration: number;
+  location: string;
+  counterCount: number;
+}
+
 
 const activityColors = {
   on_track: "bg-success",
@@ -115,6 +126,7 @@ export default function CoachDashboard() {
   const router = useRouter();
   const [data, setData] = useState<DashboardData | null>(null);
   const [memberRequests, setMemberRequests] = useState<MemberRequest[]>([]);
+  const [sessionRequests, setSessionRequests] = useState<SessionRequestPreview[]>([]);
   const [loading, setLoading] = useState(true);
   const [filter, setFilter] = useState<"all" | "on_track" | "slipping" | "off_track">("all");
   const [processingRequest, setProcessingRequest] = useState<string | null>(null);
@@ -153,6 +165,34 @@ export default function CoachDashboard() {
     }
   };
 
+  const fetchSessionRequests = async () => {
+    try {
+      const response = await fetch("/api/coach/sessions");
+      if (response.ok) {
+        const result = await response.json();
+        // Get only requests where coach needs to respond (member made last action)
+        const pendingRequests = (result.requests || [])
+          .filter((r: { lastActionBy: string | null; status: string; initiatedBy: string }) =>
+            r.lastActionBy === "member" || (r.status === "pending" && r.initiatedBy === "member")
+          )
+          .slice(0, 3) // Show max 3 on dashboard
+          .map((r: { id: string; member: { name: string; avatarUrl: string | null }; sessionType: string; proposedAt: string; duration: number; location: string; counterCount: number }) => ({
+            id: r.id,
+            memberName: r.member.name,
+            memberAvatarUrl: r.member.avatarUrl,
+            sessionType: r.sessionType,
+            proposedAt: r.proposedAt,
+            duration: r.duration,
+            location: r.location,
+            counterCount: r.counterCount,
+          }));
+        setSessionRequests(pendingRequests);
+      }
+    } catch {
+      // Handle error silently
+    }
+  };
+
   useEffect(() => {
     const fetchDashboard = async () => {
       try {
@@ -169,6 +209,8 @@ export default function CoachDashboard() {
           setData(result);
           // Fetch member requests for coaches
           await fetchMemberRequests();
+          // Fetch session requests
+          await fetchSessionRequests();
           // Fetch linked member account
           await fetchLinkedMember();
         }
@@ -378,78 +420,54 @@ export default function CoachDashboard() {
           </div>
         </SlideUp>
 
-        {/* Expiring Subscriptions Alert */}
-        {data.expiringSubscriptions && (
-          data.expiringSubscriptions.expiredCount > 0 ||
-          data.expiringSubscriptions.expiringIn7Days > 0 ||
-          data.expiringSubscriptions.expiringIn30Days > 0
-        ) && (
-          <SlideUp delay={160}>
-            <GlassCard
-              hover
-              className={`cursor-pointer ${
-                data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
-                  ? "border-error/30 bg-error/5"
-                  : "border-warning/30 bg-warning/5"
-              }`}
-              onClick={() => router.push("/members?filter=expiring")}
-            >
-              <div className="flex items-start gap-3">
-                <div className={`w-10 h-10 rounded-full flex items-center justify-center ${
-                  data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
-                    ? "bg-error/20"
-                    : "bg-warning/20"
-                }`}>
-                  <span className="text-lg">💳</span>
-                </div>
-                <div className="flex-1">
-                  <p className={`font-medium ${
-                    data.expiringSubscriptions.expiredCount > 0 || data.expiringSubscriptions.expiringIn7Days > 0
-                      ? "text-error"
-                      : "text-warning"
-                  }`}>
-                    Članarine
-                  </p>
-                  <div className="flex flex-wrap gap-2 mt-1">
-                    {data.expiringSubscriptions.expiredCount > 0 && (
-                      <span className="text-xs bg-error/20 text-error px-2 py-0.5 rounded-full">
-                        {data.expiringSubscriptions.expiredCount} isteklo
-                      </span>
-                    )}
-                    {data.expiringSubscriptions.expiringIn7Days > 0 && (
-                      <span className="text-xs bg-error/20 text-error px-2 py-0.5 rounded-full">
-                        {data.expiringSubscriptions.expiringIn7Days} ističe za 7 dana
-                      </span>
-                    )}
-                    {data.expiringSubscriptions.expiringIn30Days > 0 && (
-                      <span className="text-xs bg-warning/20 text-warning px-2 py-0.5 rounded-full">
-                        {data.expiringSubscriptions.expiringIn30Days} ističe za 30 dana
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <svg className="w-5 h-5 text-foreground-muted flex-shrink-0 mt-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </GlassCard>
-          </SlideUp>
-        )}
 
-        {/* Member Requests Section */}
-        {memberRequests.length > 0 && (
+        {/* Action Required Section - Grouped alerts and pending items */}
+        {(sessionRequests.length > 0 || memberRequests.length > 0 || data.stats.needsAttention > 0) && (
           <SlideUp delay={150}>
             <div className="space-y-3">
-              <div className="flex items-center gap-2">
-                <span className="text-lg">📨</span>
-                <h2 className="font-semibold text-foreground">
-                  Zahtevi članova ({memberRequests.length})
-                </h2>
-              </div>
+              <h2 className="text-label text-foreground-muted flex items-center gap-2">
+                <span className="flex h-2 w-2 relative">
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                  <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                </span>
+                Potrebna akcija
+              </h2>
+
+              {/* Session Requests Card */}
+              {sessionRequests.length > 0 && (
+                <GlassCard
+                  hover
+                  className="cursor-pointer border-accent/20 bg-accent/5"
+                  onClick={() => router.push("/coach-sessions")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-accent" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-accent">
+                        {sessionRequests.length === 1
+                          ? "1 zahtev za termin"
+                          : `${sessionRequests.length} zahteva za termine`}
+                      </p>
+                      <p className="text-sm text-foreground-muted">
+                        {sessionRequests.slice(0, 2).map(r => r.memberName).join(", ")}
+                        {sessionRequests.length > 2 && ` +${sessionRequests.length - 2}`}
+                      </p>
+                    </div>
+                    <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                    </svg>
+                  </div>
+                </GlassCard>
+              )}
+
+              {/* Member Requests */}
               {memberRequests.map((request) => (
                 <GlassCard key={request.id} className="border-accent/20 bg-accent/5">
                   <div className="space-y-3">
-                    {/* Member info */}
                     <div className="flex items-start gap-3">
                       {request.member.avatarUrl ? (
                         <img
@@ -465,7 +483,10 @@ export default function CoachDashboard() {
                         </div>
                       )}
                       <div className="flex-1 min-w-0">
-                        <h3 className="font-medium text-foreground">
+                        <div className="flex items-center gap-2">
+                          <span className="text-xs bg-accent/20 text-accent px-2 py-0.5 rounded-full">Novi klijent</span>
+                        </div>
+                        <h3 className="font-medium text-foreground mt-1">
                           {request.firstName} {request.lastName}
                         </h3>
                         <p className="text-sm text-foreground-muted">
@@ -480,7 +501,6 @@ export default function CoachDashboard() {
                       </div>
                     </div>
 
-                    {/* Message if present */}
                     {request.message && (
                       <div className="bg-background-tertiary rounded-xl p-3">
                         <p className="text-sm text-foreground-muted italic">
@@ -489,7 +509,6 @@ export default function CoachDashboard() {
                       </div>
                     )}
 
-                    {/* Action buttons */}
                     <div className="flex gap-2">
                       <button
                         onClick={() => handleRequestAction(request.id, "accept")}
@@ -509,69 +528,52 @@ export default function CoachDashboard() {
                   </div>
                 </GlassCard>
               ))}
-            </div>
-          </SlideUp>
-        )}
 
-        {/* Discover Members Button */}
-        <SlideUp delay={175}>
-          <GlassCard
-            hover
-            className="cursor-pointer border-accent/20"
-            onClick={() => router.push("/register")}
-          >
-            <div className="flex items-center justify-between">
-              <div className="flex items-center gap-3">
-                <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center">
-                  <span className="text-lg">🔍</span>
-                </div>
-                <div>
-                  <p className="font-medium text-foreground">Pronađi članove</p>
-                  <p className="text-sm text-foreground-muted">Pregledaj članove teretane i pošalji zahtev</p>
-                </div>
-              </div>
-              <svg className="w-5 h-5 text-foreground-muted" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
+              {/* Needs Attention Card */}
+              {data.stats.needsAttention > 0 && (
+                <GlassCard
+                  hover
+                  className="cursor-pointer border-warning/20 bg-warning/5"
+                  onClick={() => setFilter("off_track")}
+                >
+                  <div className="flex items-center gap-3">
+                    <div className="w-10 h-10 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
+                      <svg className="w-5 h-5 text-warning" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                      </svg>
+                    </div>
+                    <div className="flex-1 min-w-0">
+                      <p className="font-medium text-warning">
+                        {data.stats.needsAttention} {data.stats.needsAttention === 1 ? "klijent treba" : "klijenata treba"} pažnju
+                      </p>
+                      <p className="text-sm text-foreground-muted">Klikni da filtriraš listu</p>
+                    </div>
+                    <svg className="w-5 h-5 text-warning flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 9l-7 7-7-7" />
+                    </svg>
+                  </div>
+                </GlassCard>
+              )}
             </div>
-          </GlassCard>
-        </SlideUp>
-
-        {/* Needs Attention Alert */}
-        {data.stats.needsAttention > 0 && (
-          <SlideUp delay={200}>
-            <GlassCard className="border-warning/20 bg-warning/5">
-              <div className="flex items-center gap-3">
-                <span className="text-2xl">⚠️</span>
-                <div>
-                  <p className="text-sm font-medium text-warning">
-                    {data.stats.needsAttention} {data.stats.needsAttention === 1 ? "klijent treba" : "klijenata treba"} pažnju
-                  </p>
-                  <p className="text-xs text-foreground-muted">
-                    Pregledaj označene ispod
-                  </p>
-                </div>
-              </div>
-            </GlassCard>
           </SlideUp>
         )}
 
         {/* Filter Buttons */}
         <SlideUp delay={250}>
-          <div className="flex gap-2 overflow-x-auto pb-2">
+          <div className="grid grid-cols-4 gap-2">
             {(["all", "off_track", "slipping", "on_track"] as const).map((f) => (
               <button
                 key={f}
                 onClick={() => setFilter(f)}
                 className={`
-                  px-4 py-2 rounded-full text-sm font-medium whitespace-nowrap
+                  py-2.5 rounded-xl text-sm font-medium text-center transition-all
                   ${filter === f
-                    ? "bg-accent text-white"
-                    : "bg-background-secondary text-foreground-muted hover:text-foreground"
+                    ? "bg-accent text-white shadow-lg shadow-accent/25"
+                    : "bg-background-secondary text-foreground-muted hover:text-foreground hover:bg-background-tertiary"
                   }
                 `}
               >
-                {f === "all" ? "Svi" : `${activityEmojis[f]} ${activityLabels[f]}`}
+                {f === "all" ? "Svi" : activityEmojis[f]}
               </button>
             ))}
           </div>
@@ -692,16 +694,32 @@ export default function CoachDashboard() {
         </SlideUp>
       </main>
 
-      {/* Assign Member Button */}
+      {/* Bottom Actions */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background to-transparent">
         <FadeIn delay={500}>
-          <Button
-            className="w-full btn-press glow-accent"
-            size="lg"
-            onClick={() => router.push("/register")}
-          >
-            Dodeli novog člana
-          </Button>
+          <div className="flex gap-3">
+            <Button
+              className="flex-1 btn-press glow-accent"
+              size="lg"
+              onClick={() => router.push("/coach-sessions")}
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
+              </svg>
+              Termini
+            </Button>
+            <Button
+              variant="secondary"
+              className="flex-1 btn-press"
+              size="lg"
+              onClick={() => router.push("/register")}
+            >
+              <svg className="w-5 h-5 mr-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M18 9v3m0 0v3m0-3h3m-3 0h-3m-2-5a4 4 0 11-8 0 4 4 0 018 0zM3 20a6 6 0 0112 0v1H3v-1z" />
+              </svg>
+              Novi član
+            </Button>
+          </div>
         </FadeIn>
       </div>
 

@@ -1,143 +1,218 @@
 import { vi, beforeEach, afterEach } from 'vitest'
 
-// Mock Prisma client
-vi.mock('@/lib/db', () => ({
-  default: {
-    member: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      count: vi.fn(),
-    },
-    staff: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      count: vi.fn(),
-    },
-    gym: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    dailyLog: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      delete: vi.fn(),
-    },
-    weeklyCheckin: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-    },
-    coachAssignment: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    coachRequest: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    coachNudge: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    coachKnowledge: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      upsert: vi.fn(),
-    },
-    chatMessage: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-    },
-    aIUsageDaily: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-    },
-    aIUsageMonthly: {
-      findUnique: vi.fn(),
-      upsert: vi.fn(),
-    },
-    aIResponseCache: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-    },
-    customMeal: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    mealIngredient: {
-      findMany: vi.fn(),
-      create: vi.fn(),
-      createMany: vi.fn(),
-      delete: vi.fn(),
-      deleteMany: vi.fn(),
-    },
-    savedIngredient: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    challenge: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-    },
-    challengeParticipant: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      update: vi.fn(),
-      delete: vi.fn(),
-      count: vi.fn(),
-    },
-    gymCheckin: {
-      findUnique: vi.fn(),
-      findFirst: vi.fn(),
-      findMany: vi.fn(),
-      create: vi.fn(),
-      count: vi.fn(),
-    },
-  },
-}))
+// Mock Prisma client - define mocks first, then reference them in both $transaction and default export
+vi.mock('@/lib/db', () => {
+  // Define all model mocks that can be reused
+  const memberMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const staffMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const gymMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  }
+
+  const dailyLogMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const weeklyCheckinMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+  }
+
+  const coachAssignmentMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const coachRequestMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const coachNudgeMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  }
+
+  const coachKnowledgeMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    upsert: vi.fn(),
+  }
+
+  const chatMessageMock = {
+    findMany: vi.fn(),
+    create: vi.fn(),
+  }
+
+  const aIUsageDailyMock = {
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
+  }
+
+  const aIUsageMonthlyMock = {
+    findUnique: vi.fn(),
+    upsert: vi.fn(),
+  }
+
+  const aIResponseCacheMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  }
+
+  const customMealMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const mealIngredientMock = {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    createMany: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  }
+
+  const savedIngredientMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const challengeMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const challengeParticipantMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const gymCheckinMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const sessionRequestMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const sessionProposalMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+  }
+
+  const scheduledSessionMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  // Build the prisma mock object
+  const prismaMock = {
+    member: memberMock,
+    staff: staffMock,
+    gym: gymMock,
+    dailyLog: dailyLogMock,
+    weeklyCheckin: weeklyCheckinMock,
+    coachAssignment: coachAssignmentMock,
+    coachRequest: coachRequestMock,
+    coachNudge: coachNudgeMock,
+    coachKnowledge: coachKnowledgeMock,
+    chatMessage: chatMessageMock,
+    aIUsageDaily: aIUsageDailyMock,
+    aIUsageMonthly: aIUsageMonthlyMock,
+    aIResponseCache: aIResponseCacheMock,
+    customMeal: customMealMock,
+    mealIngredient: mealIngredientMock,
+    savedIngredient: savedIngredientMock,
+    challenge: challengeMock,
+    challengeParticipant: challengeParticipantMock,
+    gymCheckin: gymCheckinMock,
+    sessionRequest: sessionRequestMock,
+    sessionProposal: sessionProposalMock,
+    scheduledSession: scheduledSessionMock,
+    // $transaction passes the same mocks as tx argument
+    $transaction: vi.fn(async (callback: (tx: typeof prismaMock) => Promise<unknown>) => {
+      return callback(prismaMock)
+    }),
+  }
+
+  return { default: prismaMock }
+})
 
 // Mock auth module
 vi.mock('@/lib/auth', () => ({

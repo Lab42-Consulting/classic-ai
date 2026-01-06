@@ -58,6 +58,7 @@ tests/
 │   ├── challenges.test.ts   # Challenge/Game system tests
 │   ├── gym-checkin.test.ts  # Gym QR check-in tests
 │   ├── reset-week.test.ts   # Week reset API tests
+│   ├── sessions.test.ts     # Session scheduling tests (member + coach)
 │   └── meals.test.ts        # Meal creation and photo tests
 └── lib/
     └── meal-validation.test.ts  # Meal photo validation unit tests
@@ -737,7 +738,125 @@ GET /api/member/gym-checkin
 
 ---
 
-#### Test M26: Create Meal with Photo
+### Session Scheduling (Member)
+
+#### Test M26: Access Sessions Page
+
+**Objective:** Verify member can access sessions page
+
+**Steps:**
+1. Login as member WITH an assigned coach
+2. On home page, look for the "Termini" button (calendar icon)
+3. Click the button
+
+**Expected Results:**
+- [ ] Navigates to `/sessions`
+- [ ] Shows sessions page with coach name in header
+- [ ] Shows "Zakaži termin" button
+- [ ] No "Nemaš trenera" warning visible
+
+**Without Coach:**
+1. Login as member WITHOUT an assigned coach
+2. Navigate to `/sessions`
+
+**Expected Results:**
+- [ ] Shows "Nemaš trenera" warning banner
+- [ ] Shows "Pronađi trenera" button
+- [ ] No "Zakaži termin" button visible
+
+---
+
+#### Test M27: Create Session Request (Member)
+
+**Objective:** Verify member can create a session request
+
+**Prerequisite:** Member has an assigned coach
+
+**Steps:**
+1. Navigate to `/sessions`
+2. Click **"Zakaži termin"**
+3. Fill in the form:
+   - Session type: "Trening"
+   - Date: Tomorrow or later
+   - Time: Any time
+   - Duration: 60 minutes
+   - Location: "U teretani"
+   - Note: "Test session request"
+4. Click **"Pošalji zahtev"**
+
+**Expected Results:**
+- [ ] Request created successfully
+- [ ] Toast shows success message
+- [ ] Request appears in "Čeka se odgovor trenera" section
+- [ ] Request shows pending status
+
+**Edge Cases:**
+- Date less than 24 hours → Error "Termin mora biti zakazan najmanje 24 sata unapred"
+- Invalid duration → Validation error
+
+---
+
+#### Test M28: Respond to Session Request (Member)
+
+**Objective:** Verify member can accept, counter, or decline requests
+
+**Prerequisite:** Coach has sent a session request to member
+
+**Test Accept:**
+1. View the request in "Zahtevi za odgovor" section
+2. Click **"Prihvati"**
+
+**Expected Results:**
+- [ ] Request status changes to accepted
+- [ ] Session appears in "Zakazani termini" section
+- [ ] Toast shows success message
+
+**Test Decline:**
+1. View a pending request
+2. Click **"Odbij"**
+
+**Expected Results:**
+- [ ] Request disappears from pending list
+- [ ] Status changed to declined
+
+**Test Counter:**
+1. View a pending request
+2. Click **"Predloži drugo vreme"**
+3. Modify date/time in the modal
+4. Click **"Pošalji predlog"**
+
+**Expected Results:**
+- [ ] Counter-proposal sent successfully
+- [ ] Request moves to "Čeka se odgovor trenera"
+- [ ] Counter count incremented
+
+---
+
+#### Test M29: Cancel Confirmed Session (Member)
+
+**Objective:** Verify member can cancel confirmed sessions
+
+**Prerequisite:** Member has a confirmed upcoming session
+
+**Steps:**
+1. Navigate to `/sessions`
+2. Find a confirmed session in "Zakazani termini"
+3. Click **"Otkaži"**
+4. Enter cancellation reason (min 10 characters): "Need to reschedule due to conflict"
+5. Click **"Potvrdi otkazivanje"**
+
+**Expected Results:**
+- [ ] Session cancelled successfully
+- [ ] Session moves to past sessions
+- [ ] Status shows "Otkazano"
+
+**Edge Cases:**
+- Reason less than 10 characters → Error message
+- Empty reason → Validation error
+
+---
+
+#### Test M30: Create Meal with Photo
 
 **Objective:** Verify member can create a meal with a photo
 
@@ -766,7 +885,7 @@ GET /api/member/gym-checkin
 
 ---
 
-#### Test M27: Create Meal Without Photo (Private)
+#### Test M31: Create Meal Without Photo (Private)
 
 **Objective:** Verify private meals don't require photos
 
@@ -783,7 +902,7 @@ GET /api/member/gym-checkin
 
 ---
 
-#### Test M28: Share Meal Requires Photo
+#### Test M32: Share Meal Requires Photo
 
 **Objective:** Verify sharing meals requires a photo
 
@@ -807,7 +926,7 @@ GET /api/member/gym-checkin
 
 ---
 
-#### Test M29: Remove Photo from Shared Meal
+#### Test M33: Remove Photo from Shared Meal
 
 **Objective:** Verify removing photo auto-unshares the meal
 
@@ -834,7 +953,7 @@ PATCH /api/member/meals/[id]
 
 ---
 
-#### Test M30: Copy Shared Meal with Photo
+#### Test M34: Copy Shared Meal with Photo
 
 **Objective:** Verify copying a shared meal also copies the photo
 
@@ -861,7 +980,7 @@ POST /api/member/meals/copy
 
 ---
 
-#### Test M31: Meal Photo Validation
+#### Test M35: Meal Photo Validation
 
 **Objective:** Verify photo validation rules
 
@@ -1094,6 +1213,146 @@ POST /api/member/meals
   snapshot: { ... }
 }
 ```
+
+---
+
+### Session Scheduling (Coach)
+
+#### Test S10: Access Coach Sessions Page
+
+**Objective:** Verify coach can access sessions page
+
+**Steps:**
+1. Login as Coach
+2. If there are session requests, click the **session requests card** on dashboard
+3. Or navigate directly to `/coach-sessions`
+
+**Expected Results:**
+- [ ] Sessions page loads successfully
+- [ ] Shows list of assigned members
+- [ ] Shows "Zakaži termin" button
+- [ ] Any pending requests from members are visible
+
+---
+
+#### Test S11: Create Session Request (Coach)
+
+**Objective:** Verify coach can create session requests for assigned members
+
+**Prerequisites:** Coach has at least one assigned member
+
+**Steps:**
+1. Navigate to `/coach-sessions`
+2. Click **"Zakaži termin"**
+3. Select a member from dropdown
+4. Fill in session details:
+   - Session type: "Trening"
+   - Date: Tomorrow or later
+   - Time: Any time
+   - Duration: 60 minutes
+   - Location: "U teretani"
+   - Note: "Let's review your progress"
+5. Click **"Pošalji zahtev"**
+
+**Expected Results:**
+- [ ] Request created successfully
+- [ ] Toast shows success message
+- [ ] Request appears in pending section
+
+**Edge Cases:**
+- Unassigned member → Error "You can only request sessions with your assigned members"
+- Date < 24 hours → Error "Termin mora biti zakazan najmanje 24 sata unapred"
+
+---
+
+#### Test S12: Respond to Session Request (Coach)
+
+**Objective:** Verify coach can accept, counter, or decline member requests
+
+**Prerequisite:** Member has sent a session request to coach
+
+**Test Accept:**
+1. View the request in pending section
+2. Click **"Prihvati"**
+
+**Expected Results:**
+- [ ] Session created and confirmed
+- [ ] Appears in "Zakazani termini" section
+
+**Test Counter:**
+1. View a pending request
+2. Click **"Predloži drugo vreme"**
+3. Modify date/time/duration/location
+4. Click **"Pošalji predlog"**
+
+**Expected Results:**
+- [ ] Counter-proposal sent
+- [ ] Request shows as waiting for member
+
+**Test Decline:**
+1. View a pending request
+2. Click **"Odbij"**
+
+**Expected Results:**
+- [ ] Request removed from list
+- [ ] Status changed to declined
+
+---
+
+#### Test S13: Cancel Confirmed Session (Coach)
+
+**Objective:** Verify coach can cancel confirmed sessions
+
+**Prerequisite:** Coach has a confirmed upcoming session
+
+**Steps:**
+1. Find a confirmed session in "Zakazani termini"
+2. Click **"Otkaži"**
+3. Enter reason (min 10 characters): "Need to reschedule - schedule conflict"
+4. Confirm cancellation
+
+**Expected Results:**
+- [ ] Session cancelled
+- [ ] Session moves to past sessions
+- [ ] Status shows "Otkazano"
+
+---
+
+#### Test S14: Complete Session (Coach)
+
+**Objective:** Verify coach can mark sessions as completed
+
+**Prerequisite:** Coach has a past/current confirmed session
+
+**Steps:**
+1. Find a session that has already occurred
+2. Click **"Završi termin"**
+
+**Expected Results:**
+- [ ] Session marked as completed
+- [ ] Status shows "Završeno"
+- [ ] `completedAt` timestamp recorded
+
+**Edge Case:**
+- Future session → Error "Cannot mark future session as completed"
+
+---
+
+#### Test S15: Dashboard Session Requests Card
+
+**Objective:** Verify session requests appear on coach dashboard
+
+**Prerequisite:** Member has sent session request to coach
+
+**Steps:**
+1. Navigate to `/dashboard`
+2. Look for session requests card
+
+**Expected Results:**
+- [ ] Card shows with calendar icon
+- [ ] Shows count of pending requests
+- [ ] Shows preview of first 2 requests (member name + session type)
+- [ ] Clicking navigates to `/coach-sessions`
 
 ---
 
@@ -1685,6 +1944,25 @@ POST /api/admin/pending-shares
 |----------|--------|------------|
 | `/api/member/gym-checkin` | GET | Check-in status, active challenge info |
 | `/api/member/gym-checkin` | POST | Valid daily code, invalid/expired code, already checked in, grace period |
+
+### Session Scheduling Endpoints (Member)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/member/sessions` | GET | Requests, upcoming, past sessions, coach info |
+| `/api/member/sessions` | POST | Create request, validate 24h advance, require coach |
+| `/api/member/sessions/requests/[id]` | POST | Accept (creates session), counter (new proposal), decline |
+| `/api/member/sessions/[id]/cancel` | POST | Cancel with reason (min 10 chars), validate session exists |
+
+### Session Scheduling Endpoints (Coach)
+
+| Endpoint | Method | Test Cases |
+|----------|--------|------------|
+| `/api/coach/sessions` | GET | Requests, upcoming, past sessions, assigned members list |
+| `/api/coach/sessions` | POST | Create request for assigned member, validate assignment, 24h advance |
+| `/api/coach/sessions/requests/[id]` | POST | Accept (creates session), counter, decline |
+| `/api/coach/sessions/[id]/cancel` | POST | Cancel with reason (min 10 chars) |
+| `/api/coach/sessions/[id]/complete` | POST | Mark as completed, validate session is in past |
 
 ### Coach Endpoints
 

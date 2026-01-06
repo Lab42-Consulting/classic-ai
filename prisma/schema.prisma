@@ -100,6 +100,10 @@ model Member {
   // Week reset - when set, consistency tracking starts from this date instead of createdAt
   weekResetAt         DateTime?
 
+  // Session scheduling
+  sessionRequests     SessionRequest[]
+  scheduledSessions   ScheduledSession[]
+
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
 
@@ -132,6 +136,11 @@ model Staff {
   nudges            CoachNudge[]
   coachKnowledge    CoachKnowledge[]
   createdMeals      CustomMeal[]      // Meals created by coach for their members
+
+  // Session scheduling
+  sessionRequests   SessionRequest[]
+  scheduledSessions ScheduledSession[]
+
   createdAt         DateTime          @default(now())
   updatedAt         DateTime          @updatedAt
 
@@ -576,4 +585,106 @@ model GymCheckin {
   @@index([gymId])
   @@index([memberId, date])
   @@map("gym_checkins")
+}
+
+// Session scheduling request - supports back-and-forth counter-proposals
+// Either coach or member can initiate a session request
+model SessionRequest {
+  id        String   @id @default(cuid())
+  staffId   String
+  memberId  String
+
+  // Session details (current proposal)
+  sessionType String   // "training" | "consultation" | "checkin"
+  proposedAt  DateTime // Proposed date/time for the session
+  duration    Int      // Duration in minutes: 30 | 45 | 60 | 90
+  location    String   // "gym" | "virtual"
+  note        String?  @db.Text // Optional message with the request
+
+  // Request tracking
+  initiatedBy  String   // "coach" | "member" - who created this request
+  status       String   @default("pending") // "pending" | "countered" | "accepted" | "declined"
+  counterCount Int      @default(0) // How many counter-proposals have been made
+  lastActionBy String?  // "coach" | "member" - who last acted on this request
+  lastActionAt DateTime @default(now())
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff  Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Proposal history for audit trail
+  proposalHistory SessionProposal[]
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([status])
+  @@index([staffId, status])
+  @@index([memberId, status])
+  @@map("session_requests")
+}
+
+// Tracks the history of proposals and counter-proposals for a session request
+model SessionProposal {
+  id               String         @id @default(cuid())
+  sessionRequestId String
+  sessionRequest   SessionRequest @relation(fields: [sessionRequestId], references: [id], onDelete: Cascade)
+
+  proposedBy String   // "coach" | "member"
+  proposedAt DateTime // The proposed date/time
+  duration   Int      // Duration in minutes
+  location   String   // "gym" | "virtual"
+  note       String?  @db.Text
+
+  // Response to this proposal
+  response   String?   // "accepted" | "declined" | "countered" | null (pending)
+  responseAt DateTime?
+
+  createdAt DateTime @default(now())
+
+  @@index([sessionRequestId])
+  @@map("session_proposals")
+}
+
+// Confirmed scheduled sessions (created when a SessionRequest is accepted)
+model ScheduledSession {
+  id       String @id @default(cuid())
+  staffId  String
+  memberId String
+
+  // Session details (copied from accepted proposal)
+  sessionType String   // "training" | "consultation" | "checkin"
+  scheduledAt DateTime // Confirmed date/time
+  duration    Int      // Duration in minutes
+  location    String   // "gym" | "virtual"
+  note        String?  @db.Text
+
+  // Original request reference
+  originalRequestId String?
+
+  // Status
+  status String @default("confirmed") // "confirmed" | "completed" | "cancelled"
+
+  // Cancellation info (required when cancelling)
+  cancelledAt        DateTime?
+  cancelledBy        String?   // "coach" | "member"
+  cancellationReason String?   @db.Text
+
+  // Completion
+  completedAt DateTime?
+
+  createdAt DateTime @default(now())
+  updatedAt DateTime @updatedAt
+
+  staff  Staff  @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member Member @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([scheduledAt])
+  @@index([status])
+  @@index([staffId, status, scheduledAt])
+  @@index([memberId, status, scheduledAt])
+  @@map("scheduled_sessions")
 }

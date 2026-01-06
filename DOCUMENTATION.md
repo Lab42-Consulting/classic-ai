@@ -27,10 +27,12 @@ A digital accountability and guidance system for gym members and staff.
    - [Coach Nudges](#coach-nudges)
    - [Per-Member AI Knowledge](#per-member-ai-knowledge)
    - [Coach Meal Creation](#coach-meal-creation)
+   - [Session Scheduling (Coach)](#session-scheduling-coach)
 7. [Member Guide](#member-guide)
    - [Custom Meal System](#custom-meal-system)
    - [Coach Meals](#coach-meals)
    - [Browse and Request Coaches](#browse-and-request-coaches)
+   - [Session Scheduling (Member)](#session-scheduling-member)
    - [Challenges](#challenges)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
@@ -701,6 +703,47 @@ As a coach, certain business data is restricted from your view:
 
 **Need Subscription Info?** Contact your gym admin if you need to know a member's subscription status.
 
+### Session Scheduling (Coach)
+
+Schedule training sessions, consultations, and check-ins with your assigned members.
+
+**Accessing Sessions:**
+1. Click on the **session requests card** on your dashboard (if you have pending requests)
+2. Or navigate directly to `/coach-sessions`
+
+**Creating a Session Request:**
+1. Click **"Zakaži termin"** (Schedule Session) button
+2. Select a member from your assigned members list
+3. Fill in the session details:
+   - **Tip termina** (Session Type): Trening, Konsultacija, or Pregled
+   - **Datum** (Date): Must be at least 24 hours in advance
+   - **Vreme** (Time): Select appointment time
+   - **Trajanje** (Duration): 30, 45, 60, or 90 minutes
+   - **Lokacija** (Location): U teretani (Gym) or Online/Poziv (Virtual)
+   - **Napomena** (Note): Optional message
+4. Click **"Pošalji zahtev"** to send
+
+**Managing Session Requests:**
+| Status | Description | Your Actions |
+|--------|-------------|--------------|
+| Pending (from member) | Member requested session | Accept, Counter, or Decline |
+| Pending (your request) | Waiting for member response | View only |
+| Countered | Member suggested different time | Accept, Counter, or Decline |
+
+**Counter-Proposal Flow:**
+1. If a member's proposed time doesn't work, click **"Predloži drugo vreme"**
+2. Modify any details (date, time, duration, location)
+3. Send the counter-proposal
+4. The member will see your suggestion and can accept, counter, or decline
+
+**Confirmed Sessions:**
+- Upcoming sessions appear in the **"Zakazani termini"** section
+- **Cancel**: Click **"Otkaži"** and provide a reason (min 10 characters)
+- **Complete**: After the session occurs, click **"Završi termin"** to mark as completed
+
+**Past Sessions:**
+Click **"Prikaži prošle termine"** to view completed and cancelled sessions.
+
 ---
 
 ## Member Guide
@@ -817,6 +860,56 @@ If you don't have a coach, you can browse and request one:
 - Pending request shows "Zahtev poslat" status
 - If declined, you can request a different coach
 - If accepted, coach becomes your assigned coach
+
+### Session Scheduling (Member)
+
+Schedule training sessions, consultations, and check-ins with your coach.
+
+**Accessing Sessions:**
+1. On your home page, click the **"Termini"** button (calendar icon)
+2. Or click on the **session request banner** if you have pending requests
+3. Navigate to `/sessions`
+
+**Note:** You must have an assigned coach to use session scheduling.
+
+**Creating a Session Request:**
+1. Click **"Zakaži termin"** (Schedule Session) button
+2. Fill in the session details:
+   - **Tip termina** (Session Type): Trening (Training), Konsultacija (Consultation), or Pregled (Check-in)
+   - **Datum** (Date): Must be at least 24 hours in advance
+   - **Vreme** (Time): Select appointment time
+   - **Trajanje** (Duration): 30, 45, 60, or 90 minutes
+   - **Lokacija** (Location): U teretani (Gym) or Online/Poziv (Virtual)
+   - **Napomena** (Note): Optional message for your coach
+3. Click **"Pošalji zahtev"** to send
+
+**Session Request Status:**
+| Status | Meaning |
+|--------|---------|
+| Na čekanju | Waiting for coach to respond |
+| Predloženo novo vreme | Coach suggested different time - review and respond |
+| Prihvaćeno | Both parties agreed - session confirmed |
+| Odbijeno | Request was declined |
+
+**Responding to Requests:**
+When your coach sends a session request:
+- **Prihvati** (Accept): Confirm the session
+- **Predloži drugo vreme** (Counter): Suggest different time/duration/location
+- **Odbij** (Decline): Reject the request
+
+**Counter-Proposal Flow:**
+1. Click **"Predloži drugo vreme"**
+2. Modify the date, time, duration, or location
+3. Optionally add a note explaining the change
+4. Submit your counter-proposal
+5. Coach will review and can accept, counter, or decline
+
+**Confirmed Sessions:**
+- Upcoming sessions appear in the **"Zakazani termini"** section
+- Click **"Otkaži"** to cancel a session (requires reason of min 10 characters)
+
+**Past Sessions:**
+Click **"Prikaži prošle termine"** to view your session history.
 
 ### Challenges
 

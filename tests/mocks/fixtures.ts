@@ -682,3 +682,120 @@ export const mockGymCheckin = {
   date: new Date(new Date().setUTCHours(0, 0, 0, 0)), // Today's date at midnight
   createdAt: new Date(),
 }
+
+// =============================================================================
+// SESSION SCHEDULING FIXTURES
+// =============================================================================
+
+export const mockSessionRequest = {
+  id: 'session-request-001',
+  staffId: mockStaffCoach.id,
+  memberId: mockMember.id,
+  sessionType: 'training',
+  proposedAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000), // 2 days from now
+  duration: 60,
+  location: 'gym',
+  note: 'Upper body focus',
+  initiatedBy: 'coach',
+  status: 'pending',
+  counterCount: 0,
+  lastActionBy: 'coach',
+  lastActionAt: new Date(),
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
+export const mockSessionRequestFromMember = {
+  ...mockSessionRequest,
+  id: 'session-request-002',
+  initiatedBy: 'member',
+  lastActionBy: 'member',
+  note: 'Would like to discuss my progress',
+}
+
+export const mockSessionRequestCountered = {
+  ...mockSessionRequest,
+  id: 'session-request-003',
+  status: 'countered',
+  counterCount: 1,
+  lastActionBy: 'member',
+}
+
+export const mockSessionRequestWithRelations = {
+  ...mockSessionRequest,
+  staff: {
+    id: mockStaffCoach.id,
+    name: mockStaffCoach.name,
+    avatarUrl: null,
+  },
+  member: {
+    id: mockMember.id,
+    name: mockMember.name,
+    avatarUrl: null,
+    memberId: mockMember.memberId,
+  },
+  proposalHistory: [],
+}
+
+export const mockSessionProposal = {
+  id: 'proposal-001',
+  sessionRequestId: mockSessionRequest.id,
+  proposedBy: 'coach',
+  proposedAt: new Date(Date.now() + 2 * 24 * 60 * 60 * 1000),
+  duration: 60,
+  location: 'gym',
+  note: 'Upper body focus',
+  response: null,
+  responseAt: null,
+  createdAt: new Date(),
+}
+
+export const mockScheduledSession = {
+  id: 'scheduled-session-001',
+  staffId: mockStaffCoach.id,
+  memberId: mockMember.id,
+  sessionType: 'training',
+  scheduledAt: new Date(Date.now() + 3 * 24 * 60 * 60 * 1000), // 3 days from now
+  duration: 60,
+  location: 'gym',
+  note: 'Confirmed training session',
+  status: 'confirmed',
+  cancelledAt: null,
+  cancelledBy: null,
+  cancellationReason: null,
+  completedAt: null,
+  createdAt: new Date(),
+  updatedAt: new Date(),
+}
+
+export const mockScheduledSessionWithRelations = {
+  ...mockScheduledSession,
+  staff: {
+    id: mockStaffCoach.id,
+    name: mockStaffCoach.name,
+    avatarUrl: null,
+  },
+  member: {
+    id: mockMember.id,
+    name: mockMember.name,
+    avatarUrl: null,
+    memberId: mockMember.memberId,
+  },
+}
+
+export const mockPastSession = {
+  ...mockScheduledSession,
+  id: 'scheduled-session-002',
+  scheduledAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000), // Yesterday
+  status: 'completed',
+  completedAt: new Date(Date.now() - 1 * 24 * 60 * 60 * 1000),
+}
+
+export const mockCancelledSession = {
+  ...mockScheduledSession,
+  id: 'scheduled-session-003',
+  status: 'cancelled',
+  cancelledAt: new Date(),
+  cancelledBy: 'member',
+  cancellationReason: 'Need to reschedule due to schedule conflict',
+}

@@ -88,6 +88,43 @@ async function getMemberData(memberId: string) {
     },
   });
 
+  // Get pending session requests (where member needs to respond)
+  const pendingSessionRequests = await prisma.sessionRequest.findMany({
+    where: {
+      memberId,
+      status: { in: ["pending", "countered"] },
+      lastActionBy: "coach", // Coach made the last action, member needs to respond
+    },
+    include: {
+      staff: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: { lastActionAt: "desc" },
+    take: 3, // Show max 3 on home page
+  });
+
+  // Get upcoming confirmed sessions (next 7 days)
+  const nextWeek = new Date();
+  nextWeek.setDate(nextWeek.getDate() + 7);
+  const upcomingSessions = await prisma.scheduledSession.findMany({
+    where: {
+      memberId,
+      status: "confirmed",
+      scheduledAt: {
+        gte: new Date(),
+        lte: nextWeek,
+      },
+    },
+    include: {
+      staff: {
+        select: { id: true, name: true },
+      },
+    },
+    orderBy: { scheduledAt: "asc" },
+    take: 2, // Show max 2 on home page
+  });
+
   // Get active or upcoming challenge (if any)
   // Note: We don't filter by startDate to also show upcoming challenges
   // Status must be "registration" or "active" (not "draft" - those are admin-only)
@@ -148,6 +185,8 @@ async function getMemberData(memberId: string) {
     last7DaysLogs,
     unseenNudges,
     pendingCoachRequest,
+    pendingSessionRequests,
+    upcomingSessions,
     activeChallenge,
     isParticipating,
     participationData,
@@ -261,7 +300,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, activeChallenge, isParticipating, participationData } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData } = data;
 
   // Redirect new users to onboarding explainer
   if (!member.hasSeenOnboarding) {
@@ -406,6 +445,30 @@ export default async function HomePage() {
           };
         })()
       : null,
+    // Session requests requiring member action
+    pendingSessionRequests: pendingSessionRequests.map((req) => ({
+      id: req.id,
+      coachId: req.staff.id,
+      coachName: req.staff.name,
+      sessionType: req.sessionType,
+      proposedAt: req.proposedAt.toISOString(),
+      duration: req.duration,
+      location: req.location,
+      note: req.note,
+      status: req.status,
+      counterCount: req.counterCount,
+      lastActionAt: req.lastActionAt.toISOString(),
+    })),
+    // Upcoming confirmed sessions
+    upcomingSessions: upcomingSessions.map((session) => ({
+      id: session.id,
+      coachId: session.staff.id,
+      coachName: session.staff.name,
+      sessionType: session.sessionType,
+      scheduledAt: session.scheduledAt.toISOString(),
+      duration: session.duration,
+      location: session.location,
+    })),
   };
 
   return <HomeClient data={homeData} />;

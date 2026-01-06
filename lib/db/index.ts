@@ -4,7 +4,10 @@ import { PrismaNeon } from "@prisma/adapter-neon";
 import * as ws from "ws";
 
 // Enable WebSocket for Neon serverless (required for Node.js environments)
+// Use the WebSocket class directly to avoid bufferUtil issues
 neonConfig.webSocketConstructor = ws.WebSocket;
+// Disable pooling in development to avoid connection issues during HMR
+neonConfig.poolQueryViaFetch = process.env.NODE_ENV === "production";
 
 const globalForPrisma = globalThis as unknown as {
   prisma: PrismaClient | undefined;

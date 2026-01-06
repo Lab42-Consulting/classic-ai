@@ -2,8 +2,20 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.8
+**Version:** 1.11
 **Last Updated:** January 2026
+
+**Changelog v1.11:**
+- Added Session Scheduling feature for coaches and members
+- Sessions support back-and-forth counter-proposals
+- Session types: training, consultation, check-in
+- Duration options: 30, 45, 60, 90 minutes
+- Location: gym or virtual
+- 24-hour minimum advance notice required
+- Cancellation requires reason (min 10 characters)
+- Added SessionRequest, SessionProposal, and ScheduledSession models
+- Members access sessions via Termini button on home page
+- Coaches access sessions via /coach-sessions page
 
 **Changelog v1.10:**
 - Added Meal Photos feature for shared meals
@@ -929,6 +941,89 @@ The gym check-in system provides anti-cheating verification for challenge partic
   - If `gymCheckinRequired && checkedInToday`: Show green verified badge
   - If `!gymCheckinRequired`: Hide check-in UI
 
+### 3.16 Session Scheduling System
+
+The session scheduling system enables coaches and members to schedule appointments with back-and-forth counter-proposals.
+
+#### FR-SESSION-001: Session Request Creation
+- **Purpose:** Allow coaches and members to request sessions with each other
+- **Initiator:** Either coach or member can initiate
+- **Required Fields:**
+  - Session type: "training" | "consultation" | "checkin"
+  - Proposed date/time (minimum 24 hours in advance)
+  - Duration: 30 | 45 | 60 | 90 minutes
+  - Location: "gym" | "virtual"
+  - Note (optional)
+- **Validation:**
+  - Member must have assigned coach (for member-initiated)
+  - Coach can only request sessions with assigned members
+  - Proposed time must be at least 24 hours in the future
+
+#### FR-SESSION-002: Counter-Proposal Flow
+- **Purpose:** Allow back-and-forth negotiation on session details
+- **Status Flow:**
+  ```
+  PENDING ──┬── ACCEPTED ──→ Session created (CONFIRMED)
+            │                      │
+            ├── DECLINED           ├── COMPLETED
+            │                      │
+            └── COUNTERED ──→ PENDING (other party's turn)
+                                └── (loop continues)
+  ```
+- **Counter-Proposal:**
+  - Can modify: date/time, duration, location, note
+  - Creates entry in proposal history for audit trail
+  - Increments counter count
+  - Sets `lastActionBy` to track whose turn it is
+
+#### FR-SESSION-003: Session Confirmation
+- **Trigger:** One party accepts the current proposal
+- **Effect:**
+  - SessionRequest status becomes "accepted"
+  - ScheduledSession record created with confirmed details
+  - Both parties can view confirmed session in their sessions list
+
+#### FR-SESSION-004: Session Cancellation
+- **Who Can Cancel:** Both coach and member can cancel confirmed sessions
+- **Requirements:**
+  - Cancellation reason required (minimum 10 characters)
+  - Records `cancelledBy`, `cancelledAt`, `cancellationReason`
+- **Effect:** Session status becomes "cancelled"
+
+#### FR-SESSION-005: Session Completion (Coach Only)
+- **Purpose:** Coach marks session as completed after it occurs
+- **Effect:** Session status becomes "completed", `completedAt` timestamp set
+
+#### FR-SESSION-006: Member Sessions Page
+- **Location:** `/sessions`
+- **Access:** Trainer button on home page (when member has coach)
+- **Display:**
+  - Pending requests requiring action (highlight whose turn)
+  - Upcoming confirmed sessions
+  - Past sessions (collapsible)
+  - "Request Session" button
+- **Actions:**
+  - Accept, Counter, or Decline pending requests
+  - Cancel confirmed sessions
+  - Create new session requests
+
+#### FR-SESSION-007: Coach Sessions Page
+- **Location:** `/coach-sessions`
+- **Access:** Session requests card on coach dashboard
+- **Display:**
+  - All pending requests across members
+  - Upcoming confirmed sessions
+  - Past sessions
+- **Actions:**
+  - Accept, Counter, or Decline pending requests
+  - Cancel confirmed sessions
+  - Mark sessions as completed
+  - Create new session requests for assigned members
+
+#### FR-SESSION-008: Dashboard Integration
+- **Member Home:** Trainer button navigates to `/sessions` (when has coach)
+- **Coach Dashboard:** Session requests card shows pending count with preview
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -1278,6 +1373,99 @@ model CustomMealIngredient {
 - Maximum 1MB file size (base64 encoded)
 - Supported formats: JPEG, PNG, WebP
 - Removing photo from shared meal auto-unshares the meal
+
+### 5.12 SessionRequest Model
+
+```prisma
+model SessionRequest {
+  id              String   @id @default(cuid())
+  staffId         String
+  memberId        String
+
+  // Session details (current proposal)
+  sessionType     String   // "training" | "consultation" | "checkin"
+  proposedAt      DateTime // Proposed date/time
+  duration        Int      // 30 | 45 | 60 | 90 minutes
+  location        String   // "gym" | "virtual"
+  note            String?  @db.Text
+
+  // Request tracking
+  initiatedBy     String   // "coach" | "member"
+  status          String   @default("pending") // "pending" | "countered" | "accepted" | "declined"
+  counterCount    Int      @default(0)
+  lastActionBy    String?  // "coach" | "member"
+  lastActionAt    DateTime @default(now())
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  staff           Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+  proposalHistory SessionProposal[]
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([status])
+  @@map("session_requests")
+}
+```
+
+### 5.13 SessionProposal Model
+
+```prisma
+model SessionProposal {
+  id               String         @id @default(cuid())
+  sessionRequestId String
+  sessionRequest   SessionRequest @relation(fields: [sessionRequestId], references: [id], onDelete: Cascade)
+
+  proposedBy      String   // "coach" | "member"
+  proposedAt      DateTime
+  duration        Int
+  location        String
+  note            String?  @db.Text
+
+  response        String?  // "accepted" | "declined" | "countered"
+  responseAt      DateTime?
+  createdAt       DateTime @default(now())
+
+  @@index([sessionRequestId])
+  @@map("session_proposals")
+}
+```
+
+### 5.14 ScheduledSession Model
+
+```prisma
+model ScheduledSession {
+  id              String   @id @default(cuid())
+  staffId         String
+  memberId        String
+
+  sessionType     String   // "training" | "consultation" | "checkin"
+  scheduledAt     DateTime
+  duration        Int      // 30 | 45 | 60 | 90 minutes
+  location        String   // "gym" | "virtual"
+  note            String?  @db.Text
+
+  status          String   @default("confirmed") // "confirmed" | "completed" | "cancelled"
+
+  cancelledAt     DateTime?
+  cancelledBy     String?  // "coach" | "member"
+  cancellationReason String? @db.Text
+  completedAt     DateTime?
+
+  createdAt       DateTime @default(now())
+  updatedAt       DateTime @updatedAt
+
+  staff           Staff    @relation(fields: [staffId], references: [id], onDelete: Cascade)
+  member          Member   @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@index([staffId])
+  @@index([memberId])
+  @@index([scheduledAt])
+  @@map("scheduled_sessions")
+}
+```
 
 ---
 
@@ -1781,6 +1969,155 @@ All pages follow mobile-first design with:
 
 // Response (400) - Invalid secret
 { "error": "Neispravan kod za prijavu" }
+```
+
+### 7.11 Session Scheduling (Member)
+
+#### GET /api/member/sessions
+```json
+// Response (200) - Sessions data
+{
+  "requests": [
+    {
+      "id": "request-cuid",
+      "sessionType": "training",
+      "proposedAt": "2026-01-10T10:00:00Z",
+      "duration": 60,
+      "location": "gym",
+      "note": "Upper body focus",
+      "status": "pending",
+      "initiatedBy": "coach",
+      "lastActionBy": "coach",
+      "counterCount": 0,
+      "staff": { "id": "...", "name": "Coach Marko", "avatarUrl": null }
+    }
+  ],
+  "upcoming": [
+    {
+      "id": "session-cuid",
+      "sessionType": "training",
+      "scheduledAt": "2026-01-15T14:00:00Z",
+      "duration": 60,
+      "location": "gym",
+      "status": "confirmed",
+      "staff": { "id": "...", "name": "Coach Marko", "avatarUrl": null }
+    }
+  ],
+  "past": [...],
+  "coach": { "id": "...", "name": "Coach Marko", "avatarUrl": null }
+}
+```
+
+#### POST /api/member/sessions
+```json
+// Request - Create session request
+{
+  "sessionType": "training",
+  "proposedAt": "2026-01-10T10:00:00Z",
+  "duration": 60,
+  "location": "gym",
+  "note": "Would like to focus on upper body"
+}
+
+// Response (201)
+{ "success": true, "request": { ... } }
+
+// Response (400) - No coach assigned
+{ "error": "You must have an assigned coach to request sessions" }
+
+// Response (400) - Invalid time
+{ "error": "Session must be scheduled at least 24 hours in advance" }
+```
+
+#### POST /api/member/sessions/requests/[id]
+```json
+// Request - Accept
+{ "action": "accept" }
+
+// Request - Decline
+{ "action": "decline" }
+
+// Request - Counter
+{
+  "action": "counter",
+  "proposedAt": "2026-01-11T11:00:00Z",
+  "duration": 45,
+  "location": "virtual",
+  "note": "Can we do earlier?"
+}
+
+// Response (200)
+{ "success": true }
+
+// Response (200) - Accept creates session
+{ "success": true, "session": { ... } }
+```
+
+#### POST /api/member/sessions/[id]/cancel
+```json
+// Request - Cancel confirmed session
+{ "reason": "I have a scheduling conflict, need to reschedule" }
+
+// Response (200)
+{ "success": true }
+
+// Response (400) - Reason too short
+{ "error": "Cancellation reason must be at least 10 characters" }
+```
+
+### 7.12 Session Scheduling (Coach)
+
+#### GET /api/coach/sessions
+```json
+// Response (200) - Sessions data
+{
+  "requests": [...],
+  "upcoming": [...],
+  "past": [...],
+  "members": [
+    { "id": "...", "name": "Marko", "avatarUrl": null }
+  ]
+}
+```
+
+#### POST /api/coach/sessions
+```json
+// Request - Create session request for member
+{
+  "memberId": "member-cuid",
+  "sessionType": "consultation",
+  "proposedAt": "2026-01-10T15:00:00Z",
+  "duration": 30,
+  "location": "virtual",
+  "note": "Let's review your progress"
+}
+
+// Response (201)
+{ "success": true, "request": { ... } }
+
+// Response (400) - Not assigned to member
+{ "error": "You can only request sessions with your assigned members" }
+```
+
+#### POST /api/coach/sessions/requests/[id]
+```json
+// Same as member endpoint - accept, decline, or counter
+```
+
+#### POST /api/coach/sessions/[id]/cancel
+```json
+// Same as member endpoint - requires reason
+```
+
+#### POST /api/coach/sessions/[id]/complete
+```json
+// Request - Mark session as completed (no body required)
+
+// Response (200)
+{ "success": true }
+
+// Response (400) - Not in the past
+{ "error": "Cannot mark future session as completed" }
 ```
 
 ---

@@ -93,6 +93,7 @@ model Member {
 
   // Challenge participations
   challengeParticipations ChallengeParticipant[]
+  challengeWins           ChallengeWinner[]
 
   // Gym check-ins (for challenge verification)
   gymCheckins         GymCheckin[]
@@ -528,7 +529,12 @@ model Challenge {
   pointsPerCheckin  Int      @default(25)
   streakBonus       Int      @default(5)   // Daily streak bonus
 
+  // Winner exclusion settings
+  excludeTopN          Int   @default(3)   // Top N winners are excluded from future challenges
+  winnerCooldownMonths Int   @default(3)   // Months until winners can participate again
+
   participants      ChallengeParticipant[]
+  winners           ChallengeWinner[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
@@ -687,4 +693,22 @@ model ScheduledSession {
   @@index([staffId, status, scheduledAt])
   @@index([memberId, status, scheduledAt])
   @@map("scheduled_sessions")
+}
+
+// Challenge winner history - tracks past winners for exclusion from future challenges
+model ChallengeWinner {
+  id          String   @id @default(cuid())
+  challengeId String
+  memberId    String
+  rank        Int      // Final rank (1, 2, 3, etc.)
+  totalPoints Int      // Points at time of win
+  wonAt       DateTime @default(now())
+
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, memberId])
+  @@index([memberId])
+  @@index([memberId, wonAt])
+  @@map("challenge_winners")
 }

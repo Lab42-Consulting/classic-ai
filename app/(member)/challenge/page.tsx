@@ -45,6 +45,12 @@ interface Participation {
   joinedAt: string;
 }
 
+interface CooldownInfo {
+  reason: string;
+  endsAt: string;
+  challengeName: string;
+}
+
 interface PageData {
   challenge: Challenge | null;
   participation: Participation | null;
@@ -53,6 +59,8 @@ interface PageData {
   isStaffMember: boolean;
   gymCheckinRequired: boolean;
   checkedInToday: boolean;
+  isEligible: boolean;
+  cooldownInfo: CooldownInfo | null;
 }
 
 export default function ChallengePage() {
@@ -396,6 +404,142 @@ export default function ChallengePage() {
                         </div>
 
                         {/* Points */}
+                        <div className="text-right">
+                          <p className="font-bold text-foreground">{entry.totalPoints}</p>
+                          <p className="text-xs text-foreground-muted">bodova</p>
+                        </div>
+                      </div>
+                    </GlassCard>
+                  </SlideUp>
+                );
+              })}
+            </div>
+          )}
+        </FadeIn>
+      </div>
+    );
+  }
+
+  // Not eligible due to winner cooldown
+  if (!participation && !data.isEligible && data.cooldownInfo) {
+    return (
+      <div className="min-h-screen bg-background p-4 pb-24">
+        <FadeIn>
+          {/* Header */}
+          <div className="flex items-center gap-3 mb-6">
+            <button
+              onClick={() => router.back()}
+              className="p-2 rounded-xl hover:bg-background-secondary transition-colors"
+            >
+              <svg className="w-5 h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+              </svg>
+            </button>
+            <div>
+              <h1 className="text-xl font-bold text-foreground">Izazov</h1>
+              <p className="text-sm text-foreground-muted">Takmičenje članova</p>
+            </div>
+          </div>
+
+          {/* Challenge Info Card */}
+          <GlassCard className="p-6 mb-4">
+            <div className="text-center mb-6">
+              <div className="w-16 h-16 rounded-full bg-yellow-500/20 flex items-center justify-center mx-auto mb-4">
+                <span className="text-3xl">🏆</span>
+              </div>
+              <h2 className="text-2xl font-bold text-foreground mb-2">{challenge.name}</h2>
+              <p className="text-foreground-muted">{challenge.description}</p>
+            </div>
+
+            {/* Winner cooldown notice */}
+            <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-4 mb-4">
+              <div className="flex items-center gap-3 mb-2">
+                <span className="text-xl">🎖️</span>
+                <p className="text-amber-400 font-medium">Čestitamo na pobedi!</p>
+              </div>
+              <p className="text-sm text-foreground-muted mb-2">
+                {data.cooldownInfo.reason}
+              </p>
+              <p className="text-xs text-foreground-muted">
+                Period čekanja ističe: <span className="text-foreground font-medium">
+                  {new Date(data.cooldownInfo.endsAt).toLocaleDateString("sr-RS", {
+                    day: "numeric",
+                    month: "long",
+                    year: "numeric"
+                  })}
+                </span>
+              </p>
+            </div>
+
+            {/* Reward */}
+            <div className="bg-gradient-to-r from-yellow-500/10 to-orange-500/10 border border-yellow-500/20 rounded-xl p-4 mb-4">
+              <p className="text-sm text-yellow-400 font-medium mb-1">Nagrada</p>
+              <p className="text-foreground">{challenge.rewardDescription}</p>
+            </div>
+
+            {/* Stats */}
+            <div className="grid grid-cols-3 gap-3">
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{challenge.participantCount}</p>
+                <p className="text-xs text-foreground-muted">učesnika</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-foreground">{challenge.daysUntilEnd}</p>
+                <p className="text-xs text-foreground-muted">dana</p>
+              </div>
+              <div className="text-center">
+                <p className="text-2xl font-bold text-yellow-400">Top {challenge.winnerCount}</p>
+                <p className="text-xs text-foreground-muted">pobednika</p>
+              </div>
+            </div>
+          </GlassCard>
+
+          {/* Leaderboard - can still view */}
+          <div className="mb-3">
+            <h2 className="font-medium text-foreground mb-3">Rang lista ({leaderboard.length})</h2>
+          </div>
+
+          {leaderboard.length === 0 ? (
+            <GlassCard className="p-6 text-center">
+              <p className="text-foreground-muted">Još nema učesnika</p>
+            </GlassCard>
+          ) : (
+            <div className="space-y-2">
+              {leaderboard.slice(0, 10).map((entry, index) => {
+                const badge = getRankBadge(entry.rank, challenge.winnerCount);
+                const isWinner = entry.rank <= challenge.winnerCount;
+
+                return (
+                  <SlideUp key={entry.memberId} delay={index * 0.03}>
+                    <GlassCard
+                      className={`p-3 ${
+                        isWinner ? "bg-yellow-500/5 border-yellow-500/20" : ""
+                      }`}
+                    >
+                      <div className="flex items-center gap-3">
+                        <div className="w-8 text-center">
+                          {badge ? (
+                            <span className="text-xl">{badge}</span>
+                          ) : (
+                            <span className="text-foreground-muted font-medium">{entry.rank}</span>
+                          )}
+                        </div>
+                        <div className="w-10 h-10 rounded-full bg-accent/20 flex items-center justify-center overflow-hidden flex-shrink-0">
+                          {entry.avatarUrl ? (
+                            <img src={entry.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <span className="text-sm font-medium text-accent">
+                              {entry.name
+                                .split(" ")
+                                .map((n) => n[0])
+                                .join("")
+                                .slice(0, 2)}
+                            </span>
+                          )}
+                        </div>
+                        <div className="flex-1 min-w-0">
+                          <p className="font-medium truncate text-foreground">{entry.name}</p>
+                        </div>
                         <div className="text-right">
                           <p className="font-bold text-foreground">{entry.totalPoints}</p>
                           <p className="text-xs text-foreground-muted">bodova</p>

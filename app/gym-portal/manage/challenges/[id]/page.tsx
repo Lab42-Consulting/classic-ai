@@ -39,6 +39,8 @@ interface Challenge {
   pointsPerWater: number;
   pointsPerCheckin: number;
   streakBonus: number;
+  excludeTopN: number;
+  winnerCooldownMonths: number;
 }
 
 type TabType = "leaderboard" | "settings";
@@ -437,6 +439,34 @@ export default function ChallengeDetailPage() {
               <div>
                 <p className="text-sm text-foreground-muted">Dnevni bonus za niz</p>
                 <p className="text-lg font-medium text-foreground">{challenge.streakBonus} bod.</p>
+              </div>
+            </div>
+          </div>
+
+          {/* Winner Exclusion Settings */}
+          <div className="bg-background-secondary border border-border rounded-xl p-6">
+            <h3 className="font-medium text-foreground mb-4">Podešavanja pobednika</h3>
+            <div className="space-y-4">
+              <div className="grid grid-cols-1 sm:grid-cols-2 gap-4">
+                <div>
+                  <p className="text-sm text-foreground-muted">Isključenje pobednika</p>
+                  <p className="text-lg font-medium text-foreground">Top {challenge.excludeTopN}</p>
+                  <p className="text-xs text-foreground-muted mt-1">
+                    Prvih {challenge.excludeTopN} pobednika ne mogu učestvovati u sledećem izazovu
+                  </p>
+                </div>
+                <div>
+                  <p className="text-sm text-foreground-muted">Period čekanja</p>
+                  <p className="text-lg font-medium text-foreground">{challenge.winnerCooldownMonths} {challenge.winnerCooldownMonths === 1 ? "mesec" : challenge.winnerCooldownMonths < 5 ? "meseca" : "meseci"}</p>
+                  <p className="text-xs text-foreground-muted mt-1">
+                    Pobednici mogu ponovo učestvovati nakon ovog perioda
+                  </p>
+                </div>
+              </div>
+              <div className="bg-amber-500/10 border border-amber-500/20 rounded-xl p-3">
+                <p className="text-sm text-amber-400">
+                  <span className="font-medium">Napomena:</span> Ova podešavanja određuju ko od prošlih pobednika ne može da se prijavi na ovaj izazov. Pobednici ovog izazova biće automatski sačuvani kada se izazov završi.
+                </p>
               </div>
             </div>
           </div>

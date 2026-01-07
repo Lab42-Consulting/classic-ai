@@ -2,8 +2,18 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.11
+**Version:** 1.12
 **Last Updated:** January 2026
+
+**Changelog v1.12:**
+- Added Challenge Winners tracking and exclusion system
+- Winners are automatically recorded when challenge ends
+- Configurable winner exclusion: `excludeTopN` (default 3) determines how many top winners are excluded
+- Configurable cooldown period: `winnerCooldownMonths` (default 3) determines how long winners must wait
+- Members who won recently see a cooldown notice with end date
+- Admin can configure exclusion settings per challenge
+- Added `ChallengeWinner` model to track historical winners
+- API returns `isEligible` and `cooldownInfo` for member eligibility
 
 **Changelog v1.11:**
 - Added Session Scheduling feature for coaches and members
@@ -868,7 +878,11 @@ The challenge system provides gamification features for member engagement throug
 #### FR-CHAL-007: Challenge End
 - **Automatic:** When end date passes
 - **Manual:** Admin clicks "Završi izazov"
-- **Effect:** Status becomes `ended`, leaderboard frozen
+- **Effect:**
+  - Status becomes `ended`, leaderboard frozen
+  - Winners (top N based on `winnerCount`) are saved to `ChallengeWinner` table
+  - Winners recorded with rank, totalPoints, and timestamp
+- **Transaction:** Winner saving and status update happen atomically
 
 #### FR-CHAL-008: Member Challenge View
 - **Location:** `/challenge`
@@ -898,6 +912,24 @@ The challenge system provides gamification features for member engagement throug
   - `POST /api/member/challenge` returns 403 for coaches
 - **API Response:** Includes `isStaffMember: true` flag for coaches
 - **Rationale:** Coaches should monitor member progress without competing
+
+#### FR-CHAL-011: Winner Exclusion System
+- **Purpose:** Prevent recent winners from dominating consecutive challenges
+- **Configuration (per challenge):**
+  - `excludeTopN` (default 3): Top N winners from previous challenges are excluded
+  - `winnerCooldownMonths` (default 3): Duration of the exclusion period
+- **Eligibility Check:**
+  - When member tries to join a challenge, system checks `ChallengeWinner` records
+  - Looks for wins within the cooldown period where rank ≤ `excludeTopN`
+  - If found: Member cannot join, shown cooldown notice with end date
+- **API Response:** Returns `isEligible: false` and `cooldownInfo` object with:
+  - `reason`: Human-readable explanation in Serbian
+  - `endsAt`: Date when cooldown expires
+  - `challengeName`: Name of the challenge they won
+- **UI Behavior:**
+  - Ineligible members see congratulatory banner with cooldown info
+  - Can still view leaderboard but cannot join
+  - Shows countdown to when they can participate again
 
 ### 3.15 Gym QR Check-in System
 
@@ -1240,12 +1272,19 @@ model Challenge {
   pointsPerCheckin  Int      @default(25)
   streakBonus       Int      @default(5)
 
+  // Winner exclusion settings
+  excludeTopN          Int   @default(3)   // Top N winners are excluded from future challenges
+  winnerCooldownMonths Int   @default(3)   // Months until winners can participate again
+
   participants      ChallengeParticipant[]
+  winners           ChallengeWinner[]
 
   createdAt         DateTime @default(now())
   updatedAt         DateTime @updatedAt
 
+  @@index([gymId])
   @@index([gymId, status])
+  @@index([startDate, endDate])
   @@map("challenges")
 }
 ```
@@ -1280,7 +1319,35 @@ model ChallengeParticipant {
 }
 ```
 
-### 5.10 GymCheckin Model
+### 5.10 ChallengeWinner Model
+
+```prisma
+model ChallengeWinner {
+  id          String   @id @default(cuid())
+  challengeId String
+  memberId    String
+  rank        Int      // Final rank (1, 2, 3, etc.)
+  totalPoints Int      // Points at time of win
+  wonAt       DateTime @default(now())
+
+  challenge   Challenge @relation(fields: [challengeId], references: [id], onDelete: Cascade)
+  member      Member    @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  @@unique([challengeId, memberId])
+  @@index([memberId])
+  @@index([memberId, wonAt])
+  @@map("challenge_winners")
+}
+```
+
+**Purpose**: Records winners when a challenge ends, enabling the winner exclusion system to prevent repeated winners from dominating consecutive challenges.
+
+**Key Fields**:
+- `rank`: Final position (1st, 2nd, 3rd, etc.)
+- `totalPoints`: Points at the time of winning
+- `wonAt`: Timestamp for calculating cooldown period
+
+### 5.11 GymCheckin Model
 
 ```prisma
 model GymCheckin {
@@ -1309,7 +1376,7 @@ model Gym {
 }
 ```
 
-### 5.11 CustomMeal Model
+### 5.12 CustomMeal Model
 
 ```prisma
 model CustomMeal {
@@ -1374,7 +1441,7 @@ model CustomMealIngredient {
 - Supported formats: JPEG, PNG, WebP
 - Removing photo from shared meal auto-unshares the meal
 
-### 5.12 SessionRequest Model
+### 5.13 SessionRequest Model
 
 ```prisma
 model SessionRequest {
@@ -1410,7 +1477,7 @@ model SessionRequest {
 }
 ```
 
-### 5.13 SessionProposal Model
+### 5.14 SessionProposal Model
 
 ```prisma
 model SessionProposal {
@@ -1433,7 +1500,7 @@ model SessionProposal {
 }
 ```
 
-### 5.14 ScheduledSession Model
+### 5.15 ScheduledSession Model
 
 ```prisma
 model ScheduledSession {
@@ -1826,11 +1893,11 @@ All pages follow mobile-first design with:
 // Request - Publish challenge
 { "action": "publish" }
 
-// Request - End challenge early
+// Request - End challenge early (automatically records winners to ChallengeWinner table)
 { "action": "end" }
 
 // Response (200)
-{ "success": true, "challenge": { ... } }
+{ "success": true, "challenge": { ... }, "winnersRecorded": 3 }
 ```
 
 #### DELETE /api/admin/challenges/[id]
@@ -1871,7 +1938,21 @@ All pages follow mobile-first design with:
     ...
   },
   "rank": 3,
-  "leaderboard": [...]
+  "leaderboard": [...],
+  "isEligible": true,
+  "cooldownInfo": null
+}
+
+// Response (200) - Member in cooldown from previous win
+{
+  "challenge": { ... },
+  "participation": null,
+  "isEligible": false,
+  "cooldownInfo": {
+    "reason": "Kao pobednik izazova \"Prolećni Izazov\", ne možeš učestvovati do 15.04.2026",
+    "endsAt": "2026-04-15T00:00:00Z",
+    "challengeName": "Prolećni Izazov"
+  }
 }
 
 // Response (200) - No active challenge
@@ -1890,6 +1971,13 @@ All pages follow mobile-first design with:
 
 // Response (400) - Already participating
 { "error": "Već učestvuješ u ovom izazovu" }
+
+// Response (403) - Winner cooldown active
+{
+  "error": "Kao pobednik izazova \"Prolećni Izazov\", ne možeš učestvovati do 15.04.2026",
+  "code": "WINNER_COOLDOWN",
+  "cooldownEndsAt": "2026-04-15T00:00:00Z"
+}
 ```
 
 ### 7.9 Gym Check-in (Admin)

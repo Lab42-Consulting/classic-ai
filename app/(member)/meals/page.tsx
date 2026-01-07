@@ -61,7 +61,7 @@ export default function MealsPage() {
       let hasCoach = false;
       if (profileResponse.ok) {
         const profile = await profileResponse.json();
-        hasCoach = !!profile.coachAssignment;
+        hasCoach = !!profile.hasCoach;
       }
 
       if (mealsResponse.ok) {

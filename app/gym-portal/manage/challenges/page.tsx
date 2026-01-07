@@ -36,6 +36,8 @@ interface NewChallengeForm {
   pointsPerWater: number;
   pointsPerCheckin: number;
   streakBonus: number;
+  excludeTopN: number;
+  winnerCooldownMonths: number;
 }
 
 const defaultForm: NewChallengeForm = {
@@ -51,6 +53,8 @@ const defaultForm: NewChallengeForm = {
   pointsPerWater: 1,
   pointsPerCheckin: 25,
   streakBonus: 5,
+  excludeTopN: 3,
+  winnerCooldownMonths: 3,
 };
 
 const statusLabels: Record<string, string> = {
@@ -492,6 +496,40 @@ export default function ChallengesPage() {
                     </div>
                   </div>
                 )}
+              </div>
+
+              {/* Winner Exclusion Settings */}
+              <div className="border border-border rounded-xl p-4 space-y-3">
+                <h4 className="font-medium text-foreground text-sm">Podešavanja pobednika</h4>
+                <p className="text-xs text-foreground-muted">
+                  Prošli pobednici mogu biti isključeni iz učešća za određeni period
+                </p>
+                <div className="grid grid-cols-2 gap-3">
+                  <div>
+                    <label className="block text-xs text-foreground-muted mb-1">Isključi top N</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="10"
+                      value={form.excludeTopN}
+                      onChange={(e) => setForm({ ...form, excludeTopN: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <p className="text-xs text-foreground-muted mt-1">Broj pobednika koji se isključuju</p>
+                  </div>
+                  <div>
+                    <label className="block text-xs text-foreground-muted mb-1">Period čekanja</label>
+                    <input
+                      type="number"
+                      min="0"
+                      max="12"
+                      value={form.winnerCooldownMonths}
+                      onChange={(e) => setForm({ ...form, winnerCooldownMonths: parseInt(e.target.value) || 0 })}
+                      className="w-full px-3 py-2 bg-background-secondary border border-border rounded-lg text-foreground text-sm focus:outline-none focus:ring-2 focus:ring-accent/50"
+                    />
+                    <p className="text-xs text-foreground-muted mt-1">Meseci do ponovnog učešća</p>
+                  </div>
+                </div>
               </div>
             </div>
 

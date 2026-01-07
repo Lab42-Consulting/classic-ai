@@ -142,12 +142,39 @@ export async function PATCH(
         );
       }
 
-      const updated = await prisma.challenge.update({
-        where: { id },
-        data: { status: "ended" },
+      // Get final leaderboard to save winners
+      const leaderboard = await getChallengeLeaderboard(id);
+      const winnersToSave = leaderboard.slice(0, challenge.winnerCount);
+
+      // Update challenge status and save winners in a transaction
+      const updated = await prisma.$transaction(async (tx) => {
+        // Update challenge status
+        const updatedChallenge = await tx.challenge.update({
+          where: { id },
+          data: { status: "ended" },
+        });
+
+        // Save winners if there are any participants
+        if (winnersToSave.length > 0) {
+          await tx.challengeWinner.createMany({
+            data: winnersToSave.map((p, index) => ({
+              challengeId: id,
+              memberId: p.member.id,
+              rank: index + 1,
+              totalPoints: p.totalPoints,
+            })),
+            skipDuplicates: true, // In case challenge is "ended" multiple times
+          });
+        }
+
+        return updatedChallenge;
       });
 
-      return NextResponse.json({ success: true, challenge: updated });
+      return NextResponse.json({
+        success: true,
+        challenge: updated,
+        winnersSaved: winnersToSave.length,
+      });
     }
 
     // Regular update - only allowed for draft or registration status
@@ -171,6 +198,8 @@ export async function PATCH(
       pointsPerWater,
       pointsPerCheckin,
       streakBonus,
+      excludeTopN,
+      winnerCooldownMonths,
     } = body;
 
     // Build update data (only include provided fields)
@@ -188,6 +217,8 @@ export async function PATCH(
     if (pointsPerWater !== undefined) updateData.pointsPerWater = pointsPerWater;
     if (pointsPerCheckin !== undefined) updateData.pointsPerCheckin = pointsPerCheckin;
     if (streakBonus !== undefined) updateData.streakBonus = streakBonus;
+    if (excludeTopN !== undefined) updateData.excludeTopN = excludeTopN;
+    if (winnerCooldownMonths !== undefined) updateData.winnerCooldownMonths = winnerCooldownMonths;
 
     const updated = await prisma.challenge.update({
       where: { id },

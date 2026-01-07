@@ -147,6 +147,16 @@ vi.mock('@/lib/db', () => {
     count: vi.fn(),
   }
 
+  const challengeWinnerMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    createMany: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
   const gymCheckinMock = {
     findUnique: vi.fn(),
     findFirst: vi.fn(),
@@ -201,6 +211,7 @@ vi.mock('@/lib/db', () => {
     savedIngredient: savedIngredientMock,
     challenge: challengeMock,
     challengeParticipant: challengeParticipantMock,
+    challengeWinner: challengeWinnerMock,
     gymCheckin: gymCheckinMock,
     sessionRequest: sessionRequestMock,
     sessionProposal: sessionProposalMock,

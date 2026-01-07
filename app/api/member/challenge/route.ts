@@ -82,6 +82,37 @@ export async function GET() {
       },
     });
 
+    // Check winner eligibility (past winners may be excluded)
+    let isEligible = true;
+    let cooldownInfo: { reason: string; endsAt: Date; challengeName: string } | null = null;
+
+    if (!participation && !authResult.isStaffMember) {
+      const cooldownDate = new Date();
+      cooldownDate.setMonth(cooldownDate.getMonth() - challenge.winnerCooldownMonths);
+
+      const recentWin = await prisma.challengeWinner.findFirst({
+        where: {
+          memberId: authResult.memberId,
+          rank: { lte: challenge.excludeTopN },
+          wonAt: { gte: cooldownDate },
+          challenge: { gymId: member.gymId },
+        },
+        include: { challenge: { select: { name: true } } },
+        orderBy: { wonAt: "desc" },
+      });
+
+      if (recentWin) {
+        isEligible = false;
+        const cooldownEnds = new Date(recentWin.wonAt);
+        cooldownEnds.setMonth(cooldownEnds.getMonth() + challenge.winnerCooldownMonths);
+        cooldownInfo = {
+          reason: `Kao pobednik izazova "${recentWin.challenge.name}", ne možeš učestvovati do ${cooldownEnds.toLocaleDateString("sr-Latn")}`,
+          endsAt: cooldownEnds,
+          challengeName: recentWin.challenge.name,
+        };
+      }
+    }
+
     // Get leaderboard
     const leaderboard = await getChallengeLeaderboard(challenge.id);
 
@@ -140,6 +171,8 @@ export async function GET() {
       isStaffMember: authResult.isStaffMember || false,
       gymCheckinRequired,
       checkedInToday,
+      isEligible,
+      cooldownInfo,
     });
   } catch (error) {
     console.error("Error fetching challenge:", error);
@@ -206,6 +239,35 @@ export async function POST() {
       return NextResponse.json(
         { error: "Rok za prijavu je istekao" },
         { status: 400 }
+      );
+    }
+
+    // Check winner eligibility (past winners may be excluded)
+    const cooldownDate = new Date();
+    cooldownDate.setMonth(cooldownDate.getMonth() - challenge.winnerCooldownMonths);
+
+    const recentWin = await prisma.challengeWinner.findFirst({
+      where: {
+        memberId: authResult.memberId,
+        rank: { lte: challenge.excludeTopN },
+        wonAt: { gte: cooldownDate },
+        challenge: { gymId: member.gymId },
+      },
+      include: { challenge: { select: { name: true } } },
+      orderBy: { wonAt: "desc" },
+    });
+
+    if (recentWin) {
+      const cooldownEnds = new Date(recentWin.wonAt);
+      cooldownEnds.setMonth(cooldownEnds.getMonth() + challenge.winnerCooldownMonths);
+
+      return NextResponse.json(
+        {
+          error: `Kao pobednik izazova "${recentWin.challenge.name}", ne možeš učestvovati do ${cooldownEnds.toLocaleDateString("sr-Latn")}`,
+          code: "WINNER_COOLDOWN",
+          cooldownEndsAt: cooldownEnds,
+        },
+        { status: 403 }
       );
     }
 

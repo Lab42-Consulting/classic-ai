@@ -309,7 +309,14 @@ The challenges page shows:
 | 📊 Nedeljni pregled (Check-in) | 25 |
 | 🔥 Dnevni niz bonus (Streak) | 5 |
 
-4. Click **"Kreiraj izazov"** - creates as draft
+4. Optionally expand **"Pravila za pobednike"** to configure winner exclusion:
+
+| Setting | Default | Description |
+|---------|---------|-------------|
+| Isključi prvih N pobednika | 3 | Top N winners from each challenge are excluded from future challenges |
+| Meseci čekanja | 3 | How long winners must wait before participating again |
+
+5. Click **"Kreiraj izazov"** - creates as draft
 
 #### Challenge Statuses
 
@@ -343,6 +350,18 @@ On the challenge detail page:
 - Member name and avatar
 - Points by category (meals, training, water, check-in, streak)
 - Total points
+
+#### Winner Recording
+
+When a challenge ends (automatically or via "Završi izazov"):
+- Top winners are automatically recorded in the system
+- Recorded winners are excluded from future challenges based on settings
+- The number of winners recorded equals the challenge's `winnerCount` setting
+
+**Winner Exclusion:**
+- Past winners who placed in top N positions cannot join new challenges
+- Cooldown period is configurable per challenge (default: 3 months)
+- Admins can see winner history in the challenge details
 
 ### Gym Branding
 
@@ -938,6 +957,14 @@ Go to `/challenge` to see the current challenge:
    - Days until registration closes
 3. Tap **"Pridruži se"** (Join)
 4. Start earning points!
+
+**Winner Cooldown:**
+If you recently won a challenge (placed in top 3), you may be temporarily excluded from joining new challenges:
+- A congratulatory banner shows your previous win
+- The cooldown end date is displayed
+- Once the cooldown ends, you can join again
+
+This ensures fair competition by giving other members a chance to win.
 
 #### Earning Points
 

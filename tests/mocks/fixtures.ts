@@ -593,6 +593,8 @@ export const mockChallenge = {
   pointsPerWater: 1,
   pointsPerCheckin: 25,
   streakBonus: 5,
+  excludeTopN: 3,
+  winnerCooldownMonths: 3,
   createdAt: new Date(),
   updatedAt: new Date(),
 }
@@ -660,6 +662,27 @@ export const mockChallengeLeaderboard = [
     member: { id: 'member-test-002', name: 'Ana Anic', avatarUrl: null },
   },
 ]
+
+// Recent winner (within cooldown period)
+export const mockChallengeWinner = {
+  id: 'winner-test-001',
+  challengeId: mockEndedChallenge.id,
+  memberId: mockMember.id,
+  rank: 1,
+  totalPoints: 245,
+  wonAt: new Date(Date.now() - 30 * 24 * 60 * 60 * 1000), // Won 30 days ago (within 3 month cooldown)
+  challenge: {
+    name: mockEndedChallenge.name,
+    gymId: mockGym.id,
+  },
+}
+
+// Old winner (outside cooldown period)
+export const mockOldChallengeWinner = {
+  ...mockChallengeWinner,
+  id: 'winner-test-002',
+  wonAt: new Date(Date.now() - 120 * 24 * 60 * 60 * 1000), // Won 120 days ago (outside 3 month cooldown)
+}
 
 // =============================================================================
 // GYM CHECK-IN FIXTURES

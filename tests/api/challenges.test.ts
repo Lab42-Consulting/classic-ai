@@ -22,6 +22,8 @@ import {
   mockChallengeParticipant,
   mockChallengeWithParticipants,
   mockChallengeLeaderboard,
+  mockChallengeWinner,
+  mockOldChallengeWinner,
   createMockRequest,
 } from '../mocks/fixtures'
 
@@ -402,10 +404,20 @@ describe('Admin Challenge API', () => {
 
     it('should end an active challenge', async () => {
       vi.mocked(prisma.challenge.findUnique).mockResolvedValue(mockChallenge as never)
-      vi.mocked(prisma.challenge.update).mockResolvedValue({
-        ...mockChallenge,
-        status: 'ended',
-      } as never)
+      vi.mocked(prisma.challengeParticipant.findMany).mockResolvedValue(mockChallengeLeaderboard as never)
+
+      // Mock the transaction for ending challenge
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+        const mockTx = {
+          challenge: {
+            update: vi.fn().mockResolvedValue({ ...mockChallenge, status: 'ended' }),
+          },
+          challengeWinner: {
+            createMany: vi.fn().mockResolvedValue({ count: 2 }),
+          },
+        }
+        return callback(mockTx)
+      })
 
       const request = createMockRequest({ action: 'end' }, 'PATCH')
       const response = await updateChallenge(request as never, mockParams as never)
@@ -529,6 +541,188 @@ describe('Challenge Status Computation', () => {
       const { canJoinChallenge } = await import('@/lib/challenges')
       const canJoin = canJoinChallenge(mockEndedChallenge)
       expect(canJoin).toBe(false)
+    })
+  })
+})
+
+// =============================================================================
+// WINNER EXCLUSION TESTS
+// =============================================================================
+
+describe('Winner Exclusion', () => {
+  describe('POST /api/member/challenge - Winner Cooldown', () => {
+    beforeEach(() => {
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
+      vi.mocked(prisma.member.findUnique).mockResolvedValue(mockMember as never)
+      vi.mocked(prisma.challenge.findFirst).mockResolvedValue(mockChallenge as never)
+      vi.mocked(prisma.challengeParticipant.findUnique).mockResolvedValue(null)
+    })
+
+    it('should return 403 when past winner is within cooldown period', async () => {
+      // Mock finding a recent win within cooldown
+      vi.mocked(prisma.challengeWinner.findFirst).mockResolvedValue(mockChallengeWinner as never)
+
+      const response = await joinChallenge()
+      const data = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(data.code).toBe('WINNER_COOLDOWN')
+      expect(data.error).toContain('Kao pobednik izazova')
+      expect(data.cooldownEndsAt).toBeDefined()
+    })
+
+    it('should allow joining when past winner is outside cooldown period', async () => {
+      // Mock no recent win found (outside cooldown)
+      vi.mocked(prisma.challengeWinner.findFirst).mockResolvedValue(null)
+      vi.mocked(prisma.challengeParticipant.create).mockResolvedValue({
+        id: 'new-participant',
+        joinedAt: new Date(),
+      } as never)
+
+      const response = await joinChallenge()
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+    })
+
+    it('should allow joining when past winner rank is outside excludeTopN', async () => {
+      // A rank 4 winner should not be excluded if excludeTopN is 3
+      vi.mocked(prisma.challengeWinner.findFirst).mockResolvedValue(null) // Query won't find rank > 3
+      vi.mocked(prisma.challengeParticipant.create).mockResolvedValue({
+        id: 'new-participant',
+        joinedAt: new Date(),
+      } as never)
+
+      const response = await joinChallenge()
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+    })
+  })
+
+  describe('GET /api/member/challenge - Eligibility Info', () => {
+    beforeEach(() => {
+      vi.mocked(getMemberFromSession).mockResolvedValue(mockMemberAuthResult)
+      vi.mocked(prisma.member.findUnique).mockResolvedValue(mockMember as never)
+      vi.mocked(prisma.challenge.findFirst).mockResolvedValue(mockChallenge as never)
+      vi.mocked(prisma.challengeParticipant.findUnique).mockResolvedValue(null)
+      vi.mocked(prisma.challengeParticipant.findMany).mockResolvedValue([])
+    })
+
+    it('should return isEligible=false and cooldownInfo when winner is within cooldown', async () => {
+      vi.mocked(prisma.challengeWinner.findFirst).mockResolvedValue(mockChallengeWinner as never)
+
+      const response = await getMemberChallenge()
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.isEligible).toBe(false)
+      expect(data.cooldownInfo).toBeDefined()
+      expect(data.cooldownInfo.reason).toContain('Kao pobednik izazova')
+      expect(data.cooldownInfo.endsAt).toBeDefined()
+    })
+
+    it('should return isEligible=true when no cooldown applies', async () => {
+      vi.mocked(prisma.challengeWinner.findFirst).mockResolvedValue(null)
+
+      const response = await getMemberChallenge()
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.isEligible).toBe(true)
+      expect(data.cooldownInfo).toBeNull()
+    })
+  })
+
+  describe('PATCH /api/admin/challenges/[id] - Save Winners on End', () => {
+    const mockParams = { params: Promise.resolve({ id: mockChallenge.id }) }
+
+    beforeEach(() => {
+      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffAdmin as never)
+    })
+
+    it('should save winners when challenge is ended', async () => {
+      vi.mocked(prisma.challenge.findUnique).mockResolvedValue(mockChallenge as never)
+      vi.mocked(prisma.challengeParticipant.findMany).mockResolvedValue(mockChallengeLeaderboard as never)
+
+      // Mock the transaction
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+        const mockTx = {
+          challenge: {
+            update: vi.fn().mockResolvedValue({ ...mockChallenge, status: 'ended' }),
+          },
+          challengeWinner: {
+            createMany: vi.fn().mockResolvedValue({ count: 2 }),
+          },
+        }
+        return callback(mockTx)
+      })
+
+      const request = createMockRequest({ action: 'end' }, 'PATCH')
+      const response = await updateChallenge(request as never, mockParams as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.winnersSaved).toBeDefined()
+    })
+  })
+
+  describe('Challenge Creation with Winner Exclusion Settings', () => {
+    beforeEach(() => {
+      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffAdmin as never)
+    })
+
+    it('should create challenge with custom excludeTopN and winnerCooldownMonths', async () => {
+      vi.mocked(prisma.challenge.findFirst).mockResolvedValue(null)
+      vi.mocked(prisma.challenge.create).mockResolvedValue({
+        ...mockDraftChallenge,
+        excludeTopN: 5,
+        winnerCooldownMonths: 6,
+      } as never)
+
+      const request = createMockRequest({
+        name: 'Test Challenge',
+        description: 'Test description',
+        rewardDescription: 'Test reward',
+        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000).toISOString(),
+        excludeTopN: 5,
+        winnerCooldownMonths: 6,
+      })
+
+      const response = await createChallenge(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+    })
+
+    it('should use default values when excludeTopN and winnerCooldownMonths not provided', async () => {
+      vi.mocked(prisma.challenge.findFirst).mockResolvedValue(null)
+      vi.mocked(prisma.challenge.create).mockResolvedValue({
+        ...mockDraftChallenge,
+        excludeTopN: 3,
+        winnerCooldownMonths: 3,
+      } as never)
+
+      const request = createMockRequest({
+        name: 'Test Challenge',
+        description: 'Test description',
+        rewardDescription: 'Test reward',
+        startDate: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000).toISOString(),
+        endDate: new Date(Date.now() + 37 * 24 * 60 * 60 * 1000).toISOString(),
+      })
+
+      const response = await createChallenge(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
     })
   })
 })

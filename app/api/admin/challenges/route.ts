@@ -88,6 +88,8 @@ export async function POST(request: NextRequest) {
       pointsPerWater = 1,
       pointsPerCheckin = 25,
       streakBonus = 5,
+      excludeTopN = 3,
+      winnerCooldownMonths = 3,
     } = body;
 
     // Validate required fields
@@ -140,6 +142,8 @@ export async function POST(request: NextRequest) {
         pointsPerWater,
         pointsPerCheckin,
         streakBonus,
+        excludeTopN,
+        winnerCooldownMonths,
         status: "draft",
       },
     });

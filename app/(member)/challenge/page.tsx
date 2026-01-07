@@ -3,6 +3,7 @@
 import { useState, useEffect, useCallback } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard, FadeIn, SlideUp, Button } from "@/components/ui";
+import { TierGate } from "@/components/tier-gate";
 
 interface LeaderboardEntry {
   rank: number;
@@ -170,6 +171,7 @@ export default function ChallengePage() {
   // No challenge available
   if (!data?.challenge) {
     return (
+      <TierGate feature="challenges">
       <div className="min-h-screen bg-background p-4 pb-24">
         <FadeIn>
           {/* Header */}
@@ -201,6 +203,7 @@ export default function ChallengePage() {
           </GlassCard>
         </FadeIn>
       </div>
+      </TierGate>
     );
   }
 
@@ -662,6 +665,7 @@ export default function ChallengePage() {
 
   // Joined or registration closed - show leaderboard
   return (
+    <TierGate feature="challenges">
     <div className="min-h-screen bg-background p-4 pb-24">
       <FadeIn>
         {/* Header */}
@@ -923,5 +927,6 @@ export default function ChallengePage() {
         </div>
       )}
     </div>
+    </TierGate>
   );
 }

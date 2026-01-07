@@ -17,6 +17,7 @@ function CheckoutContent() {
   const searchParams = useSearchParams();
   const router = useRouter();
   const gymId = searchParams.get("gymId");
+  const tier = searchParams.get("tier") || "starter";
   const cancelled = searchParams.get("cancelled");
 
   const [isLoading, setIsLoading] = useState(true);
@@ -38,7 +39,7 @@ function CheckoutContent() {
         const response = await fetch("/api/stripe/create-checkout", {
           method: "POST",
           headers: { "Content-Type": "application/json" },
-          body: JSON.stringify({ gymId }),
+          body: JSON.stringify({ gymId, tier }),
         });
 
         const data = await response.json();
@@ -89,7 +90,7 @@ function CheckoutContent() {
             <button
               onClick={() => {
                 // Remove cancelled param and retry
-                router.push(`/gym-portal/checkout?gymId=${gymId}`);
+                router.push(`/gym-portal/checkout?gymId=${gymId}&tier=${tier}`);
                 window.location.reload();
               }}
               className="w-full py-4 px-6 bg-accent hover:bg-accent/90 text-white font-semibold rounded-xl transition-colors"

@@ -1417,6 +1417,28 @@ Access your profile and account settings:
 | `/api/coach/assignments` | POST | Assign coach to member with custom targets |
 | `/api/coach/assignments/:id` | PATCH | Update coach assignment settings |
 | `/api/coach/unassigned-members` | GET | List members without a coach |
+| `/api/coach/assign-direct` | POST | Directly assign member to coach (bypasses request flow) |
+
+**Auto-Assignment:** When a coach creates a member via `POST /api/members`, the member is automatically assigned to that coach. The response includes `autoAssigned: true` to indicate this.
+
+**POST `/api/coach/assign-direct` body:**
+```json
+{
+  "memberId": "member-cuid"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true,
+  "assignment": {
+    "id": "assignment-cuid",
+    "member": { "id": "...", "memberId": "ABC123", "name": "John Doe", "avatarUrl": null },
+    "assignedAt": "2024-12-28T10:00:00Z"
+  }
+}
+```
 
 ### Challenges (Admin only)
 

@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST as assignPost } from '@/app/api/coach/assign/route'
+import { POST as assignDirectPost } from '@/app/api/coach/assign-direct/route'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import {
@@ -225,6 +226,163 @@ describe('Coach API', () => {
         expect(response.status).toBe(200)
         expect(data.request.customGoal).toBe('muscle_gain')
         expect(prisma.member.update).not.toHaveBeenCalled()
+      })
+    })
+  })
+})
+
+// =========================================================================
+// POST /api/coach/assign-direct - Direct Assignment (bypasses request flow)
+// =========================================================================
+describe('POST /api/coach/assign-direct - Direct Assignment', () => {
+  beforeEach(() => {
+    vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+  })
+
+  describe('Authentication', () => {
+    it('should return 401 if no session', async () => {
+      vi.mocked(getSession).mockResolvedValue(null)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+
+    it('should return 401 if session is member type', async () => {
+      vi.mocked(getSession).mockResolvedValue(mockMemberSession)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(401)
+      expect(data.error).toBe('Unauthorized')
+    })
+  })
+
+  describe('Role Validation', () => {
+    it('should return 403 if staff is not a coach', async () => {
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffAdmin as never)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(403)
+      expect(data.error).toBe('Only coaches can assign members to themselves')
+    })
+
+    it('should return 404 if staff not found', async () => {
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(null)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(data.error).toBe('Staff not found')
+    })
+  })
+
+  describe('Member Validation', () => {
+    beforeEach(() => {
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffCoach as never)
+    })
+
+    it('should return 400 if memberId is missing', async () => {
+      const request = createMockRequest({})
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Member ID is required')
+    })
+
+    it('should return 404 if member not found in gym', async () => {
+      vi.mocked(prisma.member.findFirst).mockResolvedValue(null)
+
+      const request = createMockRequest({ memberId: 'non-existent' })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(404)
+      expect(data.error).toBe('Member not found in your gym')
+    })
+
+    it('should return 400 if member already has a coach', async () => {
+      const memberWithCoach = {
+        ...mockMember,
+        coachAssignment: mockCoachAssignment,
+      }
+      vi.mocked(prisma.member.findFirst).mockResolvedValue(memberWithCoach as never)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(400)
+      expect(data.error).toBe('Member already has a coach assigned')
+    })
+  })
+
+  describe('Successful Direct Assignment', () => {
+    beforeEach(() => {
+      vi.mocked(prisma.staff.findUnique).mockResolvedValue(mockStaffCoach as never)
+      vi.mocked(prisma.member.findFirst).mockResolvedValue({
+        ...mockMember,
+        coachAssignment: null,
+      } as never)
+      vi.mocked(prisma.coachRequest.deleteMany).mockResolvedValue({ count: 0 })
+    })
+
+    it('should directly create coach assignment', async () => {
+      const mockAssignment = {
+        id: 'assignment-001',
+        staffId: mockStaffCoach.id,
+        memberId: mockMember.id,
+        assignedAt: new Date(),
+        member: {
+          id: mockMember.id,
+          memberId: mockMember.memberId,
+          name: mockMember.name,
+          avatarUrl: null,
+        },
+      }
+      vi.mocked(prisma.coachAssignment.create).mockResolvedValue(mockAssignment as never)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      const response = await assignDirectPost(request as never)
+      const data = await response.json()
+
+      expect(response.status).toBe(200)
+      expect(data.success).toBe(true)
+      expect(data.assignment).toBeDefined()
+      expect(data.assignment.member.memberId).toBe(mockMember.memberId)
+    })
+
+    it('should delete pending coach requests before assigning', async () => {
+      const mockAssignment = {
+        id: 'assignment-001',
+        staffId: mockStaffCoach.id,
+        memberId: mockMember.id,
+        assignedAt: new Date(),
+        member: {
+          id: mockMember.id,
+          memberId: mockMember.memberId,
+          name: mockMember.name,
+          avatarUrl: null,
+        },
+      }
+      vi.mocked(prisma.coachAssignment.create).mockResolvedValue(mockAssignment as never)
+
+      const request = createMockRequest({ memberId: mockMember.id })
+      await assignDirectPost(request as never)
+
+      expect(prisma.coachRequest.deleteMany).toHaveBeenCalledWith({
+        where: { memberId: mockMember.id },
       })
     })
   })

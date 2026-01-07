@@ -3,6 +3,8 @@
 import { useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+type GymTier = "starter" | "pro" | "elite";
+
 interface FormData {
   gymName: string;
   ownerName: string;
@@ -11,9 +13,56 @@ interface FormData {
   address: string;
   primaryColor: string;
   logo: string | null;
+  tier: GymTier;
 }
 
 const DEFAULT_COLOR = "#ef4444";
+
+const TIER_INFO = {
+  starter: {
+    name: "Starter",
+    price: 99,
+    features: [
+      "Do 50 aktivnih članova",
+      "10 AI poruka po članu dnevno",
+      "Osnovno praćenje napretka",
+      "QR prijava u teretanu",
+    ],
+    notIncluded: [
+      "Izazovi",
+      "Zakazivanje termina",
+      "Trenerske funkcije",
+    ],
+  },
+  pro: {
+    name: "Pro",
+    price: 199,
+    popular: true,
+    features: [
+      "Do 150 aktivnih članova",
+      "25 AI poruka po članu dnevno",
+      "Izazovi i takmičenja",
+      "Zakazivanje termina sa trenerima",
+      "Trenerske funkcije",
+      "QR prijava u teretanu",
+    ],
+    notIncluded: [
+      "Prilagođeno brendiranje",
+    ],
+  },
+  elite: {
+    name: "Elite",
+    price: 299,
+    features: [
+      "Neograničen broj članova",
+      "50 AI poruka po članu dnevno",
+      "Sve Pro funkcije",
+      "Prilagođeno brendiranje",
+      "Prioritetna podrška",
+    ],
+    notIncluded: [],
+  },
+} as const;
 
 export default function GymRegisterPage() {
   const router = useRouter();
@@ -27,6 +76,7 @@ export default function GymRegisterPage() {
     address: "",
     primaryColor: DEFAULT_COLOR,
     logo: null,
+    tier: "pro", // Default to Pro (most popular)
   });
 
   const [isSubmitting, setIsSubmitting] = useState(false);
@@ -107,8 +157,8 @@ export default function GymRegisterPage() {
         );
       }
 
-      // Redirect to checkout with gym ID
-      router.push(`/gym-portal/checkout?gymId=${data.gym.id}`);
+      // Redirect to checkout with gym ID and selected tier
+      router.push(`/gym-portal/checkout?gymId=${data.gym.id}&tier=${formData.tier}`);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Nepoznata greška");
     } finally {
@@ -355,16 +405,141 @@ export default function GymRegisterPage() {
             </div>
           </div>
 
-          {/* Pricing Summary */}
+          {/* Tier Selection */}
+          <div className="bg-background-secondary border border-border rounded-2xl p-6">
+            <h2 className="text-lg font-semibold text-foreground mb-2">
+              Izaberite paket
+            </h2>
+            <p className="text-sm text-foreground-muted mb-6">
+              Odaberite paket koji najbolje odgovara potrebama vaše teretane
+            </p>
+
+            <div className="grid gap-4">
+              {(["starter", "pro", "elite"] as const).map((tier) => {
+                const info = TIER_INFO[tier];
+                const isSelected = formData.tier === tier;
+                const isPopular = "popular" in info && info.popular;
+
+                return (
+                  <button
+                    key={tier}
+                    type="button"
+                    onClick={() => setFormData((prev) => ({ ...prev, tier }))}
+                    className={`relative text-left p-5 rounded-xl border-2 transition-all ${
+                      isSelected
+                        ? "border-accent bg-accent/5"
+                        : "border-border hover:border-accent/30 bg-background"
+                    }`}
+                  >
+                    {isPopular && (
+                      <span className="absolute -top-3 left-4 px-3 py-1 bg-accent text-white text-xs font-medium rounded-full">
+                        Najpopularnije
+                      </span>
+                    )}
+
+                    <div className="flex items-start justify-between gap-4">
+                      <div className="flex-1">
+                        <div className="flex items-center gap-3 mb-2">
+                          <div
+                            className={`w-5 h-5 rounded-full border-2 flex items-center justify-center ${
+                              isSelected
+                                ? "border-accent bg-accent"
+                                : "border-foreground-muted"
+                            }`}
+                          >
+                            {isSelected && (
+                              <svg
+                                className="w-3 h-3 text-white"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={3}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                            )}
+                          </div>
+                          <span className="font-semibold text-foreground">
+                            {info.name}
+                          </span>
+                        </div>
+
+                        <ul className="ml-8 space-y-1">
+                          {info.features.slice(0, 3).map((feature, idx) => (
+                            <li
+                              key={idx}
+                              className="text-sm text-foreground-muted flex items-center gap-2"
+                            >
+                              <svg
+                                className="w-4 h-4 text-emerald-400 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M5 13l4 4L19 7"
+                                />
+                              </svg>
+                              {feature}
+                            </li>
+                          ))}
+                          {info.notIncluded.length > 0 && (
+                            <li className="text-sm text-foreground-muted/50 flex items-center gap-2">
+                              <svg
+                                className="w-4 h-4 text-foreground-muted/30 shrink-0"
+                                fill="none"
+                                viewBox="0 0 24 24"
+                                stroke="currentColor"
+                                strokeWidth={2}
+                              >
+                                <path
+                                  strokeLinecap="round"
+                                  strokeLinejoin="round"
+                                  d="M6 18L18 6M6 6l12 12"
+                                />
+                              </svg>
+                              {info.notIncluded[0]}
+                              {info.notIncluded.length > 1 &&
+                                ` +${info.notIncluded.length - 1}`}
+                            </li>
+                          )}
+                        </ul>
+                      </div>
+
+                      <div className="text-right">
+                        <p className="text-2xl font-bold text-foreground">
+                          €{info.price}
+                        </p>
+                        <p className="text-xs text-foreground-muted">/mesec</p>
+                      </div>
+                    </div>
+                  </button>
+                );
+              })}
+            </div>
+          </div>
+
+          {/* Selected Tier Summary */}
           <div className="bg-accent/5 border border-accent/20 rounded-2xl p-6">
             <div className="flex items-center justify-between">
               <div>
                 <p className="text-sm text-foreground-muted">Mesečna pretplata</p>
-                <p className="text-2xl font-bold text-foreground">150€</p>
+                <p className="text-2xl font-bold text-foreground">
+                  €{TIER_INFO[formData.tier].price}
+                </p>
               </div>
               <div className="text-right">
-                <p className="text-sm text-foreground-muted">Uključuje</p>
-                <p className="text-sm text-foreground">Sve funkcije, neograničeno članova</p>
+                <p className="text-sm text-foreground-muted">Izabrani paket</p>
+                <p className="text-sm font-medium text-accent">
+                  {TIER_INFO[formData.tier].name}
+                </p>
               </div>
             </div>
           </div>

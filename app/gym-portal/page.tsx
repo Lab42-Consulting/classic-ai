@@ -1,5 +1,6 @@
 "use client";
 
+import { useState } from "react";
 import Link from "next/link";
 import { AgentAvatar, agentMeta, AgentType } from "@/components/ui/agent-avatar";
 
@@ -104,9 +105,646 @@ const recipeFeatures = [
 const stats = [
   { value: "3", label: "AI Asistenta" },
   { value: "24/7", label: "Dostupnost" },
-  { value: "∞", label: "Članova" },
-  { value: "150€", label: "Mesečno" },
+  { value: "3", label: "Paketa" },
+  { value: "od 99€", label: "Mesečno" },
 ];
+
+const pricingTiers = [
+  {
+    name: "Starter",
+    price: 99,
+    description: "Za manje teretane koje počinju sa digitalizacijom",
+    features: [
+      "Do 50 aktivnih članova",
+      "3 AI asistenta",
+      "10 AI poruka po članu dnevno",
+      "Praćenje napretka članova",
+      "QR prijava u teretanu",
+      "Biblioteka recepata",
+      "Tehnička podrška",
+    ],
+    notIncluded: ["Izazovi i takmičenja", "Zakazivanje termina", "Trenerske funkcije"],
+    popular: false,
+    color: "gray",
+  },
+  {
+    name: "Pro",
+    price: 199,
+    description: "Najpopularnije rešenje za rastuce teretane",
+    features: [
+      "Do 150 aktivnih članova",
+      "3 AI asistenta",
+      "25 AI poruka po članu dnevno",
+      "Izazovi i takmičenja",
+      "Zakazivanje termina sa trenerima",
+      "Trenerske funkcije",
+      "Programiranje ishrane",
+      "Analitika i statistika",
+      "Prioritetna podrška",
+    ],
+    notIncluded: ["Prilagođeno brendiranje"],
+    popular: true,
+    color: "accent",
+  },
+  {
+    name: "Elite",
+    price: 299,
+    description: "Za velike teretane sa naprednim potrebama",
+    features: [
+      "Neograničen broj članova",
+      "3 AI asistenta",
+      "50 AI poruka po članu dnevno",
+      "Sve Pro funkcije",
+      "Prilagođeno brendiranje",
+      "Logo i boje aplikacije",
+      "Dedicirani account manager",
+      "Prioritetna tehnička podrška",
+    ],
+    notIncluded: [],
+    popular: false,
+    color: "amber",
+  },
+];
+
+function PhoneCarousel() {
+  const [activeSlide, setActiveSlide] = useState(0);
+
+  return (
+    <div className="relative order-2 lg:order-1 flex justify-center">
+      <div className="relative">
+        {/* Phone Frame */}
+        <div className="relative w-[280px] sm:w-[320px]">
+          <div className="bg-[#1a1a1a] rounded-[36px] sm:rounded-[48px] p-2.5 sm:p-3 shadow-2xl border border-white/10">
+            <div className="bg-background rounded-[30px] sm:rounded-[40px] overflow-hidden h-[480px] sm:h-[580px]">
+              {/* Status Bar / Dynamic Island */}
+              <div className="h-7 sm:h-8 bg-background flex items-center justify-center sticky top-0 z-10">
+                <div className="w-24 sm:w-28 h-6 sm:h-7 bg-black rounded-full" />
+              </div>
+
+              {/* Carousel Container */}
+              <div className="relative h-[calc(100%-28px)] sm:h-[calc(100%-32px)] overflow-hidden">
+                {/* Slide 1 - Member Detail */}
+                <div
+                  className={`absolute inset-0 transition-all duration-500 ease-out ${
+                    activeSlide === 0 ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
+                  }`}
+                >
+                  <div className="h-full overflow-hidden">
+                    <div className="animate-phone-scroll">
+                      {/* App Content - Member Detail */}
+                      <div className="px-4 sm:px-5 pb-24">
+                        {/* Header */}
+                        <div className="flex items-center justify-between py-3">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </div>
+                          <p className="text-sm sm:text-base font-semibold text-foreground">Profil klijenta</p>
+                          <div className="w-8 sm:w-9" />
+                        </div>
+
+                        {/* Member Header Card */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-accent/20 mb-4">
+                          <div className="flex items-start gap-3 mb-3">
+                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                              <span className="text-accent font-bold text-base sm:text-lg">AN</span>
+                            </div>
+                            <div className="flex-1 min-w-0">
+                              <div className="flex items-start justify-between">
+                                <div>
+                                  <p className="text-base sm:text-lg font-bold text-foreground">Ana Nikolić</p>
+                                  <p className="text-xs sm:text-sm text-foreground-muted">M-2847 · Mršavljenje</p>
+                                </div>
+                                <div className="px-2.5 py-1 rounded-full bg-success/10 flex items-center gap-1">
+                                  <span className="text-xs">↘️</span>
+                                  <span className="text-xs sm:text-sm text-success font-medium">-2.5kg</span>
+                                </div>
+                              </div>
+                            </div>
+                          </div>
+                          {/* Quick Stats */}
+                          <div className="grid grid-cols-4 gap-3 text-center">
+                            <div>
+                              <p className="text-base sm:text-lg font-bold text-foreground">68</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">kg</p>
+                            </div>
+                            <div>
+                              <p className="text-base sm:text-lg font-bold text-foreground">4</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">tren/ned</p>
+                            </div>
+                            <div>
+                              <p className="text-base sm:text-lg font-bold text-foreground">6/7</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">loguje</p>
+                            </div>
+                            <div>
+                              <p className="text-base sm:text-lg font-bold text-foreground">12</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">vode</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* AI Summary Card */}
+                        <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20 mb-4">
+                          <div className="flex items-start gap-3">
+                            <span className="text-xl">🤖</span>
+                            <div>
+                              <p className="text-xs sm:text-sm font-medium text-accent mb-1">Rezime ponašanja</p>
+                              <p className="text-[11px] sm:text-xs text-foreground leading-relaxed">
+                                Ana redovno beleži obroke i treninge. Ispunjava kalorijski cilj u 85% dana. Proteini su joj ispod cilja - preporučiti više izvora proteina.
+                              </p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Nutrition Stats */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
+                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Prosek ove nedelje</p>
+                          <div className="space-y-3">
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs sm:text-sm text-foreground">Kalorije</span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-20 sm:w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                                  <div className="h-full w-[82%] bg-accent rounded-full" />
+                                </div>
+                                <span className="text-[10px] sm:text-xs text-foreground-muted">1640/2000</span>
+                              </div>
+                            </div>
+                            <div className="flex items-center justify-between">
+                              <span className="text-xs sm:text-sm text-foreground">Proteini</span>
+                              <div className="flex items-center gap-3">
+                                <div className="w-20 sm:w-24 h-2 bg-white/10 rounded-full overflow-hidden">
+                                  <div className="h-full w-[65%] bg-warning rounded-full" />
+                                </div>
+                                <span className="text-[10px] sm:text-xs text-foreground-muted">85g/130g</span>
+                              </div>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Weight Progress */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
+                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Napredak težine</p>
+                          <div className="space-y-2">
+                            {[
+                              { week: 4, emoji: "😄", weight: "68.0" },
+                              { week: 3, emoji: "🙂", weight: "68.8" },
+                              { week: 2, emoji: "🙂", weight: "69.5" },
+                              { week: 1, emoji: "😐", weight: "70.5" },
+                            ].map((item) => (
+                              <div key={item.week} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
+                                <span className="text-[10px] sm:text-xs text-foreground-muted">Ned {item.week}</span>
+                                <div className="flex items-center gap-2">
+                                  <span className="text-sm">{item.emoji}</span>
+                                  <span className="text-xs sm:text-sm font-medium text-foreground">{item.weight} kg</span>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* AI Settings */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
+                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-1">AI Podešavanja</p>
+                          <p className="text-[10px] sm:text-xs text-foreground-muted/70 mb-3">Tvoje smernice za AI agente</p>
+                          <div className="space-y-2">
+                            {[
+                              { name: "Ishrana", emoji: "🥗", hasContent: true },
+                              { name: "Suplementi", emoji: "💊", hasContent: true },
+                              { name: "Trening", emoji: "💪", hasContent: false },
+                            ].map((agent) => (
+                              <div key={agent.name} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl">
+                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
+                                  <span className="text-sm">{agent.emoji}</span>
+                                </div>
+                                <div className="flex-1">
+                                  <p className="text-xs sm:text-sm font-medium text-foreground">{agent.name}</p>
+                                  <p className="text-[10px] sm:text-xs text-foreground-muted">
+                                    {agent.hasContent ? "Smernice postavljene" : "Dodaj smernice"}
+                                  </p>
+                                </div>
+                                <div className={`w-2 h-2 rounded-full ${agent.hasContent ? "bg-emerald-500" : "bg-foreground-muted/30"}`} />
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Coach Meals */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
+                          <div className="flex items-center justify-between mb-3">
+                            <p className="text-xs sm:text-sm font-medium text-foreground-muted">Obroci za člana</p>
+                            <span className="px-3 py-1 bg-accent text-white text-[10px] sm:text-xs rounded-lg font-medium">
+                              + Dodaj
+                            </span>
+                          </div>
+                          <div className="space-y-2">
+                            {[
+                              { name: "Proteinski doručak", kcal: 420, protein: 35 },
+                              { name: "Piletina sa povrćem", kcal: 380, protein: 42 },
+                            ].map((meal, i) => (
+                              <div key={i} className="flex items-center justify-between p-2.5 bg-background rounded-xl">
+                                <div>
+                                  <p className="text-xs sm:text-sm font-medium text-foreground">{meal.name}</p>
+                                  <p className="text-[10px] sm:text-xs text-foreground-muted">{meal.kcal} kcal · P: {meal.protein}g</p>
+                                </div>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Action Buttons */}
+                        <div className="flex gap-3 mt-4">
+                          <div className="flex-1 py-2.5 bg-white/10 rounded-xl text-center">
+                            <span className="text-[10px] sm:text-xs font-medium text-foreground">📝 Beleška</span>
+                          </div>
+                          <div className="flex-1 py-2.5 bg-accent rounded-xl text-center">
+                            <span className="text-[10px] sm:text-xs font-medium text-white">💬 Poruka</span>
+                          </div>
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 2 - Member Registration/Setup */}
+                <div
+                  className={`absolute inset-0 transition-all duration-500 ease-out ${
+                    activeSlide === 1 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+                  }`}
+                >
+                  <div className="h-full overflow-hidden">
+                    <div className="animate-phone-scroll" style={{ animationDelay: "3s" }}>
+                      {/* App Content - Registration Setup */}
+                      <div className="px-4 sm:px-5 pb-24">
+                        {/* Header */}
+                        <div className="flex items-center justify-between py-3">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </div>
+                          <p className="text-sm sm:text-base font-semibold text-foreground">Postavi plan</p>
+                          <div className="w-8 sm:w-9" />
+                        </div>
+
+                        {/* Selected Member Card */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
+                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-2">Član</p>
+                          <div className="flex items-center gap-3">
+                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-accent/20 flex items-center justify-center">
+                              <span className="text-accent font-bold text-sm sm:text-base">SP</span>
+                            </div>
+                            <div>
+                              <p className="text-sm sm:text-base font-medium text-foreground">Stefan Petrović</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">M-3102 · 82kg</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Goal Selection */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
+                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-3">Cilj *</p>
+                          <div className="space-y-2">
+                            {[
+                              { label: "Gubitak masnoće", selected: false },
+                              { label: "Rast mišića", selected: true },
+                              { label: "Rekompozicija", selected: false },
+                            ].map((goal, i) => (
+                              <div
+                                key={i}
+                                className={`p-3 rounded-xl border-2 transition-all ${
+                                  goal.selected
+                                    ? "border-accent bg-accent/10"
+                                    : "border-white/10 bg-white/5"
+                                }`}
+                              >
+                                <span className={`text-xs sm:text-sm font-medium ${goal.selected ? "text-accent" : "text-foreground"}`}>
+                                  {goal.label}
+                                </span>
+                              </div>
+                            ))}
+                          </div>
+                        </div>
+
+                        {/* Custom Targets */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
+                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-3">Prilagođeni ciljevi</p>
+                          <div className="grid grid-cols-3 gap-2 mb-3">
+                            <div>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">Proteini</p>
+                              <div className="bg-background rounded-xl px-3 py-2 text-center">
+                                <span className="text-xs sm:text-sm font-medium text-foreground">180g</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">UH</p>
+                              <div className="bg-background rounded-xl px-3 py-2 text-center">
+                                <span className="text-xs sm:text-sm font-medium text-foreground">250g</span>
+                              </div>
+                            </div>
+                            <div>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">Masti</p>
+                              <div className="bg-background rounded-xl px-3 py-2 text-center">
+                                <span className="text-xs sm:text-sm font-medium text-foreground">70g</span>
+                              </div>
+                            </div>
+                          </div>
+                          <div>
+                            <div className="flex items-center justify-between mb-1">
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Kalorije</p>
+                              <span className="text-[9px] sm:text-[10px] text-accent">auto</span>
+                            </div>
+                            <div className="bg-background rounded-xl px-3 py-2 text-center">
+                              <span className="text-sm sm:text-base font-bold text-accent">2,350 kcal</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Macro Tracking Toggle */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
+                          <div className="flex items-start gap-3">
+                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded border-2 border-accent bg-accent flex items-center justify-center flex-shrink-0 mt-0.5">
+                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
+                              </svg>
+                            </div>
+                            <div>
+                              <p className="text-xs sm:text-sm font-medium text-foreground">Zahtevaj makrose</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">Član mora uneti P/UH/M</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Notes */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
+                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-2">Beleške</p>
+                          <div className="bg-background rounded-xl p-3 min-h-[48px]">
+                            <p className="text-[10px] sm:text-xs text-foreground-muted italic">Fokus na compound vežbe...</p>
+                          </div>
+                        </div>
+
+                        {/* Submit Button */}
+                        <div className="w-full py-3 bg-accent rounded-xl text-xs sm:text-sm font-semibold text-white text-center">
+                          Dodeli člana
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+
+                {/* Slide 3 - Session Scheduling */}
+                <div
+                  className={`absolute inset-0 transition-all duration-500 ease-out ${
+                    activeSlide === 2 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
+                  }`}
+                >
+                  <div className="h-full overflow-hidden">
+                    <div className="animate-phone-scroll" style={{ animationDelay: "6s" }}>
+                      {/* App Content - Sessions */}
+                      <div className="px-4 sm:px-5 pb-24">
+                        {/* Header */}
+                        <div className="flex items-center justify-between py-3">
+                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
+                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
+                            </svg>
+                          </div>
+                          <p className="text-sm sm:text-base font-semibold text-foreground">Termini</p>
+                          <div className="w-8 sm:w-9" />
+                        </div>
+
+                        {/* Session Request Card */}
+                        <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20 mb-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <span className="flex h-2 w-2 relative">
+                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
+                              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
+                            </span>
+                            <p className="text-xs sm:text-sm font-medium text-accent">Novi zahtev</p>
+                          </div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-violet-500/20 flex items-center justify-center">
+                              <span className="text-violet-400 font-bold text-sm">MJ</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground">Marko Jovanović</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">Lični trening · 60 min</p>
+                            </div>
+                          </div>
+                          <div className="bg-background/50 rounded-xl p-3 mb-3">
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground">
+                              <span>📅</span>
+                              <span>Sreda, 15. jan · 18:00</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground-muted mt-1">
+                              <span>📍</span>
+                              <span>U teretani</span>
+                            </div>
+                          </div>
+                          <div className="flex gap-2">
+                            <div className="flex-1 py-2 bg-white/10 rounded-lg text-center">
+                              <span className="text-[10px] sm:text-xs font-medium text-foreground">Predloži drugo</span>
+                            </div>
+                            <div className="flex-1 py-2 bg-accent rounded-lg text-center">
+                              <span className="text-[10px] sm:text-xs font-medium text-white">Prihvati</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Upcoming Session */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-emerald-500/20 mb-4">
+                          <div className="flex items-center gap-2 mb-3">
+                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
+                            <p className="text-xs sm:text-sm font-medium text-emerald-400">Potvrđeno</p>
+                          </div>
+                          <div className="flex items-center gap-3 mb-3">
+                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-accent/20 flex items-center justify-center">
+                              <span className="text-accent font-bold text-sm">AN</span>
+                            </div>
+                            <div className="flex-1">
+                              <p className="text-sm font-medium text-foreground">Ana Nikolić</p>
+                              <p className="text-[10px] sm:text-xs text-foreground-muted">Konsultacije · 45 min</p>
+                            </div>
+                          </div>
+                          <div className="bg-background/50 rounded-xl p-3">
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground">
+                              <span>📅</span>
+                              <span>Danas · 16:30</span>
+                            </div>
+                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground-muted mt-1">
+                              <span>📍</span>
+                              <span>Online</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Calendar Preview - Full Month */}
+                        <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/5 mb-4">
+                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-2">Januar 2026</p>
+                          <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
+                            {["P", "U", "S", "Č", "P", "S", "N"].map((d, i) => (
+                              <span key={i} className="text-[8px] sm:text-[9px] text-foreground-muted py-1">{d}</span>
+                            ))}
+                          </div>
+                          {/* January 2026: starts Thursday, 31 days */}
+                          <div className="grid grid-cols-7 gap-0.5">
+                            {/* Week 1: empty Mon-Wed, then 1-4 */}
+                            {[null, null, null, 1, 2, 3, 4].map((day, i) => (
+                              <div
+                                key={`w1-${i}`}
+                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
+                                  day === 3 ? "bg-emerald-500/30 text-foreground" :
+                                  day ? "bg-white/5 text-foreground-muted" : ""
+                                }`}
+                              >
+                                {day}
+                              </div>
+                            ))}
+                            {/* Week 2: 5-11 */}
+                            {[5, 6, 7, 8, 9, 10, 11].map((day) => (
+                              <div
+                                key={day}
+                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
+                                  day === 7 ? "ring-1 ring-accent bg-white/10 text-foreground font-medium" :
+                                  day === 9 ? "bg-emerald-500/30 text-foreground" :
+                                  "bg-white/5 text-foreground-muted"
+                                }`}
+                              >
+                                {day}
+                              </div>
+                            ))}
+                            {/* Week 3: 12-18 */}
+                            {[12, 13, 14, 15, 16, 17, 18].map((day) => (
+                              <div
+                                key={day}
+                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
+                                  day === 15 ? "bg-accent/30 text-accent font-medium" :
+                                  day === 17 ? "bg-emerald-500/30 text-foreground" :
+                                  "bg-white/5 text-foreground-muted"
+                                }`}
+                              >
+                                {day}
+                              </div>
+                            ))}
+                            {/* Week 4: 19-25 */}
+                            {[19, 20, 21, 22, 23, 24, 25].map((day) => (
+                              <div
+                                key={day}
+                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
+                                  day === 21 ? "bg-emerald-500/30 text-foreground" :
+                                  "bg-white/5 text-foreground-muted"
+                                }`}
+                              >
+                                {day}
+                              </div>
+                            ))}
+                            {/* Week 5: 26-31 + empty */}
+                            {[26, 27, 28, 29, 30, 31, null].map((day, i) => (
+                              <div
+                                key={`w5-${i}`}
+                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
+                                  day ? "bg-white/5 text-foreground-muted" : ""
+                                }`}
+                              >
+                                {day}
+                              </div>
+                            ))}
+                          </div>
+                          {/* Legend */}
+                          <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-white/5">
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-sm bg-accent/30" />
+                              <span className="text-[8px] text-foreground-muted">Zahtev</span>
+                            </div>
+                            <div className="flex items-center gap-1">
+                              <div className="w-2 h-2 rounded-sm bg-emerald-500/30" />
+                              <span className="text-[8px] text-foreground-muted">Završeno</span>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Quick Stats */}
+                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
+                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Ovaj mesec</p>
+                          <div className="grid grid-cols-3 gap-2 text-center">
+                            <div>
+                              <p className="text-lg sm:text-xl font-bold text-foreground">12</p>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Završeno</p>
+                            </div>
+                            <div>
+                              <p className="text-lg sm:text-xl font-bold text-accent">3</p>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Zakazano</p>
+                            </div>
+                            <div>
+                              <p className="text-lg sm:text-xl font-bold text-warning">1</p>
+                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Na čekanju</p>
+                            </div>
+                          </div>
+                        </div>
+
+                        {/* Schedule Button */}
+                        <div className="w-full py-3 bg-accent rounded-xl text-xs sm:text-sm font-semibold text-white text-center">
+                          Zakaži termin
+                        </div>
+                      </div>
+                    </div>
+                  </div>
+                </div>
+              </div>
+            </div>
+          </div>
+
+          {/* Carousel Navigation */}
+          <div className="flex items-center justify-center gap-3 mt-6">
+            <div className="flex gap-2">
+              <button
+                onClick={() => setActiveSlide(0)}
+                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 0 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
+              />
+              <button
+                onClick={() => setActiveSlide(1)}
+                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 1 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
+              />
+              <button
+                onClick={() => setActiveSlide(2)}
+                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 2 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
+              />
+            </div>
+            <button
+              onClick={() => setActiveSlide((activeSlide + 1) % 3)}
+              className="flex items-center gap-1.5 text-xs sm:text-sm text-foreground-muted hover:text-accent transition-colors"
+            >
+              <span>Sledeći prikaz</span>
+              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+              </svg>
+            </button>
+          </div>
+        </div>
+
+        {/* Floating notification */}
+        <div className="absolute -top-2 -right-2 sm:top-4 sm:-right-8 z-10 bg-background border border-emerald-500/30 rounded-xl px-3 py-2 shadow-xl">
+          <div className="flex items-center gap-2">
+            <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
+              <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+              </svg>
+            </div>
+            <p className="text-[10px] sm:text-xs font-medium text-foreground">Član aktivan!</p>
+          </div>
+        </div>
+
+        {/* Floating plan badge */}
+        <div className="absolute bottom-20 -left-2 sm:bottom-24 sm:-left-8 z-10 bg-background border border-accent/30 rounded-xl px-3 py-2 shadow-xl">
+          <div className="flex items-center gap-2">
+            <span className="text-base">📋</span>
+            <span className="text-[10px] sm:text-xs font-medium text-accent">Plan kreiran</span>
+          </div>
+        </div>
+      </div>
+    </div>
+  );
+}
 
 export default function GymPortalPage() {
   return (
@@ -336,62 +974,8 @@ export default function GymPortalPage() {
       <section className="py-24 relative">
         <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left - Visual */}
-            <div className="relative order-2 lg:order-1">
-              <div className="bg-gradient-to-br from-accent/10 via-background-secondary to-emerald-500/10 rounded-3xl p-8 border border-white/5">
-                {/* Connection visualization */}
-                <div className="relative h-[400px]">
-                  {/* Coach */}
-                  <div className="absolute top-8 left-1/2 -translate-x-1/2 text-center">
-                    <div className="w-20 h-20 rounded-full bg-accent/20 border-2 border-accent flex items-center justify-center mb-2">
-                      <svg className="w-10 h-10 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                      </svg>
-                    </div>
-                    <span className="text-sm font-medium text-accent">Trener</span>
-                  </div>
-
-                  {/* Connection lines */}
-                  <svg className="absolute inset-0 w-full h-full" style={{ zIndex: 0 }}>
-                    <defs>
-                      <linearGradient id="lineGradient" x1="0%" y1="0%" x2="0%" y2="100%">
-                        <stop offset="0%" stopColor="rgba(239,68,68,0.5)" />
-                        <stop offset="100%" stopColor="rgba(239,68,68,0.1)" />
-                      </linearGradient>
-                    </defs>
-                    <line x1="50%" y1="120" x2="25%" y2="280" stroke="url(#lineGradient)" strokeWidth="2" strokeDasharray="6 4" />
-                    <line x1="50%" y1="120" x2="50%" y2="280" stroke="url(#lineGradient)" strokeWidth="2" strokeDasharray="6 4" />
-                    <line x1="50%" y1="120" x2="75%" y2="280" stroke="url(#lineGradient)" strokeWidth="2" strokeDasharray="6 4" />
-                  </svg>
-
-                  {/* Members */}
-                  <div className="absolute bottom-8 left-0 right-0 flex justify-around" style={{ zIndex: 1 }}>
-                    {[1, 2, 3].map((i) => (
-                      <div key={i} className="text-center">
-                        <div className="w-16 h-16 rounded-full bg-white/5 border border-white/10 flex items-center justify-center mb-2">
-                          <svg className="w-8 h-8 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={1.5} d="M16 7a4 4 0 11-8 0 4 4 0 018 0zM12 14a7 7 0 00-7 7h14a7 7 0 00-7-7z" />
-                          </svg>
-                        </div>
-                        <span className="text-xs text-foreground-muted">Član {i}</span>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Feature badges */}
-                  <div className="absolute top-1/2 left-4 transform -translate-y-1/2">
-                    <div className="bg-background/80 backdrop-blur border border-white/10 rounded-xl px-3 py-2">
-                      <span className="text-xs text-emerald-400">Plan ishrane</span>
-                    </div>
-                  </div>
-                  <div className="absolute top-1/2 right-4 transform -translate-y-1/2">
-                    <div className="bg-background/80 backdrop-blur border border-white/10 rounded-xl px-3 py-2">
-                      <span className="text-xs text-violet-400">Poruke</span>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
+            {/* Left - Visual: Phone Mockup with Carousel */}
+            <PhoneCarousel />
 
             {/* Right - Content */}
             <div className="order-1 lg:order-2">
@@ -518,66 +1102,93 @@ export default function GymPortalPage() {
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-3xl mx-auto mb-16">
             <span className="inline-block px-4 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-medium text-accent mb-6">
-              Jednostavna cena
+              Paketi i cene
             </span>
             <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-              Sve uključeno. Bez iznenađenja.
+              Izaberite paket za vašu teretanu
             </h2>
+            <p className="mt-6 text-lg text-foreground-muted">
+              Tri paketa prilagođena različitim veličinama i potrebama teretana.
+              Bez dugoročnih ugovora.
+            </p>
           </div>
 
-          <div className="max-w-lg mx-auto">
-            <div className="bg-background border border-white/10 rounded-3xl overflow-hidden shadow-2xl">
-              {/* Header */}
-              <div className="bg-gradient-to-r from-accent to-orange-500 p-8 text-center">
-                <p className="text-white/80 text-sm font-medium mb-2">Mesečna pretplata</p>
-                <div className="flex items-baseline justify-center gap-1">
-                  <span className="text-6xl font-bold text-white">150</span>
-                  <span className="text-2xl text-white/80">€</span>
+          <div className="grid md:grid-cols-3 gap-8">
+            {pricingTiers.map((tier) => (
+              <div
+                key={tier.name}
+                className={`relative bg-background border rounded-3xl overflow-hidden transition-all ${
+                  tier.popular
+                    ? "border-accent shadow-xl shadow-accent/10 scale-105 z-10"
+                    : "border-white/10 hover:border-white/20"
+                }`}
+              >
+                {/* Popular badge */}
+                {tier.popular && (
+                  <div className="absolute top-0 left-0 right-0 bg-accent text-white text-center py-2 text-sm font-medium">
+                    Najpopularnije
+                  </div>
+                )}
+
+                {/* Header */}
+                <div className={`p-8 text-center ${tier.popular ? "pt-14" : ""}`}>
+                  <h3 className={`text-2xl font-bold mb-2 ${
+                    tier.color === "accent" ? "text-accent" :
+                    tier.color === "amber" ? "text-amber-400" : "text-foreground"
+                  }`}>
+                    {tier.name}
+                  </h3>
+                  <p className="text-sm text-foreground-muted mb-6">{tier.description}</p>
+                  <div className="flex items-baseline justify-center gap-1">
+                    <span className="text-5xl font-bold text-foreground">{tier.price}</span>
+                    <span className="text-xl text-foreground-muted">€</span>
+                  </div>
+                  <p className="text-foreground-muted text-sm mt-1">mesečno</p>
                 </div>
-                <p className="text-white/60 text-sm mt-2">po teretani / mesečno</p>
+
+                {/* Features */}
+                <div className="p-8 pt-0">
+                  <ul className="space-y-3">
+                    {tier.features.map((feature, index) => (
+                      <li key={index} className="flex items-start gap-3">
+                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
+                          </svg>
+                        </div>
+                        <span className="text-foreground text-sm">{feature}</span>
+                      </li>
+                    ))}
+                    {tier.notIncluded.map((feature, index) => (
+                      <li key={`not-${index}`} className="flex items-start gap-3 opacity-50">
+                        <div className="w-5 h-5 rounded-full bg-foreground-muted/20 flex items-center justify-center flex-shrink-0 mt-0.5">
+                          <svg className="w-3 h-3 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
+                          </svg>
+                        </div>
+                        <span className="text-foreground-muted text-sm">{feature}</span>
+                      </li>
+                    ))}
+                  </ul>
+
+                  <Link
+                    href="/gym-portal/gym-signup"
+                    className={`mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold rounded-xl transition-all ${
+                      tier.popular
+                        ? "bg-accent hover:bg-accent/90 text-white hover:shadow-lg hover:shadow-accent/25"
+                        : "bg-white/5 hover:bg-white/10 text-foreground border border-white/10"
+                    }`}
+                  >
+                    Započni sa {tier.name}
+                  </Link>
+                </div>
               </div>
-
-              {/* Features */}
-              <div className="p-8">
-                <ul className="space-y-4">
-                  {[
-                    "Neograničen broj članova",
-                    "Neograničen broj trenera",
-                    "3 AI asistenta (ishrana, suplementi, trening)",
-                    "Programiranje ishrane za članove",
-                    "Biblioteka recepata teretane",
-                    "Brendiranje aplikacije (logo, boje)",
-                    "Praćenje napretka članova",
-                    "Analitika i statistika",
-                    "Tehnička podrška",
-                  ].map((feature, index) => (
-                    <li key={index} className="flex items-center gap-3">
-                      <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0">
-                        <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                        </svg>
-                      </div>
-                      <span className="text-foreground">{feature}</span>
-                    </li>
-                  ))}
-                </ul>
-
-                <Link
-                  href="/gym-portal/gym-signup"
-                  className="mt-8 w-full inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold bg-accent hover:bg-accent/90 text-white rounded-xl transition-all hover:shadow-lg hover:shadow-accent/25"
-                >
-                  Registrujte teretanu
-                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor">
-                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
-                </Link>
-
-                <p className="text-center text-foreground-muted text-sm mt-4">
-                  Bez dugoročnih ugovora. Otkažite kad god želite.
-                </p>
-              </div>
-            </div>
+            ))}
           </div>
+
+          <p className="text-center text-foreground-muted text-sm mt-12">
+            Svi paketi uključuju besplatnu tehničku podršku i mogućnost prelaska na viši paket u bilo kom trenutku.
+          </p>
         </div>
       </section>
 

@@ -7,6 +7,7 @@ import {
   isValidSessionDuration,
   isValidProposedTime,
 } from "@/lib/types/sessions";
+import { checkFeatureAccess } from "@/lib/subscription/guards";
 
 // GET /api/coach/sessions - Get coach's session requests and confirmed sessions
 export async function GET() {
@@ -26,6 +27,20 @@ export async function GET() {
     if (!coach || coach.role.toLowerCase() !== "coach") {
       return NextResponse.json(
         { error: "Samo treneri mogu pristupiti terminima" },
+        { status: 403 }
+      );
+    }
+
+    // Check tier access for session scheduling feature
+    const featureCheck = await checkFeatureAccess(session.gymId, "sessionScheduling");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
         { status: 403 }
       );
     }
@@ -147,6 +162,20 @@ export async function POST(request: NextRequest) {
     if (!coach || coach.role.toLowerCase() !== "coach") {
       return NextResponse.json(
         { error: "Samo treneri mogu zakazivati termine" },
+        { status: 403 }
+      );
+    }
+
+    // Check tier access for session scheduling feature
+    const featureCheck = await checkFeatureAccess(session.gymId, "sessionScheduling");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
         { status: 403 }
       );
     }

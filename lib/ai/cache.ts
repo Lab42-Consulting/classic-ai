@@ -3,15 +3,17 @@
 
 import prisma from "@/lib/db";
 import { Prisma } from "@prisma/client";
+import { getAiRateLimitForTier } from "@/lib/subscription/guards";
 
 // Cache configuration
 const CACHE_TTL_DAYS = 7; // Cache responses for 7 days
 const CACHE_MAX_SIZE = 500; // Max cached responses
 
-// Rate limits by subscription status
+// Legacy rate limits by subscription status (used when gym tier is not provided)
+// For tier-aware rate limiting, use getAiRateLimitForTier() instead
 const RATE_LIMITS = {
   trial: 5, // Trial users: 5 messages/day
-  active: 20, // Active members: 20 messages/day
+  active: 20, // Active members: 20 messages/day (legacy - now tier-based)
   expired: 0, // Expired: no access
   cancelled: 0, // Cancelled: no access
 } as const;
@@ -158,6 +160,89 @@ export async function checkAndIncrementRateLimit(
 ): Promise<{ allowed: boolean; remaining: number; limit: number }> {
   const status = subscriptionStatus as SubscriptionStatus;
   const limit = RATE_LIMITS[status] ?? 0;
+
+  if (limit === 0) {
+    return { allowed: false, remaining: 0, limit: 0 };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Use transaction with Serializable isolation to prevent race conditions
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Increment first (atomic upsert)
+      const usage = await tx.aIUsageDaily.upsert({
+        where: {
+          memberId_date: {
+            memberId,
+            date: today,
+          },
+        },
+        create: {
+          memberId,
+          date: today,
+          count: 1,
+        },
+        update: {
+          count: { increment: 1 },
+        },
+      });
+
+      // Check if we exceeded the limit
+      if (usage.count > limit) {
+        // Roll back the increment
+        await tx.aIUsageDaily.update({
+          where: {
+            memberId_date: {
+              memberId,
+              date: today,
+            },
+          },
+          data: {
+            count: { decrement: 1 },
+          },
+        });
+
+        return {
+          allowed: false,
+          remaining: 0,
+          limit,
+        };
+      }
+
+      // Request allowed
+      return {
+        allowed: true,
+        remaining: Math.max(0, limit - usage.count),
+        limit,
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 5000,
+    }
+  );
+
+  return result;
+}
+
+/**
+ * Tier-aware check and increment rate limit
+ * Uses the gym's subscription tier to determine the rate limit.
+ *
+ * @param memberId - The member's ID
+ * @param subscriptionStatus - Member's subscription status
+ * @param gymTier - The gym's subscription tier (starter, pro, elite)
+ * @returns Whether the request is allowed and usage info
+ */
+export async function checkAndIncrementRateLimitWithTier(
+  memberId: string,
+  subscriptionStatus: string,
+  gymTier: string
+): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  // Get tier-aware limit
+  const limit = getAiRateLimitForTier(gymTier, subscriptionStatus);
 
   if (limit === 0) {
     return { allowed: false, remaining: 0, limit: 0 };

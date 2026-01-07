@@ -2,6 +2,7 @@ import { describe, it, expect, vi, beforeEach } from 'vitest'
 import { POST, GET } from '@/app/api/members/route'
 import prisma from '@/lib/db'
 import { getSession, generateMemberId, generatePin, hashPin } from '@/lib/auth'
+import { checkMemberCapacity } from '@/lib/subscription/guards'
 import {
   mockMember,
   mockStaffSession,
@@ -9,6 +10,11 @@ import {
   mockGym,
   createMockRequest,
 } from '../mocks/fixtures'
+
+// Global beforeEach to setup subscription guards mock for member tests
+beforeEach(() => {
+  vi.mocked(checkMemberCapacity).mockResolvedValue({ allowed: true, current: 10, limit: 150, tier: 'pro' })
+})
 
 describe('Members API (Staff)', () => {
   // =========================================================================

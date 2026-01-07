@@ -174,15 +174,17 @@ function PhoneCarousel() {
       <div className="relative">
         {/* Phone Frame */}
         <div className="relative w-[280px] sm:w-[320px]">
-          <div className="bg-[#1a1a1a] rounded-[36px] sm:rounded-[48px] p-2.5 sm:p-3 shadow-2xl border border-white/10">
-            <div className="bg-background rounded-[30px] sm:rounded-[40px] overflow-hidden h-[480px] sm:h-[580px]">
-              {/* Status Bar / Dynamic Island */}
-              <div className="h-7 sm:h-8 bg-background flex items-center justify-center sticky top-0 z-10">
-                <div className="w-24 sm:w-28 h-6 sm:h-7 bg-black rounded-full" />
+          <div className="bg-[#1a1a1a] rounded-[36px] sm:rounded-[48px] p-2.5 sm:p-3 shadow-2xl shadow-accent/20 border border-white/20">
+            <div className="bg-background rounded-[30px] sm:rounded-[40px] overflow-hidden h-[480px] sm:h-[580px] border border-white/10 flex flex-col">
+              {/* Status Bar */}
+              <div className="h-7 sm:h-8 bg-background flex items-center justify-center flex-shrink-0">
+                <div className="w-16 sm:w-20 h-1.5 bg-white/20 rounded-full" />
               </div>
 
               {/* Carousel Container */}
-              <div className="relative h-[calc(100%-28px)] sm:h-[calc(100%-32px)] overflow-hidden">
+              <div className="relative flex-1 overflow-hidden">
+                {/* Bottom fade overlay */}
+                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
                 {/* Slide 1 - Member Detail */}
                 <div
                   className={`absolute inset-0 transition-all duration-500 ease-out ${

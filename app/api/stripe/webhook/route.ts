@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { verifyWebhookSignature, getSubscriptionEndDate, STRIPE_CONFIG } from "@/lib/stripe";
+import { verifyWebhookSignature, getSubscriptionEndDate, STRIPE_CONFIG, getTierPricing } from "@/lib/stripe";
+import { isValidTier, type GymTier } from "@/lib/subscription/tiers";
 import Stripe from "stripe";
 
 // Disable body parsing for raw webhook payload
@@ -87,31 +88,37 @@ async function handleCheckoutCompleted(session: Stripe.Checkout.Session) {
   const subscriptionId = session.subscription as string;
   const customerId = session.customer as string;
 
-  // Update gym with subscription details
+  // Get tier from metadata, default to "starter" for backwards compatibility
+  const tierFromMetadata = session.metadata?.tier;
+  const tier: GymTier = tierFromMetadata && isValidTier(tierFromMetadata) ? tierFromMetadata : "starter";
+  const tierPricing = getTierPricing(tier);
+
+  // Update gym with subscription details and tier
   await prisma.gym.update({
     where: { id: gymId },
     data: {
       stripeCustomerId: customerId,
       stripeSubscriptionId: subscriptionId,
       subscriptionStatus: "active",
+      subscriptionTier: tier,
       subscribedAt: new Date(),
       // Initial subscription end date will be set by invoice.paid event
     },
   });
 
-  // Log the activation
+  // Log the activation with tier info
   await prisma.subscriptionLog.create({
     data: {
       entityType: "gym",
       entityId: gymId,
       action: "activated",
-      amount: STRIPE_CONFIG.GYM_MONTHLY_PRICE / 100,
-      notes: "Subscription activated via Stripe checkout",
+      amount: tierPricing.price / 100,
+      notes: `Subscription activated via Stripe checkout - ${tier.toUpperCase()} tier`,
       performedByType: "stripe",
     },
   });
 
-  console.log(`Gym ${gymId} subscription activated`);
+  console.log(`Gym ${gymId} subscription activated with tier: ${tier}`);
 }
 
 // Handle successful invoice payment (subscription renewal)
@@ -247,7 +254,7 @@ async function handleSubscriptionDeleted(subscription: Stripe.Subscription) {
   console.log(`Gym ${gym.id} subscription expired`);
 }
 
-// Handle subscription updates (e.g., plan changes, cancellation scheduled)
+// Handle subscription updates (e.g., plan changes, tier changes, cancellation scheduled)
 async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   const gym = await prisma.gym.findFirst({
     where: { stripeSubscriptionId: subscription.id },
@@ -258,17 +265,43 @@ async function handleSubscriptionUpdated(subscription: Stripe.Subscription) {
   // Check if subscription is set to cancel at period end
   if (subscription.cancel_at_period_end) {
     console.log(`Gym ${gym.id} subscription will cancel at period end`);
-    // Optionally update a field to show "cancelling" status
   }
 
-  // Update subscription end date if changed
+  // Check for tier change from subscription metadata
+  const tierFromMetadata = subscription.metadata?.tier;
+  const newTier: GymTier | null = tierFromMetadata && isValidTier(tierFromMetadata) ? tierFromMetadata : null;
+
+  // Update subscription end date and tier if changed
   const endDate = getSubscriptionEndDate(subscription);
+  const updates: {
+    subscribedUntil?: Date;
+    subscriptionTier?: string;
+  } = {};
+
   if (!gym.subscribedUntil || gym.subscribedUntil.getTime() !== endDate.getTime()) {
+    updates.subscribedUntil = endDate;
+  }
+
+  if (newTier && gym.subscriptionTier !== newTier) {
+    updates.subscriptionTier = newTier;
+    console.log(`Gym ${gym.id} tier changed from ${gym.subscriptionTier} to ${newTier}`);
+
+    // Log the tier change
+    await prisma.subscriptionLog.create({
+      data: {
+        entityType: "gym",
+        entityId: gym.id,
+        action: "tier_changed",
+        notes: `Tier changed from ${gym.subscriptionTier?.toUpperCase()} to ${newTier.toUpperCase()}`,
+        performedByType: "stripe",
+      },
+    });
+  }
+
+  if (Object.keys(updates).length > 0) {
     await prisma.gym.update({
       where: { id: gym.id },
-      data: {
-        subscribedUntil: endDate,
-      },
+      data: updates,
     });
   }
 }

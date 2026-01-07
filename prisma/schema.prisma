@@ -14,10 +14,11 @@ model Gym {
   settings        Json              @default("{}")
   aiMonthlyBudget Float?            // Monthly AI budget cap in USD (null = unlimited)
 
-  // Subscription fields (B2B - 150€/month)
+  // Subscription fields (B2B - tiered pricing: starter €99, pro €199, elite €299)
   subscribedAt        DateTime?     // When gym subscription was first activated
   subscribedUntil     DateTime?     // When current subscription period ends
   subscriptionStatus  String        @default("pending") // pending | active | grace | expired
+  subscriptionTier    String        @default("starter") // starter | pro | elite
   stripeCustomerId    String?       // Stripe customer ID
   stripeSubscriptionId String?      // Stripe subscription ID
 

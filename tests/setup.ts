@@ -61,6 +61,7 @@ vi.mock('@/lib/db', () => {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    deleteMany: vi.fn(),
   }
 
   const coachNudgeMock = {
@@ -217,7 +218,8 @@ vi.mock('@/lib/db', () => {
     sessionProposal: sessionProposalMock,
     scheduledSession: scheduledSessionMock,
     // $transaction passes the same mocks as tx argument
-    $transaction: vi.fn(async (callback: (tx: typeof prismaMock) => Promise<unknown>) => {
+    // eslint-disable-next-line @typescript-eslint/no-explicit-any
+    $transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {
       return callback(prismaMock)
     }),
   }
@@ -255,13 +257,33 @@ vi.mock('@/lib/auth', () => ({
 // Mock AI cache module (rate limiting)
 vi.mock('@/lib/ai/cache', () => ({
   checkAndIncrementRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 20 }),
+  checkAndIncrementRateLimitWithTier: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 20 }),
   decrementUsage: vi.fn().mockResolvedValue(undefined),
   checkRateLimit: vi.fn().mockResolvedValue({ allowed: true, remaining: 10, limit: 20 }),
   incrementUsage: vi.fn().mockResolvedValue(undefined),
+  trackAIUsage: vi.fn().mockResolvedValue(undefined),
   trackUsage: vi.fn().mockResolvedValue(undefined),
   checkCache: vi.fn().mockResolvedValue(null),
   setCache: vi.fn().mockResolvedValue(undefined),
   cleanupOldCache: vi.fn().mockResolvedValue(undefined),
+  checkGymBudget: vi.fn().mockResolvedValue({ allowed: true, remaining: 100, budgetUsd: 50 }),
+}))
+
+// Mock subscription guards module (feature gating)
+vi.mock('@/lib/subscription/guards', () => ({
+  checkFeatureAccess: vi.fn().mockResolvedValue({ allowed: true, tier: 'pro' }),
+  checkMemberCapacity: vi.fn().mockResolvedValue({ allowed: true, current: 10, limit: 150, tier: 'pro' }),
+  getAiRateLimitForTier: vi.fn().mockReturnValue(25),
+  getGymTierForMember: vi.fn().mockResolvedValue('pro'),
+  checkMultipleFeatures: vi.fn().mockResolvedValue({ allowed: true, tier: 'pro' }),
+  getGymTierInfo: vi.fn().mockResolvedValue({
+    tier: 'pro',
+    tierName: 'Pro',
+    limits: { maxActiveMembers: 150, aiMessagesPerMemberPerDay: 25, aiMonthlyBudgetUsd: 15.0 },
+    features: { challenges: true, sessionScheduling: true, coachFeatures: true, customBranding: false },
+    memberCount: 10,
+    memberCapacityUsed: 7,
+  }),
 }))
 
 // Mock QRCode

@@ -8,6 +8,7 @@ import { POST as coachCancelSession } from '@/app/api/coach/sessions/[id]/cancel
 import { POST as coachCompleteSession } from '@/app/api/coach/sessions/[id]/complete/route'
 import prisma from '@/lib/db'
 import { getSession, getMemberFromSession } from '@/lib/auth'
+import { checkFeatureAccess } from '@/lib/subscription/guards'
 import {
   mockMember,
   mockStaffCoach,
@@ -27,6 +28,11 @@ import {
 // MEMBER SESSION SCHEDULING TESTS
 // =============================================================================
 
+// Global beforeEach to setup subscription guards mock for all session tests
+beforeEach(() => {
+  vi.mocked(checkFeatureAccess).mockResolvedValue({ allowed: true, tier: 'pro' })
+})
+
 describe('Member Sessions API', () => {
   describe('GET /api/member/sessions', () => {
     beforeEach(() => {
@@ -34,6 +40,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should return sessions data for member', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue({
         ...mockCoachAssignment,
         staff: {
@@ -51,8 +63,7 @@ describe('Member Sessions API', () => {
         .mockResolvedValueOnce([mockScheduledSessionWithRelations] as never) // upcoming
         .mockResolvedValueOnce([]) // past
 
-      const request = new Request('http://localhost/api/member/sessions')
-      const response = await memberSessionsGet(request)
+      const response = await memberSessionsGet()
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -66,8 +77,7 @@ describe('Member Sessions API', () => {
     it('should return 401 if not authenticated', async () => {
       vi.mocked(getMemberFromSession).mockResolvedValue({ error: 'NO_SESSION' })
 
-      const request = new Request('http://localhost/api/member/sessions')
-      const response = await memberSessionsGet(request)
+      const response = await memberSessionsGet()
 
       expect(response.status).toBe(401)
     })
@@ -79,6 +89,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should create session request when member has coach', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue({
         ...mockCoachAssignment,
         staff: mockStaffCoach,
@@ -111,6 +127,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should return 400 if member has no coach', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue(null)
 
       const proposedAt = new Date(Date.now() + 2 * 24 * 60 * 60 * 1000).toISOString()
@@ -129,6 +151,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should return 400 if proposed time is less than 24 hours away', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue({
         ...mockCoachAssignment,
         staff: mockStaffCoach,
@@ -151,6 +179,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should validate session type', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue({
         ...mockCoachAssignment,
         staff: mockStaffCoach,
@@ -172,6 +206,12 @@ describe('Member Sessions API', () => {
     })
 
     it('should validate duration', async () => {
+      // Mock member lookup for tier check
+      vi.mocked(prisma.member.findUnique).mockResolvedValue({
+        ...mockMember,
+        gymId: 'gym-1',
+      } as never)
+
       vi.mocked(prisma.coachAssignment.findUnique).mockResolvedValue({
         ...mockCoachAssignment,
         staff: mockStaffCoach,
@@ -234,8 +274,7 @@ describe('Coach Sessions API', () => {
         .mockResolvedValueOnce([mockScheduledSessionWithRelations] as never) // upcoming
         .mockResolvedValueOnce([]) // past
 
-      const request = new Request('http://localhost/api/coach/sessions')
-      const response = await coachSessionsGet(request)
+      const response = await coachSessionsGet()
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -249,8 +288,7 @@ describe('Coach Sessions API', () => {
     it('should return 401 if not authenticated', async () => {
       vi.mocked(getSession).mockResolvedValue(null)
 
-      const request = new Request('http://localhost/api/coach/sessions')
-      const response = await coachSessionsGet(request)
+      const response = await coachSessionsGet()
 
       expect(response.status).toBe(401)
     })
@@ -261,8 +299,7 @@ describe('Coach Sessions API', () => {
         role: 'ADMIN',
       } as never)
 
-      const request = new Request('http://localhost/api/coach/sessions')
-      const response = await coachSessionsGet(request)
+      const response = await coachSessionsGet()
 
       expect(response.status).toBe(403)
     })

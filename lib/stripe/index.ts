@@ -29,10 +29,13 @@ export const stripe = {
   get billingPortal() { return getStripe().billingPortal; },
 };
 
+// Import tier configuration
+import { GYM_TIERS, type GymTier } from "@/lib/subscription/tiers";
+
 // Stripe configuration
 export const STRIPE_CONFIG = {
-  // Monthly subscription price for gyms (150€)
-  GYM_MONTHLY_PRICE: 15000, // in cents
+  // Legacy price (kept for backwards compatibility with existing subscriptions)
+  GYM_MONTHLY_PRICE: 15000, // in cents (€150)
   CURRENCY: "eur",
 
   // Grace period for failed payments (in days)
@@ -48,11 +51,37 @@ export const STRIPE_CONFIG = {
   WEBHOOK_ENDPOINT: "/api/stripe/webhook",
 };
 
+// Get tier price configuration
+export function getTierPricing(tier: GymTier): {
+  price: number;
+  name: string;
+  description: string;
+} {
+  const config = GYM_TIERS[tier];
+  return {
+    price: config.price,
+    name: `Classic Method - ${config.name}`,
+    description: `${config.name} monthly subscription`,
+  };
+}
+
+// Get Stripe price ID for tier (if using pre-created prices)
+// Falls back to dynamic pricing if env vars not set
+export function getStripePriceId(tier: GymTier): string | null {
+  const envKeys: Record<GymTier, string> = {
+    starter: "STRIPE_PRICE_STARTER",
+    pro: "STRIPE_PRICE_PRO",
+    elite: "STRIPE_PRICE_ELITE",
+  };
+  return process.env[envKeys[tier]] || null;
+}
+
 // Create a checkout session for gym subscription
 export async function createGymCheckoutSession(
   gymId: string,
   gymName: string,
-  customerEmail: string
+  customerEmail: string,
+  tier: GymTier = "starter"
 ): Promise<Stripe.Checkout.Session> {
   // First, find or create a Stripe customer
   let customer: Stripe.Customer;
@@ -74,35 +103,46 @@ export async function createGymCheckoutSession(
     });
   }
 
-  // Create checkout session
+  // Get tier pricing
+  const pricing = getTierPricing(tier);
+  const priceId = getStripePriceId(tier);
+
+  // Build line items - use pre-created price if available, otherwise dynamic pricing
+  const lineItems: Stripe.Checkout.SessionCreateParams.LineItem[] = priceId
+    ? [{ price: priceId, quantity: 1 }]
+    : [
+        {
+          price_data: {
+            currency: STRIPE_CONFIG.CURRENCY,
+            product_data: {
+              name: pricing.name,
+              description: `${pricing.description} for ${gymName}`,
+            },
+            unit_amount: pricing.price,
+            recurring: {
+              interval: "month",
+            },
+          },
+          quantity: 1,
+        },
+      ];
+
+  // Create checkout session with tier in metadata
   const session = await stripe.checkout.sessions.create({
     customer: customer.id,
     mode: "subscription",
     payment_method_types: ["card"],
-    line_items: [
-      {
-        price_data: {
-          currency: STRIPE_CONFIG.CURRENCY,
-          product_data: {
-            name: "Classic Method - Gym Subscription",
-            description: `Monthly subscription for ${gymName}`,
-          },
-          unit_amount: STRIPE_CONFIG.GYM_MONTHLY_PRICE,
-          recurring: {
-            interval: "month",
-          },
-        },
-        quantity: 1,
-      },
-    ],
+    line_items: lineItems,
     metadata: {
       gymId,
       gymName,
+      tier, // Store tier for webhook processing
     },
     subscription_data: {
       metadata: {
         gymId,
         gymName,
+        tier,
       },
     },
     success_url: STRIPE_CONFIG.getSuccessUrl(gymId),
@@ -216,3 +256,57 @@ export function isExpired(subscribedUntil: Date | null): boolean {
 
   return now > graceEnd;
 }
+
+// Change subscription tier (upgrade or downgrade)
+// Returns the updated subscription with proration applied
+export async function changeSubscriptionTier(
+  subscriptionId: string,
+  newTier: GymTier
+): Promise<Stripe.Subscription> {
+  const subscription = await stripe.subscriptions.retrieve(subscriptionId);
+
+  if (!subscription.items.data[0]) {
+    throw new Error("Subscription has no items");
+  }
+
+  const itemId = subscription.items.data[0].id;
+  const priceId = getStripePriceId(newTier);
+  const pricing = getTierPricing(newTier);
+
+  // Update subscription with new price
+  // proration_behavior: "create_prorations" charges/credits immediately for tier changes
+  if (priceId) {
+    // Use pre-created Stripe price
+    return await stripe.subscriptions.update(subscriptionId, {
+      items: [{ id: itemId, price: priceId }],
+      proration_behavior: "create_prorations",
+      metadata: {
+        ...subscription.metadata,
+        tier: newTier,
+      },
+    });
+  } else {
+    // Use dynamic pricing - need to delete old item and add new one
+    return await stripe.subscriptions.update(subscriptionId, {
+      items: [
+        { id: itemId, deleted: true },
+        {
+          price_data: {
+            currency: STRIPE_CONFIG.CURRENCY,
+            product: subscription.items.data[0].price.product as string,
+            unit_amount: pricing.price,
+            recurring: { interval: "month" },
+          },
+        },
+      ],
+      proration_behavior: "create_prorations",
+      metadata: {
+        ...subscription.metadata,
+        tier: newTier,
+      },
+    });
+  }
+}
+
+// Re-export GymTier for convenience
+export type { GymTier };

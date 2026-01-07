@@ -1,15 +1,24 @@
 import { NextRequest, NextResponse } from "next/server";
 import { prisma } from "@/lib/db";
-import { createGymCheckoutSession } from "@/lib/stripe";
+import { createGymCheckoutSession, type GymTier } from "@/lib/stripe";
+import { isValidTier } from "@/lib/subscription/tiers";
 
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json();
-    const { gymId } = body;
+    const { gymId, tier = "starter" } = body;
 
     if (!gymId) {
       return NextResponse.json(
         { error: "Gym ID is required" },
+        { status: 400 }
+      );
+    }
+
+    // Validate tier
+    if (!isValidTier(tier)) {
+      return NextResponse.json(
+        { error: "Invalid subscription tier" },
         { status: 400 }
       );
     }
@@ -47,11 +56,12 @@ export async function POST(request: NextRequest) {
       );
     }
 
-    // Create Stripe checkout session
+    // Create Stripe checkout session with selected tier
     const session = await createGymCheckoutSession(
       gym.id,
       gym.name,
-      gym.ownerEmail
+      gym.ownerEmail,
+      tier as GymTier
     );
 
     // Update gym with Stripe customer ID if available

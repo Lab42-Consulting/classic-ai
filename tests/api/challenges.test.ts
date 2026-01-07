@@ -5,6 +5,7 @@ import { GET as getAdminChallenge, PATCH as updateChallenge, DELETE as deleteCha
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import { getMemberFromSession } from '@/lib/auth'
+import { checkFeatureAccess } from '@/lib/subscription/guards'
 import {
   mockGym,
   mockMember,
@@ -30,6 +31,11 @@ import {
 // =============================================================================
 // MEMBER CHALLENGE API TESTS
 // =============================================================================
+
+// Global beforeEach to setup subscription guards mock for all challenge tests
+beforeEach(() => {
+  vi.mocked(checkFeatureAccess).mockResolvedValue({ allowed: true, tier: 'pro' })
+})
 
 describe('Member Challenge API', () => {
   describe('GET /api/member/challenge', () => {
@@ -407,7 +413,8 @@ describe('Admin Challenge API', () => {
       vi.mocked(prisma.challengeParticipant.findMany).mockResolvedValue(mockChallengeLeaderboard as never)
 
       // Mock the transaction for ending challenge
-      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
         const mockTx = {
           challenge: {
             update: vi.fn().mockResolvedValue({ ...mockChallenge, status: 'ended' }),
@@ -649,7 +656,8 @@ describe('Winner Exclusion', () => {
       vi.mocked(prisma.challengeParticipant.findMany).mockResolvedValue(mockChallengeLeaderboard as never)
 
       // Mock the transaction
-      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: unknown) => Promise<unknown>) => {
+      // eslint-disable-next-line @typescript-eslint/no-explicit-any
+      vi.mocked(prisma.$transaction).mockImplementation(async (callback: (tx: any) => Promise<unknown>) => {
         const mockTx = {
           challenge: {
             update: vi.fn().mockResolvedValue({ ...mockChallenge, status: 'ended' }),

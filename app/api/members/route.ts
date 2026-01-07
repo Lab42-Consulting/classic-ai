@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession, generateMemberId, generatePin, hashPin } from "@/lib/auth";
 import prisma from "@/lib/db";
 import QRCode from "qrcode";
+import { checkMemberCapacity } from "@/lib/subscription/guards";
 
 export async function POST(request: NextRequest) {
   try {
@@ -10,6 +11,28 @@ export async function POST(request: NextRequest) {
     if (!session || session.userType !== "staff") {
       return NextResponse.json({ error: "Unauthorized" }, { status: 401 });
     }
+
+    // Check member capacity for gym's tier
+    const capacityCheck = await checkMemberCapacity(session.gymId);
+    if (!capacityCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: capacityCheck.error,
+          code: "MEMBER_LIMIT_REACHED",
+          current: capacityCheck.current,
+          limit: capacityCheck.limit,
+          tier: capacityCheck.tier,
+        },
+        { status: 403 }
+      );
+    }
+
+    // Check if current staff is a coach (for auto-assignment)
+    const currentStaff = await prisma.staff.findUnique({
+      where: { id: session.userId },
+      select: { role: true },
+    });
+    const isCoach = currentStaff?.role.toLowerCase() === "coach";
 
     const body = await request.json();
     const { name, height, weight, gender, goal } = body;
@@ -49,33 +72,49 @@ export async function POST(request: NextRequest) {
       color: { dark: "#000000", light: "#ffffff" },
     });
 
-    const member = await prisma.member.create({
-      data: {
-        memberId,
-        pin: hashedPin,
-        qrCode,
-        name,
-        height: height ? parseFloat(height) : null,
-        weight: weight ? parseFloat(weight) : null,
-        gender: gender || null,
-        goal,
-        gymId: session.gymId,
-      },
+    // Use transaction to create member and optional coach assignment
+    const result = await prisma.$transaction(async (tx) => {
+      const newMember = await tx.member.create({
+        data: {
+          memberId,
+          pin: hashedPin,
+          qrCode,
+          name,
+          height: height ? parseFloat(height) : null,
+          weight: weight ? parseFloat(weight) : null,
+          gender: gender || null,
+          goal,
+          gymId: session.gymId,
+        },
+      });
+
+      // Auto-assign member to coach if creator is a coach
+      if (isCoach) {
+        await tx.coachAssignment.create({
+          data: {
+            staffId: session.userId,
+            memberId: newMember.id,
+          },
+        });
+      }
+
+      return newMember;
     });
 
     return NextResponse.json({
       success: true,
       member: {
-        id: member.id,
-        memberId: member.memberId,
-        name: member.name,
-        goal: member.goal,
+        id: result.id,
+        memberId: result.memberId,
+        name: result.name,
+        goal: result.goal,
       },
       credentials: {
         memberId,
         pin,
         qrCode,
       },
+      autoAssigned: isCoach,
     });
   } catch (error) {
     console.error("Member creation error:", error);

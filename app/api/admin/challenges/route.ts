@@ -2,6 +2,7 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 import { getChallengeStatus } from "@/lib/challenges";
+import { checkFeatureAccess } from "@/lib/subscription/guards";
 
 /**
  * GET /api/admin/challenges
@@ -23,6 +24,20 @@ export async function GET() {
 
     if (!staff || staff.role.toLowerCase() !== "admin") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    // Check tier access for challenges feature
+    const featureCheck = await checkFeatureAccess(staff.gymId, "challenges");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
+        { status: 403 }
+      );
     }
 
     const challenges = await prisma.challenge.findMany({
@@ -72,6 +87,20 @@ export async function POST(request: NextRequest) {
 
     if (!staff || staff.role.toLowerCase() !== "admin") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    }
+
+    // Check tier access for challenges feature
+    const featureCheck = await checkFeatureAccess(staff.gymId, "challenges");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
+        { status: 403 }
+      );
     }
 
     const body = await request.json();

@@ -8,6 +8,7 @@ import {
   isValidProposedTime,
   MIN_ADVANCE_NOTICE_MS,
 } from "@/lib/types/sessions";
+import { checkFeatureAccess } from "@/lib/subscription/guards";
 
 // GET /api/member/sessions - Get member's session requests and confirmed sessions
 export async function GET() {
@@ -18,6 +19,30 @@ export async function GET() {
       return NextResponse.json(
         { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
         { status: 401 }
+      );
+    }
+
+    // Get member's gym for tier check
+    const member = await prisma.member.findUnique({
+      where: { id: authResult.memberId },
+      select: { gymId: true },
+    });
+
+    if (!member) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // Check tier access for session scheduling feature
+    const featureCheck = await checkFeatureAccess(member.gymId, "sessionScheduling");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
+        { status: 403 }
       );
     }
 
@@ -126,6 +151,30 @@ export async function POST(request: NextRequest) {
       return NextResponse.json(
         { error: getMemberAuthErrorMessage(authResult.error), code: authResult.error },
         { status: 401 }
+      );
+    }
+
+    // Get member's gym for tier check
+    const memberForTier = await prisma.member.findUnique({
+      where: { id: authResult.memberId },
+      select: { gymId: true },
+    });
+
+    if (!memberForTier) {
+      return NextResponse.json({ error: "Member not found" }, { status: 404 });
+    }
+
+    // Check tier access for session scheduling feature
+    const featureCheck = await checkFeatureAccess(memberForTier.gymId, "sessionScheduling");
+    if (!featureCheck.allowed) {
+      return NextResponse.json(
+        {
+          error: featureCheck.error,
+          code: "TIER_REQUIRED",
+          requiredTier: featureCheck.requiredTier,
+          currentTier: featureCheck.tier,
+        },
+        { status: 403 }
       );
     }
 

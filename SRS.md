@@ -628,6 +628,8 @@ The coach dashboard at `/dashboard` is designed for day-to-day member coaching o
 #### FR-STAFF-003: Member Assignment (Coach)
 - Coach can discover and assign unassigned members
 - Quick assignment flow from dashboard
+- **Auto-Assignment:** When a coach creates a new member via `/api/members`, the member is automatically assigned to that coach
+- **Direct Assignment:** Coaches can directly assign existing unassigned gym members to themselves via `/api/coach/assign-direct` (bypasses the request/approval flow)
 
 #### FR-STAFF-004: Coach Data Visibility Restrictions
 - **Purpose:** Limit sensitive business data exposure to coaches
@@ -1778,6 +1780,35 @@ All pages follow mobile-first design with:
 
 // Response (200)
 { "success": true, "assignment": { ... } }
+```
+
+#### POST /api/coach/assign-direct
+Direct assignment endpoint that bypasses the request/approval flow. Used when coach registers a member or for bulk assignment of unassigned gym members.
+
+```json
+// Request - Directly assign member to coach
+{
+  "memberId": "member-cuid"
+}
+
+// Response (200)
+{
+  "success": true,
+  "assignment": {
+    "id": "assignment-cuid",
+    "member": { "id": "...", "memberId": "ABC123", "name": "John Doe", "avatarUrl": null },
+    "assignedAt": "2024-12-28T10:00:00Z"
+  }
+}
+
+// Response (400) - Member already has coach
+{ "error": "Member already has a coach assigned" }
+
+// Response (403) - Not a coach
+{ "error": "Only coaches can assign members to themselves" }
+
+// Response (404) - Member not found
+{ "error": "Member not found in your gym" }
 ```
 
 ### 7.6 Coach Nudges (Staff Only)

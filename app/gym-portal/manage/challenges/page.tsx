@@ -2,6 +2,7 @@
 
 import { useEffect, useState } from "react";
 import Link from "next/link";
+import { TierGate } from "@/components/tier-gate";
 
 interface Challenge {
   id: string;
@@ -179,6 +180,7 @@ export default function ChallengesPage() {
   }
 
   return (
+    <TierGate feature="challenges">
     <div>
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
@@ -552,5 +554,6 @@ export default function ChallengesPage() {
         </div>
       )}
     </div>
+    </TierGate>
   );
 }

@@ -401,33 +401,6 @@ export default function CoachSessionsPage() {
           </SlideUp>
         )}
 
-        {/* No Members Warning */}
-        {data.members.length === 0 && (
-          <SlideUp delay={100}>
-            <GlassCard className="border-warning/20">
-              <div className="flex items-start gap-4">
-                <div className="w-12 h-12 rounded-full bg-warning/20 flex items-center justify-center flex-shrink-0">
-                  <span className="text-2xl">👥</span>
-                </div>
-                <div className="flex-1">
-                  <h3 className="text-lg font-semibold text-warning mb-1">
-                    Nemas klijente
-                  </h3>
-                  <p className="text-sm text-foreground-muted mb-3">
-                    Da bi zakazivao termine, potrebno je da imas dodeljene klijente.
-                  </p>
-                  <Button
-                    size="sm"
-                    onClick={() => router.push("/register")}
-                  >
-                    Pronadji klijente
-                  </Button>
-                </div>
-              </div>
-            </GlassCard>
-          </SlideUp>
-        )}
-
         {/* Pending Requests Requiring Action */}
         {requestsNeedingAction.length > 0 && (
           <SlideUp delay={100}>

@@ -9,7 +9,7 @@ import {
 } from "@/lib/ai/agents";
 import { calculateDailyTargets, Goal } from "@/lib/calculations";
 import {
-  checkAndIncrementRateLimit,
+  checkAndIncrementRateLimitWithTier,
   checkGymBudget,
   trackAIUsage,
 } from "@/lib/ai/cache";
@@ -65,16 +65,18 @@ export async function POST(
       );
     }
 
-    // Check and atomically increment rate limit (prevents race conditions)
-    const rateLimit = await checkAndIncrementRateLimit(
+    // Check and atomically increment rate limit (tier-aware, prevents race conditions)
+    const gymTier = member.gym?.subscriptionTier || "starter";
+    const rateLimit = await checkAndIncrementRateLimitWithTier(
       authResult.memberId,
-      member.subscriptionStatus
+      member.subscriptionStatus,
+      gymTier
     );
     if (!rateLimit.allowed) {
       const message =
         member.subscriptionStatus === "trial"
           ? "Dostigao si dnevni limit poruka (5). Nadogradi članarinu za više poruka."
-          : "Dostigao si dnevni limit poruka (20). Pokušaj ponovo sutra.";
+          : `Dostigao si dnevni limit poruka (${rateLimit.limit}). Pokušaj ponovo sutra.`;
 
       return NextResponse.json(
         {

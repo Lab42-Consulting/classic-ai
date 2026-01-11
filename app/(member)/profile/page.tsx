@@ -14,6 +14,7 @@ interface ProfileData {
   weight: number | null;
   height: number | null;
   locale: string;
+  difficultyMode: string;
   loading: boolean;
   // Custom targets
   customCalories: number | null;
@@ -28,6 +29,8 @@ interface ProfileData {
   coachCarbs: number | null;
   coachFats: number | null;
 }
+
+type DifficultyMode = "simple" | "standard" | "pro";
 
 type CredentialModalType = "id" | "pin" | null;
 
@@ -55,6 +58,7 @@ export default function ProfilePage() {
     weight: null,
     height: null,
     locale: "sr",
+    difficultyMode: "standard",
     loading: true,
     customCalories: null,
     customProtein: null,
@@ -69,6 +73,7 @@ export default function ProfilePage() {
   });
   const [loggingOut, setLoggingOut] = useState(false);
   const [updatingLocale, setUpdatingLocale] = useState(false);
+  const [updatingDifficulty, setUpdatingDifficulty] = useState(false);
 
   // Avatar state
   const [showAvatarCropper, setShowAvatarCropper] = useState(false);
@@ -218,6 +223,27 @@ export default function ProfilePage() {
       // Handle silently
     } finally {
       setUpdatingLocale(false);
+    }
+  };
+
+  const handleDifficultyChange = async (newMode: DifficultyMode) => {
+    if (newMode === data.difficultyMode || updatingDifficulty) return;
+
+    setUpdatingDifficulty(true);
+    try {
+      const response = await fetch("/api/member/profile", {
+        method: "PATCH",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ difficultyMode: newMode }),
+      });
+      if (response.ok) {
+        setData((prev) => ({ ...prev, difficultyMode: newMode }));
+        router.refresh(); // Invalidate cache so other pages see the change
+      }
+    } catch {
+      // Handle silently
+    } finally {
+      setUpdatingDifficulty(false);
     }
   };
 
@@ -651,6 +677,119 @@ export default function ProfilePage() {
               >
                 <span className="text-lg">🇬🇧</span>
                 <span className="font-medium">English</span>
+              </button>
+            </div>
+          </GlassCard>
+        </SlideUp>
+
+        {/* Difficulty Mode Selector */}
+        <SlideUp delay={375}>
+          <GlassCard>
+            <h3 className="text-label mb-2">
+              {locale === "en" ? "App Mode" : "Režim aplikacije"}
+            </h3>
+            <p className="text-xs text-foreground-muted mb-2">
+              {locale === "en"
+                ? "Choose how detailed you want the app to be"
+                : "Izaberi koliko detaljno želiš da koristiš aplikaciju"}
+            </p>
+            <p className="text-xs text-foreground-muted mb-4 bg-white/5 rounded-lg px-3 py-1.5 inline-block">
+              {locale === "en"
+                ? "💡 All modes earn the same challenge points"
+                : "💡 Svi režimi zarađuju iste poene u izazovima"}
+            </p>
+            <div className="space-y-2">
+              {/* Simple mode */}
+              <button
+                onClick={() => handleDifficultyChange("simple")}
+                disabled={updatingDifficulty}
+                className={`w-full p-4 rounded-xl text-left transition-all ${
+                  data.difficultyMode === "simple"
+                    ? "bg-emerald-500/20 border-2 border-emerald-500"
+                    : "glass border-2 border-transparent hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🎯</span>
+                  <div className="flex-1">
+                    <div className="flex items-center gap-2">
+                      <span className="font-medium text-foreground">
+                        {locale === "en" ? "Simple" : "Jednostavno"}
+                      </span>
+                      <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-0.5 rounded-full">
+                        {locale === "en" ? "Recommended" : "Preporučeno"}
+                      </span>
+                    </div>
+                    <p className="text-xs text-foreground-muted mt-0.5">
+                      {locale === "en"
+                        ? "Challenges + quick logging. No calorie counting."
+                        : "Izazovi + brzi unos. Bez brojanja kalorija."}
+                    </p>
+                  </div>
+                  {data.difficultyMode === "simple" && (
+                    <svg className="w-5 h-5 text-emerald-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+
+              {/* Standard mode */}
+              <button
+                onClick={() => handleDifficultyChange("standard")}
+                disabled={updatingDifficulty}
+                className={`w-full p-4 rounded-xl text-left transition-all ${
+                  data.difficultyMode === "standard"
+                    ? "bg-accent/20 border-2 border-accent"
+                    : "glass border-2 border-transparent hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">📊</span>
+                  <div className="flex-1">
+                    <span className="font-medium text-foreground">
+                      {locale === "en" ? "Standard" : "Standardno"}
+                    </span>
+                    <p className="text-xs text-foreground-muted mt-0.5">
+                      {locale === "en"
+                        ? "Meal tracking with calorie estimates. All features."
+                        : "Praćenje obroka sa procenom kalorija. Sve funkcije."}
+                    </p>
+                  </div>
+                  {data.difficultyMode === "standard" && (
+                    <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
+              </button>
+
+              {/* Pro mode */}
+              <button
+                onClick={() => handleDifficultyChange("pro")}
+                disabled={updatingDifficulty}
+                className={`w-full p-4 rounded-xl text-left transition-all ${
+                  data.difficultyMode === "pro"
+                    ? "bg-purple-500/20 border-2 border-purple-500"
+                    : "glass border-2 border-transparent hover:bg-white/5"
+                }`}
+              >
+                <div className="flex items-center gap-3">
+                  <span className="text-2xl">🔬</span>
+                  <div className="flex-1">
+                    <span className="font-medium text-foreground">Pro</span>
+                    <p className="text-xs text-foreground-muted mt-0.5">
+                      {locale === "en"
+                        ? "Detailed macro tracking. For serious athletes."
+                        : "Detaljno praćenje makrosa. Za ozbiljne sportiste."}
+                    </p>
+                  </div>
+                  {data.difficultyMode === "pro" && (
+                    <svg className="w-5 h-5 text-purple-500 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
+                    </svg>
+                  )}
+                </div>
               </button>
             </div>
           </GlassCard>

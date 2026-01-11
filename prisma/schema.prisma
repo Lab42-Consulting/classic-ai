@@ -63,7 +63,9 @@ model Member {
   goal                String
   status              String            @default("active")
   locale              String            @default("sr") // sr | en
-  hasSeenOnboarding   Boolean           @default(false) // Track if user has seen the "Why This Works" explainer
+  hasSeenOnboarding   Boolean           @default(false) // Track if user has seen the onboarding flow
+  onboardingPath      String?           // "challenge" | "coach" | "explore" | null (legacy users)
+  difficultyMode      String            @default("standard") // "simple" | "standard" | "pro"
 
   // Custom targets (member can set these if they don't have a coach)
   // Priority: CoachAssignment targets > Member custom targets > Auto-calculated
@@ -260,12 +262,13 @@ model AIResponseCache {
 
 // AI Usage Tracking - for rate limiting per member per day
 model AIUsageDaily {
-  id        String   @id @default(cuid())
-  memberId  String
-  date      DateTime @db.Date // just the date, no time
-  count     Int      @default(0)
-  createdAt DateTime @default(now())
-  updatedAt DateTime @updatedAt
+  id             String   @id @default(cuid())
+  memberId       String
+  date           DateTime @db.Date // just the date, no time
+  count          Int      @default(0) // Text-based AI chat usage
+  photoAnalyses  Int      @default(0) // Vision-based meal photo analyses (expensive, strict limits)
+  createdAt      DateTime @default(now())
+  updatedAt      DateTime @updatedAt
 
   @@unique([memberId, date])
   @@index([memberId])

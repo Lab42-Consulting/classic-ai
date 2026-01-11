@@ -102,6 +102,8 @@ interface HomeData {
   pendingCoachRequest: CoachRequestData | null;
   // Staff viewing as member (dual-role)
   isStaffMember: boolean;
+  // Difficulty mode
+  difficultyMode: string;
   // Active challenge
   activeChallenge: ChallengeData | null;
   // Session scheduling
@@ -156,6 +158,10 @@ export function HomeClient({ data }: HomeClientProps) {
   const [animatedMacros, setAnimatedMacros] = useState({ protein: 0, carbs: 0, fats: 0 });
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
+
+  // Difficulty mode helpers
+  const isSimpleMode = data.difficultyMode === "simple";
+  const isProMode = data.difficultyMode === "pro";
 
   // Animate macro ring when switching to macro view
   useEffect(() => {
@@ -499,6 +505,140 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
+      {/* CHALLENGE BANNER - Most prominent after coach request (Challenge-First Design) */}
+      {data.activeChallenge && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={30}>
+            {/* Different banner styles based on participation status */}
+            {data.activeChallenge.isParticipating && data.activeChallenge.participation ? (
+              // Participating: Show rank and points
+              <button
+                onClick={() => router.push("/challenge")}
+                className="w-full relative bg-gradient-to-r from-accent/15 to-accent/5 border border-accent/20 rounded-2xl p-5 text-left hover:bg-accent/10 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-3xl">
+                      {data.activeChallenge.participation.rank === 1 ? "🥇"
+                        : data.activeChallenge.participation.rank === 2 ? "🥈"
+                        : data.activeChallenge.participation.rank === 3 ? "🥉" : "🏆"}
+                    </span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <h3 className="text-lg font-semibold text-accent">
+                      {data.activeChallenge.name}
+                    </h3>
+                    <div className="flex items-center gap-4 mt-1 text-sm">
+                      <span className="text-foreground font-bold text-xl">
+                        #{data.activeChallenge.participation.rank}
+                      </span>
+                      <span className="text-foreground-muted">
+                        {data.activeChallenge.participation.totalPoints} bodova
+                      </span>
+                    </div>
+                    <p className="text-xs text-accent mt-2">Pogledaj rang listu →</p>
+                  </div>
+                  <svg className="w-5 h-5 text-accent flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            ) : data.activeChallenge.isUpcoming ? (
+              // Upcoming: Countdown preview
+              <button
+                onClick={() => router.push("/challenge")}
+                className="w-full relative bg-gradient-to-r from-amber-500/15 to-amber-500/5 border border-amber-500/20 rounded-2xl p-5 text-left hover:bg-amber-500/10 transition-colors"
+              >
+                <div className="flex items-center gap-4">
+                  <div className="w-14 h-14 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                    <span className="text-3xl">⏳</span>
+                  </div>
+                  <div className="flex-1 min-w-0">
+                    <div className="flex items-center gap-2 mb-1">
+                      <h3 className="text-lg font-semibold text-amber-400">
+                        {data.activeChallenge.name}
+                      </h3>
+                      <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
+                        Uskoro
+                      </span>
+                    </div>
+                    <p className="text-sm text-foreground-muted line-clamp-1">
+                      {data.activeChallenge.rewardDescription}
+                    </p>
+                    <p className="text-sm text-amber-400 mt-2 font-medium">
+                      Počinje za {data.activeChallenge.daysUntilStart} {data.activeChallenge.daysUntilStart === 1 ? "dan" : "dana"}
+                    </p>
+                  </div>
+                  <svg className="w-5 h-5 text-amber-400 flex-shrink-0" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                    <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                  </svg>
+                </div>
+              </button>
+            ) : (
+              // HERO BANNER: Registration open, not joined - this is the key conversion moment!
+              <div className="relative bg-gradient-to-br from-emerald-500/20 via-emerald-500/10 to-emerald-600/5 border-2 border-emerald-500/30 rounded-3xl p-6 overflow-hidden">
+                {/* Animated glow effect */}
+                <div className="absolute inset-0 bg-gradient-to-r from-transparent via-emerald-500/5 to-transparent animate-pulse" />
+
+                <div className="relative">
+                  {/* Trophy icon and badge */}
+                  <div className="flex items-center justify-between mb-4">
+                    <div className="flex items-center gap-3">
+                      <div className="w-14 h-14 rounded-full bg-emerald-500/20 flex items-center justify-center">
+                        <span className="text-3xl">🏆</span>
+                      </div>
+                      <div>
+                        <span className="text-xs bg-emerald-500/20 text-emerald-400 px-2 py-1 rounded-full font-medium">
+                          Aktivan izazov
+                        </span>
+                      </div>
+                    </div>
+                    <div className="text-right">
+                      <p className="text-2xl font-bold text-emerald-400">{data.activeChallenge.participantCount}</p>
+                      <p className="text-xs text-foreground-muted">učesnika</p>
+                    </div>
+                  </div>
+
+                  {/* Challenge name and reward */}
+                  <h3 className="text-2xl font-bold text-foreground mb-2">
+                    {data.activeChallenge.name}
+                  </h3>
+                  <p className="text-sm text-foreground-muted mb-4 line-clamp-2">
+                    {data.activeChallenge.rewardDescription}
+                  </p>
+
+                  {/* Deadline urgency */}
+                  {data.activeChallenge.daysUntilDeadline !== null && (
+                    <div className="flex items-center gap-2 mb-4">
+                      <span className="text-lg">⏰</span>
+                      <p className={`text-sm font-medium ${
+                        data.activeChallenge.daysUntilDeadline <= 2 ? "text-error" : "text-emerald-400"
+                      }`}>
+                        {data.activeChallenge.daysUntilDeadline <= 2
+                          ? `Požuri! Još samo ${data.activeChallenge.daysUntilDeadline} ${data.activeChallenge.daysUntilDeadline === 1 ? "dan" : "dana"} za prijavu`
+                          : `Još ${data.activeChallenge.daysUntilDeadline} dana za prijavu`
+                        }
+                      </p>
+                    </div>
+                  )}
+
+                  {/* CTA Button */}
+                  <button
+                    onClick={() => router.push("/challenge")}
+                    className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-semibold text-lg transition-colors flex items-center justify-center gap-2 glow-accent"
+                  >
+                    <span>Pridruži se izazovu</span>
+                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </button>
+                </div>
+              </div>
+            )}
+          </SlideUp>
+        </div>
+      )}
+
       {/* Confirmation Modal */}
       {showConfirmModal && coachRequest && (
         <div className="fixed inset-0 z-50 flex items-center justify-center p-6 bg-black/80">
@@ -785,92 +925,7 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
-      {/* Active/Upcoming Challenge Banner */}
-      {data.activeChallenge && (
-        <div className="px-6 mb-4">
-          <SlideUp delay={50}>
-            <button
-              onClick={() => router.push("/challenge")}
-              className={`w-full relative bg-gradient-to-r ${
-                data.activeChallenge.isParticipating
-                  ? "from-accent/15 to-accent/5 border-accent/20 hover:bg-accent/10"
-                  : data.activeChallenge.isUpcoming
-                  ? "from-amber-500/15 to-amber-500/5 border-amber-500/20 hover:bg-amber-500/10"
-                  : "from-emerald-500/15 to-emerald-500/5 border-emerald-500/20 hover:bg-emerald-500/10"
-              } border rounded-2xl p-5 text-left transition-colors`}
-            >
-              <div className="flex items-center gap-4">
-                <div className={`w-12 h-12 rounded-full ${
-                  data.activeChallenge.isParticipating
-                    ? "bg-accent/20"
-                    : data.activeChallenge.isUpcoming ? "bg-amber-500/20" : "bg-emerald-500/20"
-                } flex items-center justify-center flex-shrink-0`}>
-                  <span className="text-2xl">
-                    {data.activeChallenge.isParticipating
-                      ? (data.activeChallenge.participation?.rank === 1 ? "🥇"
-                        : data.activeChallenge.participation?.rank === 2 ? "🥈"
-                        : data.activeChallenge.participation?.rank === 3 ? "🥉" : "🏆")
-                      : data.activeChallenge.isUpcoming ? "⏳" : "🏆"}
-                  </span>
-                </div>
-                <div className="flex-1 min-w-0">
-                  <div className="flex items-center gap-2 mb-1">
-                    <h3 className={`text-lg font-semibold ${
-                      data.activeChallenge.isParticipating
-                        ? "text-accent"
-                        : data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
-                    }`}>
-                      {data.activeChallenge.name}
-                    </h3>
-                    {data.activeChallenge.isUpcoming && (
-                      <span className="text-xs bg-amber-500/20 text-amber-400 px-2 py-0.5 rounded-full">
-                        Uskoro
-                      </span>
-                    )}
-                  </div>
-                  {data.activeChallenge.isParticipating && data.activeChallenge.participation ? (
-                    <div className="flex items-center gap-4 text-sm">
-                      <span className="text-foreground font-medium">
-                        #{data.activeChallenge.participation.rank} mesto
-                      </span>
-                      <span className="text-foreground-muted">
-                        {data.activeChallenge.participation.totalPoints} bodova
-                      </span>
-                    </div>
-                  ) : (
-                    <p className="text-sm text-foreground-muted line-clamp-1">
-                      {data.activeChallenge.rewardDescription}
-                    </p>
-                  )}
-                  <div className="flex items-center gap-3 mt-2 text-xs text-foreground-muted">
-                    <span>{data.activeChallenge.participantCount} učesnika</span>
-                    {data.activeChallenge.isParticipating ? (
-                      <span className="text-accent">Pogledaj rang listu →</span>
-                    ) : data.activeChallenge.isUpcoming ? (
-                      <span className="text-amber-400">
-                        Počinje za {data.activeChallenge.daysUntilStart} {data.activeChallenge.daysUntilStart === 1 ? "dan" : "dana"}
-                      </span>
-                    ) : (
-                      <span className="text-emerald-400">
-                        Još {data.activeChallenge.daysUntilDeadline} {data.activeChallenge.daysUntilDeadline === 1 ? "dan" : "dana"} za prijavu
-                      </span>
-                    )}
-                  </div>
-                </div>
-                <svg className={`w-5 h-5 ${
-                  data.activeChallenge.isParticipating
-                    ? "text-accent"
-                    : data.activeChallenge.isUpcoming ? "text-amber-400" : "text-emerald-400"
-                } flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                  <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                </svg>
-              </div>
-            </button>
-          </SlideUp>
-        </div>
-      )}
-
-      {/* Coach Nudges - Prominent at top */}
+      {/* Coach Nudges */}
       {visibleNudges.length > 0 && (
         <div className="px-6 mb-4">
           <SlideUp delay={50}>
@@ -920,21 +975,77 @@ export function HomeClient({ data }: HomeClientProps) {
 
       {/* Main Content */}
       <main className="px-6 space-y-5">
-        {/* Hero: Calorie Ring */}
-        <SlideUp delay={100}>
-          <GlassCard variant="prominent" className="relative">
-            {/* Status Badge */}
-            <div className="flex justify-center mb-2">
-              <div className={`
-                inline-flex items-center gap-2 px-4 py-1.5 rounded-full
-                ${isOverCalories ? "bg-error/10" : statusInfo.bg}
-              `}>
-                <span className={`w-2 h-2 rounded-full ${isOverCalories ? 'bg-error animate-pulse' : data.status === 'on_track' ? 'bg-success' : data.status === 'needs_attention' ? 'bg-warning' : 'bg-error'}`} />
-                <span className={`text-sm font-medium ${isOverCalories ? "text-error" : statusInfo.color}`}>
-                  {isOverCalories ? t.home.surplus : statusInfo.label}
-                </span>
+        {/* Hero: Simple Mode - Activity Summary Card */}
+        {isSimpleMode ? (
+          <SlideUp delay={100}>
+            <GlassCard variant="prominent" className="relative">
+              <div className="text-center mb-4">
+                <h2 className="text-lg font-semibold text-foreground">Današnja aktivnost</h2>
               </div>
-            </div>
+              <div className="grid grid-cols-3 gap-4">
+                {/* Trained */}
+                <div className="text-center">
+                  <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
+                    data.trainingCountToday > 0 ? "bg-success/20" : "bg-white/10"
+                  }`}>
+                    <span className="text-3xl">{data.trainingCountToday > 0 ? "✓" : "💪"}</span>
+                  </div>
+                  <p className="text-sm text-foreground-muted mt-2">Trening</p>
+                  <p className={`text-sm font-medium ${data.trainingCountToday > 0 ? "text-success" : "text-foreground-muted"}`}>
+                    {data.trainingCountToday > 0 ? "Odrađeno" : "Čeka te"}
+                  </p>
+                </div>
+                {/* Meals */}
+                <div className="text-center">
+                  <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
+                    data.mealsToday >= 3 ? "bg-success/20" : data.mealsToday > 0 ? "bg-amber-500/20" : "bg-white/10"
+                  }`}>
+                    <span className="text-3xl">{data.mealsToday >= 3 ? "✓" : "🍽️"}</span>
+                  </div>
+                  <p className="text-sm text-foreground-muted mt-2">Obroci</p>
+                  <p className={`text-sm font-medium ${data.mealsToday >= 3 ? "text-success" : "text-foreground"}`}>
+                    {data.mealsToday} uneseno
+                  </p>
+                </div>
+                {/* Water */}
+                <div className="text-center">
+                  <div className={`w-16 h-16 mx-auto rounded-full flex items-center justify-center ${
+                    data.waterGlasses >= 8 ? "bg-success/20" : data.waterGlasses >= 4 ? "bg-amber-500/20" : "bg-white/10"
+                  }`}>
+                    <span className="text-3xl">{data.waterGlasses >= 8 ? "✓" : "💧"}</span>
+                  </div>
+                  <p className="text-sm text-foreground-muted mt-2">Voda</p>
+                  <p className={`text-sm font-medium ${data.waterGlasses >= 8 ? "text-success" : "text-foreground"}`}>
+                    {data.waterGlasses}/8 čaša
+                  </p>
+                </div>
+              </div>
+              {/* Quick motivation */}
+              <div className="mt-4 pt-4 border-t border-white/10 text-center">
+                <p className="text-sm text-foreground-muted">
+                  {data.trainingCountToday > 0 && data.mealsToday > 0 && data.waterGlasses >= 4
+                    ? "Odlično napredovanje danas! Nastavi tako."
+                    : "Upiši šta si uradio/la danas da zaradiš bodove!"}
+                </p>
+              </div>
+            </GlassCard>
+          </SlideUp>
+        ) : (
+          /* Hero: Calorie Ring (Standard & Pro modes) */
+          <SlideUp delay={100}>
+            <GlassCard variant="prominent" className="relative">
+              {/* Status Badge */}
+              <div className="flex justify-center mb-2">
+                <div className={`
+                  inline-flex items-center gap-2 px-4 py-1.5 rounded-full
+                  ${isOverCalories ? "bg-error/10" : statusInfo.bg}
+                `}>
+                  <span className={`w-2 h-2 rounded-full ${isOverCalories ? 'bg-error animate-pulse' : data.status === 'on_track' ? 'bg-success' : data.status === 'needs_attention' ? 'bg-warning' : 'bg-error'}`} />
+                  <span className={`text-sm font-medium ${isOverCalories ? "text-error" : statusInfo.color}`}>
+                    {isOverCalories ? t.home.surplus : statusInfo.label}
+                  </span>
+                </div>
+              </div>
 
             {/* Progress Ring - Swipe to toggle view, tap for meal history */}
             <div
@@ -1071,7 +1182,7 @@ export function HomeClient({ data }: HomeClientProps) {
               </button>
             </div>
 
-            {/* Stats below ring - changes based on view */}
+            {/* Stats below ring - changes based on view and mode */}
             {ringView === "calories" ? (
               <div className="flex items-center justify-center text-center">
                 <div className="w-20 text-right">
@@ -1088,7 +1199,96 @@ export function HomeClient({ data }: HomeClientProps) {
                   <p className="text-xs text-foreground-muted">{t.home.target}</p>
                 </div>
               </div>
+            ) : isProMode ? (
+              /* Pro Mode: Detailed macro stats with remaining and percentage */
+              <div className="space-y-3 px-4">
+                {/* Protein */}
+                {(() => {
+                  const remaining = Math.max(0, data.targetProtein - data.consumedProtein);
+                  const percent = data.targetProtein > 0 ? Math.round((data.consumedProtein / data.targetProtein) * 100) : 0;
+                  const isOver = data.consumedProtein > data.targetProtein;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span className="w-16 text-xs text-emerald-400">Proteini</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-foreground-muted">{data.consumedProtein}g / {data.targetProtein}g</span>
+                          <span className={isOver ? "text-error" : "text-emerald-400"}>
+                            {isOver ? `+${data.consumedProtein - data.targetProtein}g` : `${remaining}g preostalo`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-background-tertiary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${isOver ? "bg-error" : "bg-emerald-400"}`}
+                            style={{ width: `${Math.min(percent, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className={`w-12 text-right text-sm font-bold text-number ${isOver ? "text-error" : "text-emerald-400"}`}>
+                        {percent}%
+                      </span>
+                    </div>
+                  );
+                })()}
+                {/* Carbs */}
+                {(() => {
+                  const remaining = Math.max(0, data.targetCarbs - data.consumedCarbs);
+                  const percent = data.targetCarbs > 0 ? Math.round((data.consumedCarbs / data.targetCarbs) * 100) : 0;
+                  const isOver = data.consumedCarbs > data.targetCarbs;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span className="w-16 text-xs text-amber-400">Ugljeni</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-foreground-muted">{data.consumedCarbs}g / {data.targetCarbs}g</span>
+                          <span className={isOver ? "text-error" : "text-amber-400"}>
+                            {isOver ? `+${data.consumedCarbs - data.targetCarbs}g` : `${remaining}g preostalo`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-background-tertiary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${isOver ? "bg-error" : "bg-amber-400"}`}
+                            style={{ width: `${Math.min(percent, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className={`w-12 text-right text-sm font-bold text-number ${isOver ? "text-error" : "text-amber-400"}`}>
+                        {percent}%
+                      </span>
+                    </div>
+                  );
+                })()}
+                {/* Fats */}
+                {(() => {
+                  const remaining = Math.max(0, data.targetFats - data.consumedFats);
+                  const percent = data.targetFats > 0 ? Math.round((data.consumedFats / data.targetFats) * 100) : 0;
+                  const isOver = data.consumedFats > data.targetFats;
+                  return (
+                    <div className="flex items-center gap-3">
+                      <span className="w-16 text-xs text-purple-400">Masti</span>
+                      <div className="flex-1">
+                        <div className="flex justify-between text-xs mb-1">
+                          <span className="text-foreground-muted">{data.consumedFats}g / {data.targetFats}g</span>
+                          <span className={isOver ? "text-error" : "text-purple-400"}>
+                            {isOver ? `+${data.consumedFats - data.targetFats}g` : `${remaining}g preostalo`}
+                          </span>
+                        </div>
+                        <div className="h-1.5 bg-background-tertiary rounded-full overflow-hidden">
+                          <div
+                            className={`h-full rounded-full transition-all duration-500 ${isOver ? "bg-error" : "bg-purple-400"}`}
+                            style={{ width: `${Math.min(percent, 100)}%` }}
+                          />
+                        </div>
+                      </div>
+                      <span className={`w-12 text-right text-sm font-bold text-number ${isOver ? "text-error" : "text-purple-400"}`}>
+                        {percent}%
+                      </span>
+                    </div>
+                  );
+                })()}
+              </div>
             ) : (
+              /* Standard Mode: Simple target display */
               <div className="flex items-center justify-center gap-6">
                 <div className="text-center">
                   <p className="text-xl font-semibold text-number text-emerald-400">
@@ -1169,6 +1369,7 @@ export function HomeClient({ data }: HomeClientProps) {
             )}
           </GlassCard>
         </SlideUp>
+        )}
 
         {/* Macro Distribution - commented out, now integrated into ring toggle
         <SlideUp delay={200}>
@@ -1200,41 +1401,43 @@ export function HomeClient({ data }: HomeClientProps) {
         </SlideUp>
         */}
 
-        {/* Today's Stats Row */}
-        <SlideUp delay={300}>
-          <div className="grid grid-cols-3 gap-3">
-            {/* Training Today */}
-            <GlassCard className="text-center py-5">
-              <div className="text-3xl mb-1">💪</div>
-              <p className="text-2xl font-bold text-number text-foreground">
-                {data.trainingCountToday > 0 ? "✓" : "—"}
-              </p>
-              <p className="text-xs text-foreground-muted">{t.home.training}</p>
-            </GlassCard>
+        {/* Today's Stats Row - Hidden in Simple mode (already shown in simplified card) */}
+        {!isSimpleMode && (
+          <SlideUp delay={300}>
+            <div className="grid grid-cols-3 gap-3">
+              {/* Training Today */}
+              <GlassCard className="text-center py-5">
+                <div className="text-3xl mb-1">💪</div>
+                <p className="text-2xl font-bold text-number text-foreground">
+                  {data.trainingCountToday > 0 ? "✓" : "—"}
+                </p>
+                <p className="text-xs text-foreground-muted">{t.home.training}</p>
+              </GlassCard>
 
-            {/* Water Today */}
-            <GlassCard className="text-center py-5">
-              <div className="text-3xl mb-1">💧</div>
-              <p className="text-2xl font-bold text-number text-foreground">
-                <AnimatedNumber value={data.waterGlasses} />
-                <span className="text-base text-foreground-muted font-normal">/8</span>
-              </p>
-              <p className="text-xs text-foreground-muted">{t.home.glasses}</p>
-            </GlassCard>
+              {/* Water Today */}
+              <GlassCard className="text-center py-5">
+                <div className="text-3xl mb-1">💧</div>
+                <p className="text-2xl font-bold text-number text-foreground">
+                  <AnimatedNumber value={data.waterGlasses} />
+                  <span className="text-base text-foreground-muted font-normal">/8</span>
+                </p>
+                <p className="text-xs text-foreground-muted">{t.home.glasses}</p>
+              </GlassCard>
 
-            {/* Meals Today */}
-            <GlassCard className="text-center py-5">
-              <div className="text-3xl mb-1">🍽️</div>
-              <p className="text-2xl font-bold text-number text-foreground">
-                <AnimatedNumber value={data.mealsToday} />
-              </p>
-              <p className="text-xs text-foreground-muted">{t.home.meals}</p>
-            </GlassCard>
-          </div>
-        </SlideUp>
+              {/* Meals Today */}
+              <GlassCard className="text-center py-5">
+                <div className="text-3xl mb-1">🍽️</div>
+                <p className="text-2xl font-bold text-number text-foreground">
+                  <AnimatedNumber value={data.mealsToday} />
+                </p>
+                <p className="text-xs text-foreground-muted">{t.home.meals}</p>
+              </GlassCard>
+            </div>
+          </SlideUp>
+        )}
 
-        {/* Contextual Advice Cards */}
-        {(showLowWaterAdvice || showLowProteinAdvice || showNoTrainingAdvice) && (
+        {/* Contextual Advice Cards - Hidden in Simple mode */}
+        {!isSimpleMode && (showLowWaterAdvice || showLowProteinAdvice || showNoTrainingAdvice) && (
           <SlideUp delay={350}>
             <div className="space-y-3">
               {/* Low Water Advice */}
@@ -1327,46 +1530,48 @@ export function HomeClient({ data }: HomeClientProps) {
           </SlideUp>
         )}
 
-        {/* AI Agents Section */}
-        <SlideUp delay={400}>
-          <div className="space-y-3">
-            <h3 className="text-label px-1">AI Asistenti</h3>
+        {/* AI Agents Section - Hidden in Simple mode */}
+        {!isSimpleMode && (
+          <SlideUp delay={400}>
+            <div className="space-y-3">
+              <h3 className="text-label px-1">AI Asistenti</h3>
 
-            {(["nutrition", "supplements", "training"] as AgentType[]).map((agent) => {
-              const meta = agentMeta[agent];
-              return (
-                <GlassCard
-                  key={agent}
-                  hover
-                  className={`cursor-pointer ${meta.borderClass} border`}
-                  onClick={() => router.push(`/chat/${agent}`)}
-                >
-                  <div className="flex items-center gap-3">
-                    <AgentAvatar agent={agent} size="md" state="idle" />
-                    <div className="flex-1 min-w-0">
-                      <p className="text-foreground font-medium">{meta.name}</p>
-                      <p className="text-foreground-muted text-xs mt-0.5">{meta.description}</p>
+              {(["nutrition", "supplements", "training"] as AgentType[]).map((agent) => {
+                const meta = agentMeta[agent];
+                return (
+                  <GlassCard
+                    key={agent}
+                    hover
+                    className={`cursor-pointer ${meta.borderClass} border`}
+                    onClick={() => router.push(`/chat/${agent}`)}
+                  >
+                    <div className="flex items-center gap-3">
+                      <AgentAvatar agent={agent} size="md" state="idle" />
+                      <div className="flex-1 min-w-0">
+                        <p className="text-foreground font-medium">{meta.name}</p>
+                        <p className="text-foreground-muted text-xs mt-0.5">{meta.description}</p>
+                      </div>
+                      <svg className={`w-5 h-5 ${meta.textClass} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
+                      </svg>
                     </div>
-                    <svg className={`w-5 h-5 ${meta.textClass} flex-shrink-0`} fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                    </svg>
-                  </div>
-                </GlassCard>
-              );
-            })}
-          </div>
-        </SlideUp>
+                  </GlassCard>
+                );
+              })}
+            </div>
+          </SlideUp>
+        )}
 
-        {/* Quick Actions - 2x3 Grid */}
+        {/* Quick Actions - 2x3 Grid (Challenge-First) */}
         <SlideUp delay={500}>
           <div className="grid grid-cols-3 gap-3">
-            {/* Row 1 */}
+            {/* Row 1: Challenge first */}
             <button
-              onClick={() => router.push("/progress")}
+              onClick={() => router.push("/challenge")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">📈</span>
-              <span className="text-sm text-foreground-muted">{t.home.progress}</span>
+              <span className="text-2xl block mb-2">🏆</span>
+              <span className="text-sm text-foreground-muted">Izazov</span>
             </button>
             <button
               onClick={() => router.push("/checkin")}
@@ -1391,11 +1596,11 @@ export function HomeClient({ data }: HomeClientProps) {
               <span className="text-sm text-foreground-muted">{data.hasCoach ? "Termini" : "Trener"}</span>
             </button>
             <button
-              onClick={() => router.push("/supplements")}
+              onClick={() => router.push("/progress")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">💊</span>
-              <span className="text-sm text-foreground-muted">{t.home.supplements}</span>
+              <span className="text-2xl block mb-2">📈</span>
+              <span className="text-sm text-foreground-muted">{t.home.progress}</span>
             </button>
             <button
               onClick={() => router.push("/meals")}
@@ -1408,16 +1613,31 @@ export function HomeClient({ data }: HomeClientProps) {
         </SlideUp>
       </main>
 
-      {/* Primary Action Button - Fixed at bottom */}
+      {/* Primary Action Button - Fixed at bottom (Dynamic based on challenge status) */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/95 to-transparent">
         <FadeIn delay={600}>
-          <Button
-            className="w-full btn-press glow-accent"
-            size="lg"
-            onClick={() => router.push("/log")}
-          >
-            {t.home.logSomething}
-          </Button>
+          {/* Show "Join Challenge" CTA when there's an open challenge user hasn't joined */}
+          {data.activeChallenge && !data.activeChallenge.isParticipating && !data.activeChallenge.isUpcoming ? (
+            <Button
+              className="w-full btn-press"
+              size="lg"
+              onClick={() => router.push("/challenge")}
+              style={{ backgroundColor: "rgb(16 185 129)", color: "white" }} // emerald-500
+            >
+              <span className="flex items-center justify-center gap-2">
+                <span>🏆</span>
+                <span>Pridruži se izazovu</span>
+              </span>
+            </Button>
+          ) : (
+            <Button
+              className="w-full btn-press glow-accent"
+              size="lg"
+              onClick={() => router.push("/log")}
+            >
+              {t.home.logSomething}
+            </Button>
+          )}
         </FadeIn>
       </div>
     </div>

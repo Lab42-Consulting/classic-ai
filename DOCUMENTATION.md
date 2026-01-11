@@ -29,6 +29,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Coach Meal Creation](#coach-meal-creation)
    - [Session Scheduling (Coach)](#session-scheduling-coach)
 7. [Member Guide](#member-guide)
+   - [Difficulty Modes](#difficulty-modes)
    - [Custom Meal System](#custom-meal-system)
    - [Coach Meals](#coach-meals)
    - [Browse and Request Coaches](#browse-and-request-coaches)
@@ -39,6 +40,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Custom Nutrition Targets](#custom-nutrition-targets)
    - [Week Reset](#week-reset)
    - [Meal Logging Modes](#log-a-meal)
+   - [Photo-Based Meal Logging](#photo-based-meal-logging)
    - [AI Agents](#ai-agents)
    - [Weekly Check-In](#weekly-check-in)
 8. [API Reference](#api-reference)
@@ -773,6 +775,80 @@ Click **"Prikaži prošle termine"** to view completed and cancelled sessions.
 2. Enter your Member ID
 3. Enter your 4-digit PIN
 
+### Difficulty Modes
+
+Choose your preferred app complexity level. This determines what features are available and how detailed the tracking is.
+
+#### Available Modes
+
+| Mode | Best For | Experience |
+|------|----------|------------|
+| **Simple** | Beginners, casual users | One-tap logging, challenge-focused, minimal complexity |
+| **Standard** | Regular gym-goers | Preset meal sizes (S/M/L), saved meals, calorie tracking |
+| **Pro** | Serious athletes, coached members | Exact macro entry, full analytics, all features |
+
+#### Simple Mode
+
+The simplest experience for getting started:
+
+- **Logging:** Quick one-tap buttons ("I trained", "I ate", "Drank water")
+- **Meals:** No size selection needed, just tap "I ate"
+- **Display:** No calorie ring, no macro bars, basic stats only
+- **Focus:** Challenge participation and accountability
+- **Restrictions:** AI Chat not available (upgrade to Standard/Pro)
+
+**Ideal for:** Members who just want to build the habit of logging without worrying about numbers.
+
+#### Standard Mode
+
+Balanced experience for regular gym-goers:
+
+- **Logging:** Training, water, preset meal sizes (S/M/L), saved meals
+- **Meals:** Preset sizes with automatic macro estimates, saved meal templates
+- **Display:** Calorie ring, basic macro overview
+- **Features:** Photo meal logging with AI analysis, saved meals
+- **Restrictions:** No custom/exact macro entry (Pro only)
+
+**Available in Standard:**
+- Preset meal sizes (Small, Medium, Large)
+- Saved meals from your meal library
+- Photo-based meal logging with AI analysis (3/day)
+
+**Not available in Standard:**
+- Custom calorie/macro entry (requires Pro)
+- Coach-created meals (requires Pro)
+
+#### Pro Mode
+
+Full-featured experience for serious athletes:
+
+- **Logging:** All options including exact macro entry (Protein, Carbs, Fats)
+- **Meals:** Exact macros, coach-created meals, saved meals, full ingredient tracking
+- **Display:** Full calorie ring, detailed macro bars, all analytics
+- **Features:** All AI features, coach integration, custom targets
+- **Coach Integration:** `requireExactMacros` enforcement available
+
+**Available in Pro:**
+- Exact macro entry (P/C/F) with auto-calculated calories
+- Coach-created meals (if you have a coach)
+- All saved meals from your library
+- Full ingredient-level tracking
+- All AI chat features
+
+#### Changing Your Mode
+
+**During Onboarding:**
+1. New members select their difficulty mode during the onboarding flow
+2. Choose based on your experience level and goals
+
+**From Profile:**
+1. Go to your Profile page
+2. Find the **"Težina iskustva"** (Difficulty Mode) section
+3. Tap to change between Simple, Standard, and Pro
+4. Changes take effect immediately
+
+**Note:** Your logged data is preserved when switching modes. Downgrading hides features but doesn't delete anything.
+
 ### Custom Meal System
 
 Create and save custom meals with detailed nutritional information:
@@ -1141,17 +1217,23 @@ Tap **"Log Something"** to access logging options:
 
 #### Log a Meal
 
-There are three ways to log a meal, depending on your settings:
+Meal logging varies by your difficulty mode:
 
-**Standard Mode (Preset Sizes):**
+**Simple Mode:**
+
+1. Tap **"I ate"** (Jeo/la sam)
+2. That's it! No details needed - just a quick tap to log that you ate
+
+**Standard Mode (Preset Sizes + Saved Meals):**
 
 1. Tap **"I ate"**
-2. Select meal size: Small, Medium, Large, or Tačno (Custom)
+2. Choose your logging method:
+   - **Preset Size:** Small (S), Medium (M), or Large (L)
+   - **Saved Meal:** Select from your saved meal library
 3. **View the macro preview** - shows estimated calories, protein, carbs, and fats
-4. Optionally add what you ate
-5. Tap **"Log meal"**
+4. Tap **"Log meal"**
 
-**Calorie estimates by goal:**
+**Calorie estimates by goal (preset sizes):**
 
 | Goal | Small | Medium | Large |
 |------|-------|--------|-------|
@@ -1159,15 +1241,23 @@ There are three ways to log a meal, depending on your settings:
 | Recomposition | ~350 cal | ~600 cal | ~900 cal |
 | Muscle Gain | ~400 cal | ~700 cal | ~1000 cal |
 
-**Custom Mode:**
+**Note:** Custom/exact calorie entry is not available in Standard mode. Upgrade to Pro for manual macro entry.
 
-1. Select **"Tačno" (Custom)** from the meal size options
-2. Enter your exact **Calories** (required)
-3. Optionally enter **Protein** in grams
-4. Add meal name if desired
-5. Tap **"Log meal"**
+**Pro Mode (Full Tracking):**
 
-**Exact Macros Mode (Coach-Required):**
+All Standard features plus:
+- **Exact Macros:** Enter Protein, Carbs, and Fats manually
+- **Coach Meals:** Select from coach-created meal plans
+- **Saved Meals:** Full access to your meal library
+
+1. Tap **"I ate"**
+2. Choose your logging method:
+   - **Exact Macros:** Enter P/C/F values, calories auto-calculate
+   - **Coach Meal:** Select from "Od trenera" section (if you have a coach)
+   - **Saved Meal:** Select from your meal library
+3. Tap **"Log meal"**
+
+**Coach-Required Exact Macros:**
 
 If your coach has enabled "Require Exact Macros" for you:
 
@@ -1175,10 +1265,8 @@ If your coach has enabled "Require Exact Macros" for you:
 2. You'll see three input fields: **Proteini (g)**, **UH (g)** (Carbs), **Masti (g)** (Fats)
 3. Enter all three values (required)
 4. Watch the **auto-calculated calories** appear: `= P×4 + C×4 + F×9`
-5. Add meal name if desired
+5. Select a coach meal or enter macros manually
 6. Tap **"Log meal"**
-
-**Note:** In exact macros mode, you cannot use preset meal sizes. This mode is for members who need strict macro tracking.
 
 **Macro breakdown preview:** When you select a preset meal size, the app shows:
 - Estimated calories (kcal)
@@ -1187,6 +1275,44 @@ If your coach has enabled "Require Exact Macros" for you:
 - Fats (g) - shown in accent color
 
 These estimates are calculated based on your current goal and the macro splits defined for each goal type.
+
+### Photo-Based Meal Logging
+
+Take a photo of your meal and let AI estimate the macros (available in Standard and Pro modes).
+
+#### How It Works
+
+1. Tap the **camera icon** (📸) when logging a meal
+2. Take a photo or select from gallery
+3. Optionally describe what you ate
+4. Select a meal size (S/M/L) for base estimation
+5. **Optional:** Tap **"AI Analiza"** for AI-powered analysis
+6. Review and edit the estimates if needed
+7. Confirm to log the meal with photo
+
+#### AI Analysis Limits
+
+Photo analysis uses AI and is rate-limited to control costs:
+
+| Member Type | Daily Limit |
+|-------------|-------------|
+| Trial | 0 (not available) |
+| Active Subscriber | 3 per day |
+
+The button shows remaining uses: **(2/3 danas)**
+
+#### When AI Is Not Available
+
+When you've reached your daily limit:
+- Use the preset size (S/M/L) estimation
+- The photo is still saved for your records
+- Message: "AI analiza nije dostupna (limit 3/dan)"
+
+#### Photo Requirements
+
+- **Max size:** 1MB
+- **Formats:** JPEG, PNG, WebP
+- **Storage:** Saved with your meal log
 
 #### Log Training
 
@@ -1392,6 +1518,8 @@ Access your profile and account settings:
 | `/api/ai/agents/nutrition/chat` | POST | Chat with nutrition agent |
 | `/api/ai/agents/supplements/chat` | POST | Chat with supplements agent |
 | `/api/ai/agents/training/chat` | POST | Chat with training agent |
+| `/api/ai/analyze-meal-photo` | POST | Analyze meal photo with AI |
+| `/api/ai/analyze-meal-photo` | GET | Get photo analysis usage status |
 
 **POST body:**
 ```json
@@ -1407,6 +1535,71 @@ Access your profile and account settings:
   "response": "Pre treninga preporučujem...",
   "remaining": 19,  // Messages remaining today
   "limit": 20       // Daily limit
+}
+```
+
+### Photo Meal Analysis
+
+**POST `/api/ai/analyze-meal-photo` body:**
+```json
+{
+  "photo": "base64-encoded-image-data",
+  "sizeHint": "medium",  // Optional: small | medium | large
+  "goal": "fat_loss"     // Optional: defaults to member's goal
+}
+```
+
+**Response (200 - Success):**
+```json
+{
+  "success": true,
+  "estimation": {
+    "description": "Piletina sa risom",
+    "items": ["piletina ~150g", "beli pirinač ~100g", "mešana salata ~80g"],
+    "calories": 520,
+    "protein": 45,
+    "carbs": 50,
+    "fats": 12,
+    "confidence": "high"
+  },
+  "remaining": 2,
+  "limit": 3
+}
+```
+
+**Response (429 - Rate limit exceeded):**
+```json
+{
+  "error": "Daily photo analysis limit reached",
+  "remaining": 0,
+  "limit": 3,
+  "message": "AI analiza nije dostupna (limit 3/dan). Koristi procenu na osnovu veličine obroka."
+}
+```
+
+**GET `/api/ai/analyze-meal-photo` response:**
+```json
+{
+  "used": 1,
+  "remaining": 2,
+  "limit": 3,
+  "available": true
+}
+```
+
+### Difficulty Mode
+
+**PATCH `/api/member/profile` body:**
+```json
+{
+  "difficultyMode": "pro"  // "simple" | "standard" | "pro"
+}
+```
+
+**Response (200):**
+```json
+{
+  "success": true
 }
 ```
 

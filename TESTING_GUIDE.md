@@ -1009,6 +1009,264 @@ POST /api/member/meals
 
 ---
 
+### Difficulty Mode Testing
+
+#### Test M36: View Difficulty Mode Setting
+
+**Objective:** Verify member can view their current difficulty mode
+
+**Steps:**
+1. Login as member
+2. Navigate to `/profile`
+3. Find "Težina iskustva" (Difficulty Mode) section
+
+**Expected Results:**
+- [ ] Current mode displayed (Simple, Standard, or Pro)
+- [ ] Mode selector or change option visible
+- [ ] Mode description shown
+
+---
+
+#### Test M37: Change Difficulty Mode
+
+**Objective:** Verify member can change their difficulty mode
+
+**Steps:**
+1. Navigate to `/profile`
+2. Find difficulty mode section
+3. Select a different mode (e.g., change from Standard to Pro)
+4. Confirm change
+
+**Expected Results:**
+- [ ] Mode changes immediately
+- [ ] Success feedback shown
+- [ ] Log page reflects new mode features
+- [ ] Changes persist after page refresh
+
+**API Test:**
+```bash
+PATCH /api/member/profile
+{ "difficultyMode": "pro" }
+# Expected: 200 { success: true }
+```
+
+---
+
+#### Test M38: Simple Mode Meal Logging
+
+**Objective:** Verify Simple mode provides one-tap meal logging
+
+**Prerequisite:** Member with `difficultyMode: "simple"`
+
+**Steps:**
+1. Navigate to `/log`
+2. Tap "Jeo/la sam" (I ate)
+
+**Expected Results:**
+- [ ] Meal logged immediately (one tap)
+- [ ] NO meal size selection modal
+- [ ] NO macro preview
+- [ ] Success message: "Obrok ubeležen"
+- [ ] Redirected to home
+
+**What Should NOT Appear:**
+- [ ] Size buttons (S/M/L)
+- [ ] Saved meals section
+- [ ] Custom entry fields
+- [ ] Macro displays
+
+---
+
+#### Test M39: Standard Mode Meal Logging
+
+**Objective:** Verify Standard mode has preset sizes and saved meals
+
+**Prerequisite:** Member with `difficultyMode: "standard"`
+
+**Steps:**
+1. Navigate to `/log`
+2. Tap "Jeo/la sam"
+3. Observe available options
+
+**Expected Results:**
+- [ ] Preset sizes visible: S (Small), M (Medium), L (Large)
+- [ ] "Sačuvano" (Saved Meals) button visible
+- [ ] Macro preview shown when size selected
+- [ ] NO custom/exact macro entry fields
+
+**Saved Meals Test:**
+1. Tap "Sačuvano" button
+2. Select a saved meal (if exists)
+
+**Expected Results:**
+- [ ] Saved meals list displayed
+- [ ] Selecting logs with saved meal's macros
+- [ ] "Kreiraj obrok" link to create new saved meal
+
+**What Should NOT Appear:**
+- [ ] Custom calorie input
+- [ ] Exact macro entry (P/C/F fields)
+- [ ] Coach meals section
+
+---
+
+#### Test M40: Pro Mode Meal Logging
+
+**Objective:** Verify Pro mode has full meal logging features
+
+**Prerequisite:** Member with `difficultyMode: "pro"`
+
+**Steps:**
+1. Navigate to `/log`
+2. Tap "Jeo/la sam"
+3. Observe available options
+
+**Expected Results:**
+- [ ] Exact macro entry section visible:
+  - Protein (P) input
+  - Carbs (C) input
+  - Fats (F) input
+  - Auto-calculated calories display
+- [ ] Saved meals section visible
+- [ ] Coach meals section visible (if has coach)
+- [ ] "Novi obrok" button to create saved meal
+
+**Exact Macros Test:**
+1. Enter: P=30, C=40, F=15
+2. Verify calories: (30×4) + (40×4) + (15×9) = 415
+
+**Expected Results:**
+- [ ] Calories auto-calculate correctly
+- [ ] Meal logs with exact values
+- [ ] Success message shown
+
+---
+
+#### Test M41: Mode Transition Preserves Data
+
+**Objective:** Verify changing modes doesn't delete logged data
+
+**Steps:**
+1. Login as member (any mode)
+2. Log several meals with macros
+3. Change difficulty mode (e.g., Pro → Simple)
+4. Check history at `/history`
+
+**Expected Results:**
+- [ ] All previous logs still visible
+- [ ] Macro data preserved in history
+- [ ] Calorie totals unchanged
+- [ ] Mode change only affects UI, not data
+
+---
+
+### Photo-Based Meal Analysis Testing
+
+#### Test M42: AI Photo Analysis (Standard/Pro Mode)
+
+**Objective:** Verify AI meal photo analysis works
+
+**Prerequisite:** Member with active subscription (not trial)
+
+**Steps:**
+1. Navigate to `/log`
+2. Tap meal logging option with camera/photo icon
+3. Take or select a meal photo
+4. Tap "AI Analiza" button
+
+**Expected Results:**
+- [ ] AI analysis completes (may take 3-5 seconds)
+- [ ] Returns estimated values:
+  - Calories
+  - Protein, Carbs, Fats
+  - Meal description
+  - Confidence level (high/medium/low)
+- [ ] Values are editable before confirming
+- [ ] Remaining uses shown: "(2/3 danas)"
+
+---
+
+#### Test M43: AI Photo Analysis Rate Limiting
+
+**Objective:** Verify photo analysis rate limits
+
+**Test for Trial Member:**
+1. Login as trial member
+2. Navigate to photo meal logging
+3. Check "AI Analiza" button
+
+**Expected Results:**
+- [ ] Button disabled or shows "Dostupno za članove"
+- [ ] 0 analyses available for trial users
+
+**Test for Active Member:**
+1. Login as active subscriber
+2. Use AI analysis 3 times in one day
+
+**Expected Results:**
+- [ ] First 3 analyses work normally
+- [ ] After 3rd: Button disabled
+- [ ] Message: "AI analiza nije dostupna (limit 3/dan)"
+- [ ] Can still use S/M/L preset estimation
+
+---
+
+#### Test M44: Photo Analysis API
+
+**Objective:** Verify photo analysis API endpoints
+
+**API Tests:**
+```bash
+# Test 1: Successful analysis
+POST /api/ai/analyze-meal-photo
+{
+  "photo": "data:image/jpeg;base64,...",
+  "sizeHint": "medium",
+  "goal": "fat_loss"
+}
+# Expected: 200 { success: true, estimation: {...}, remaining: 2, limit: 3 }
+
+# Test 2: Rate limit exceeded
+# (After 3 successful calls in a day)
+POST /api/ai/analyze-meal-photo
+{ "photo": "...", "sizeHint": "small" }
+# Expected: 429 { error: "Daily photo analysis limit reached", remaining: 0, limit: 3 }
+
+# Test 3: Photo too large
+POST /api/ai/analyze-meal-photo
+{ "photo": "<2MB base64 image>" }
+# Expected: 400 { error: "Photo too large. Maximum 1MB." }
+
+# Test 4: Get usage status
+GET /api/ai/analyze-meal-photo
+# Expected: 200 { used: 1, remaining: 2, limit: 3, available: true }
+
+# Test 5: Trial member (no analyses allowed)
+GET /api/ai/analyze-meal-photo  (as trial member)
+# Expected: 200 { used: 0, remaining: 0, limit: 0, available: false }
+```
+
+---
+
+#### Test M45: Photo Logging Without AI Analysis
+
+**Objective:** Verify photo can be saved without using AI analysis
+
+**Steps:**
+1. Navigate to photo meal logging
+2. Take/select a photo
+3. Select size (S/M/L) for estimation
+4. Skip "AI Analiza" - just use preset estimate
+5. Confirm meal
+
+**Expected Results:**
+- [ ] Photo saved with meal log
+- [ ] Macros estimated from size selection
+- [ ] No AI usage consumed
+- [ ] Meal appears in history with photo
+
+---
+
 ### Staff/Coach Role Testing
 
 #### Test S1: Staff Login
@@ -1884,8 +2142,8 @@ POST /api/admin/pending-shares
 | `/api/logs` | GET | Today's logs, date range, history aggregation |
 | `/api/checkins` | POST | Valid check-in, not Sunday, already done, too soon |
 | `/api/checkins` | GET | Status, can check-in, recent history |
-| `/api/member/profile` | GET | Profile data, coach settings, custom targets, coach info |
-| `/api/member/profile` | PATCH | Goal change, locale, weight, custom targets, 403 if has coach |
+| `/api/member/profile` | GET | Profile data, coach settings, custom targets, coach info, difficulty mode |
+| `/api/member/profile` | PATCH | Goal change, locale, weight, custom targets, difficulty mode, 403 if has coach (for targets) |
 | `/api/member/subscription` | GET | Trial, active, expired status |
 | `/api/member/nudges` | GET | Unread nudges |
 | `/api/member/meals` | GET | Own meals, coach meals, shared meals with photos |
@@ -1979,6 +2237,8 @@ POST /api/admin/pending-shares
 | `/api/ai/agents/nutrition/chat` | POST | Valid question, rate limit, budget |
 | `/api/ai/agents/supplements/chat` | POST | Domain-specific response |
 | `/api/ai/agents/training/chat` | POST | Domain-specific response |
+| `/api/ai/analyze-meal-photo` | GET | Get usage status, remaining analyses |
+| `/api/ai/analyze-meal-photo` | POST | Analyze photo, rate limit (3/day active, 0 trial), photo size validation |
 
 ---
 
@@ -2063,9 +2323,13 @@ npm run test:coverage
 ---
 
 *Last Updated: January 2026*
-*Added: Meal Photos tests (M26-M31) - photo upload, validation, sharing requirements*
-*Added: Admin Pending Meals tests (A20-A23) - approval queue and authorization*
-*Added: Meal API endpoints to reference*
+*Added: Difficulty Mode tests (M36-M41) - mode selection, per-mode meal logging, data preservation*
+*Added: Photo-Based Meal Analysis tests (M42-M45) - AI analysis, rate limiting, API endpoints*
+*Added: Photo Analysis API endpoints to reference*
+*Added: Difficulty mode to member profile API endpoints*
+*Previously Added: Meal Photos tests (M26-M31) - photo upload, validation, sharing requirements*
+*Previously Added: Admin Pending Meals tests (A20-A23) - approval queue and authorization*
+*Previously Added: Meal API endpoints to reference*
 *Previously Added: Daily rotating codes for Gym QR Check-in (M24, A18, A19)*
 *Previously Added: Gym QR Check-in tests (M24, M25, A18, A19)*
 *Previously Added: Gym Check-in API endpoints to reference*

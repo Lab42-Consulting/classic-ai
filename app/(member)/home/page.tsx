@@ -302,9 +302,9 @@ export default async function HomePage() {
 
   const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData } = data;
 
-  // Redirect new users to onboarding explainer
+  // Redirect new users to simplified onboarding
   if (!member.hasSeenOnboarding) {
-    redirect("/why-this-works");
+    redirect("/onboarding");
   }
 
   // Priority: Coach targets > Member custom targets > Auto-calculated
@@ -424,6 +424,8 @@ export default async function HomePage() {
       : null,
     // Staff viewing as member
     isStaffMember,
+    // Difficulty mode
+    difficultyMode: member.difficultyMode || "standard",
     // Active or upcoming challenge (show always - different content based on participation)
     activeChallenge: activeChallenge
       ? (() => {

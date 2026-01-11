@@ -45,6 +45,7 @@ export const mockMember = {
   goal: 'fat_loss',
   status: 'active',
   locale: 'sr',
+  difficultyMode: 'standard', // simple | standard | pro
   hasSeenOnboarding: true,
   subscribedAt: new Date('2024-12-01'),
   subscribedUntil: new Date('2025-12-01'),

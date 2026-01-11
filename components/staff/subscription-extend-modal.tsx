@@ -12,10 +12,10 @@ interface SubscriptionExtendModalProps {
 }
 
 const SUBSCRIPTION_OPTIONS = [
-  { months: 1, price: 5, label: "1 mesec" },
-  { months: 3, price: 15, label: "3 meseca" },
-  { months: 6, price: 30, label: "6 meseci" },
-  { months: 12, price: 60, label: "12 meseci" },
+  { months: 1, price: 5, label: "1 mesec", perMonth: 5 },
+  { months: 3, price: 12, label: "3 meseca", perMonth: 4, discount: "20%" },
+  { months: 6, price: 24, label: "6 meseci", perMonth: 4, discount: "20%" },
+  { months: 12, price: 48, label: "12 meseci", perMonth: 4, discount: "20%" },
 ];
 
 export function SubscriptionExtendModal({
@@ -162,15 +162,25 @@ export function SubscriptionExtendModal({
                   setError(null);
                 }}
                 className={`
-                  p-4 rounded-xl border-2 text-left transition-all
+                  p-4 rounded-xl border-2 text-left transition-all relative
                   ${selectedMonths === option.months && !useCustomDate
                     ? "border-accent bg-accent/10"
                     : "border-border hover:border-foreground-muted"
                   }
                 `}
               >
+                {option.discount && (
+                  <span className="absolute -top-2 -right-2 px-2 py-0.5 bg-emerald-500 text-white text-xs font-medium rounded-full">
+                    -{option.discount}
+                  </span>
+                )}
                 <p className="font-medium text-foreground">{option.label}</p>
-                <p className="text-sm text-foreground-muted">{option.price}€</p>
+                <div className="flex items-baseline gap-2">
+                  <p className="text-sm text-foreground-muted">{option.price}€</p>
+                  {option.perMonth && option.months > 1 && (
+                    <p className="text-xs text-foreground-muted/70">({option.perMonth}€/mes)</p>
+                  )}
+                </div>
               </button>
             ))}
           </div>

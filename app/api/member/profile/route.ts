@@ -28,6 +28,8 @@ export async function GET() {
         subscriptionStatus: true,
         locale: true,
         hasSeenOnboarding: true,
+        onboardingPath: true,
+        difficultyMode: true,
         createdAt: true,
         // Custom targets set by member
         customCalories: true,
@@ -92,7 +94,7 @@ export async function PATCH(request: NextRequest) {
 
     const body = await request.json();
     console.log("PATCH /api/member/profile - body:", body);
-    const { goal, weight, height, locale, hasSeenOnboarding, customCalories, customProtein, customCarbs, customFats } = body;
+    const { goal, weight, height, locale, hasSeenOnboarding, onboardingPath, difficultyMode, customCalories, customProtein, customCarbs, customFats } = body;
 
     // Check if member has a coach (targets cannot be changed if they have one)
     const isUpdatingTargets = customCalories !== undefined || customProtein !== undefined ||
@@ -124,6 +126,22 @@ export async function PATCH(request: NextRequest) {
     if (locale && !["sr", "en"].includes(locale)) {
       return NextResponse.json(
         { error: "Invalid locale" },
+        { status: 400 }
+      );
+    }
+
+    // Validate difficultyMode if provided
+    if (difficultyMode && !["simple", "standard", "pro"].includes(difficultyMode)) {
+      return NextResponse.json(
+        { error: "Invalid difficulty mode" },
+        { status: 400 }
+      );
+    }
+
+    // Validate onboardingPath if provided
+    if (onboardingPath && !["challenge", "coach", "explore"].includes(onboardingPath)) {
+      return NextResponse.json(
+        { error: "Invalid onboarding path" },
         { status: 400 }
       );
     }
@@ -176,6 +194,8 @@ export async function PATCH(request: NextRequest) {
       height?: number;
       locale?: string;
       hasSeenOnboarding?: boolean;
+      onboardingPath?: string;
+      difficultyMode?: string;
       customCalories?: number | null;
       customProtein?: number | null;
       customCarbs?: number | null;
@@ -187,6 +207,8 @@ export async function PATCH(request: NextRequest) {
     if (height !== undefined) updateData.height = parseFloat(height);
     if (locale) updateData.locale = locale;
     if (typeof hasSeenOnboarding === "boolean") updateData.hasSeenOnboarding = hasSeenOnboarding;
+    if (onboardingPath) updateData.onboardingPath = onboardingPath;
+    if (difficultyMode) updateData.difficultyMode = difficultyMode;
 
     // Handle custom targets (allow setting to null to reset to auto-calculated)
     if (customCalories !== undefined) {
@@ -215,6 +237,8 @@ export async function PATCH(request: NextRequest) {
         height: true,
         locale: true,
         hasSeenOnboarding: true,
+        onboardingPath: true,
+        difficultyMode: true,
         customCalories: true,
         customProtein: true,
         customCarbs: true,

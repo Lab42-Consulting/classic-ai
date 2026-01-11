@@ -296,5 +296,82 @@ describe('Member Profile API', () => {
         })
       })
     })
+
+    // =========================================================================
+    // Difficulty Mode Updates
+    // =========================================================================
+    describe('Difficulty Mode Update', () => {
+      it('should update difficultyMode to simple', async () => {
+        vi.mocked(prisma.member.update).mockResolvedValue({
+          ...mockMember,
+          difficultyMode: 'simple',
+        } as never)
+
+        const request = createMockRequest({ difficultyMode: 'simple' }, 'PATCH')
+        const response = await PATCH(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+        expect(prisma.member.update).toHaveBeenCalledWith({
+          where: { id: mockMemberAuthResult.memberId },
+          data: { difficultyMode: 'simple' },
+          select: expect.any(Object),
+        })
+      })
+
+      it('should update difficultyMode to standard', async () => {
+        vi.mocked(prisma.member.update).mockResolvedValue({
+          ...mockMember,
+          difficultyMode: 'standard',
+        } as never)
+
+        const request = createMockRequest({ difficultyMode: 'standard' }, 'PATCH')
+        const response = await PATCH(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+      })
+
+      it('should update difficultyMode to pro', async () => {
+        vi.mocked(prisma.member.update).mockResolvedValue({
+          ...mockMember,
+          difficultyMode: 'pro',
+        } as never)
+
+        const request = createMockRequest({ difficultyMode: 'pro' }, 'PATCH')
+        const response = await PATCH(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+      })
+
+      it('should return 400 for invalid difficultyMode', async () => {
+        const request = createMockRequest({ difficultyMode: 'invalid' }, 'PATCH')
+        const response = await PATCH(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(400)
+        expect(data.error).toBe('Invalid difficulty mode')
+      })
+
+      it('should allow updating difficultyMode even with coach assignment', async () => {
+        // Unlike custom nutrition targets, difficulty mode can be changed even with a coach
+        vi.mocked(prisma.member.update).mockResolvedValue({
+          ...mockMember,
+          difficultyMode: 'pro',
+          coachAssignment: mockCoachAssignment,
+        } as never)
+
+        const request = createMockRequest({ difficultyMode: 'pro' }, 'PATCH')
+        const response = await PATCH(request as never)
+        const data = await response.json()
+
+        expect(response.status).toBe(200)
+        expect(data.success).toBe(true)
+      })
+    })
   })
 })

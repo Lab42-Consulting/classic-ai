@@ -310,6 +310,134 @@ export async function checkAndIncrementRateLimitWithTier(
   return result;
 }
 
+// Photo analysis rate limits (Vision API is expensive - strict limits)
+const PHOTO_ANALYSIS_LIMITS = {
+  trial: 0, // Trial users: NO vision API
+  active: 3, // Active subscribers: 3 AI analyses per day max
+  expired: 0,
+  cancelled: 0,
+} as const;
+
+/**
+ * Check and increment rate limit for photo meal analyses (Vision API)
+ * This is separate from text-based AI usage because Vision API is more expensive.
+ *
+ * @param memberId - The member's ID
+ * @param subscriptionStatus - Member's subscription status
+ * @returns Whether the request is allowed and usage info
+ */
+export async function checkAndIncrementPhotoAnalysisLimit(
+  memberId: string,
+  subscriptionStatus: string
+): Promise<{ allowed: boolean; remaining: number; limit: number }> {
+  const status = subscriptionStatus as SubscriptionStatus;
+  const limit = PHOTO_ANALYSIS_LIMITS[status] ?? 0;
+
+  if (limit === 0) {
+    return { allowed: false, remaining: 0, limit: 0 };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  // Use transaction with Serializable isolation to prevent race conditions
+  const result = await prisma.$transaction(
+    async (tx) => {
+      // Increment first (atomic upsert)
+      const usage = await tx.aIUsageDaily.upsert({
+        where: {
+          memberId_date: {
+            memberId,
+            date: today,
+          },
+        },
+        create: {
+          memberId,
+          date: today,
+          count: 0,
+          photoAnalyses: 1,
+        },
+        update: {
+          photoAnalyses: { increment: 1 },
+        },
+      });
+
+      // Check if we exceeded the limit
+      if (usage.photoAnalyses > limit) {
+        // Roll back the increment
+        await tx.aIUsageDaily.update({
+          where: {
+            memberId_date: {
+              memberId,
+              date: today,
+            },
+          },
+          data: {
+            photoAnalyses: { decrement: 1 },
+          },
+        });
+
+        return {
+          allowed: false,
+          remaining: 0,
+          limit,
+        };
+      }
+
+      // Request allowed
+      return {
+        allowed: true,
+        remaining: Math.max(0, limit - usage.photoAnalyses),
+        limit,
+      };
+    },
+    {
+      isolationLevel: Prisma.TransactionIsolationLevel.Serializable,
+      timeout: 5000,
+    }
+  );
+
+  return result;
+}
+
+/**
+ * Get current photo analysis usage without incrementing
+ *
+ * @param memberId - The member's ID
+ * @param subscriptionStatus - Member's subscription status
+ * @returns Current usage and limit info
+ */
+export async function getPhotoAnalysisUsage(
+  memberId: string,
+  subscriptionStatus: string
+): Promise<{ used: number; remaining: number; limit: number }> {
+  const status = subscriptionStatus as SubscriptionStatus;
+  const limit = PHOTO_ANALYSIS_LIMITS[status] ?? 0;
+
+  if (limit === 0) {
+    return { used: 0, remaining: 0, limit: 0 };
+  }
+
+  const today = new Date();
+  today.setHours(0, 0, 0, 0);
+
+  const usage = await prisma.aIUsageDaily.findUnique({
+    where: {
+      memberId_date: {
+        memberId,
+        date: today,
+      },
+    },
+  });
+
+  const used = usage?.photoAnalyses ?? 0;
+  return {
+    used,
+    remaining: Math.max(0, limit - used),
+    limit,
+  };
+}
+
 /**
  * Decrement usage count (rollback for failed AI requests)
  * Use this to restore quota if the AI request fails after rate limit was consumed.

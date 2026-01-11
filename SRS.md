@@ -2,8 +2,18 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.12
+**Version:** 1.13
 **Last Updated:** January 2026
+
+**Changelog v1.13:**
+- Added Difficulty Mode system (Simple, Standard, Pro) for personalized complexity levels
+- Simple mode: One-tap logging, no macro tracking, challenge-focused experience
+- Standard mode: Preset meal sizes (S/M/L) + saved meals, basic calorie/macro display
+- Pro mode: Exact macro entry (P/C/F), coach meals, saved meals, full tracking features
+- Mode selection available in onboarding and profile page
+- Photo-based meal logging with AI analysis (rate limited: 3/day for active members)
+- Added `difficultyMode` field to Member model
+- Updated log page with mode-specific UI layouts
 
 **Changelog v1.12:**
 - Added Challenge Winners tracking and exclusion system
@@ -260,21 +270,30 @@ The system provides:
 ### 3.2 Daily Logging
 
 #### FR-LOG-001: Meal Logging
-- **Input:** Meal size (small/medium/large/custom/exact), optional meal name, optional macros
+- **Input:** Varies by difficulty mode (see table below)
 - **Process:**
-  1. Fetch user's current goal and coach settings
-  2. If `requireExactMacros` is enabled by coach, require P/C/F input
-  3. Calculate estimated or exact macros based on mode
-  4. Store log with timestamp
+  1. Fetch user's current goal, coach settings, and difficulty mode
+  2. Render mode-appropriate UI
+  3. Calculate estimated or exact macros based on input
+  4. Store log with timestamp and optional photo
 - **Output:** Success confirmation, redirect to home
 
-**Meal Size Modes:**
+**Meal Logging by Difficulty Mode:**
+
+| Mode | Available Options | Macro Tracking |
+|------|-------------------|----------------|
+| Simple | Quick one-tap log ("I ate"), no details | None - just logged |
+| Standard | Preset sizes (S/M/L) + Saved meals | Estimated from size |
+| Pro | Exact macro entry (P/C/F) + Coach meals + Saved meals | Full tracking |
+
+**Meal Size Modes (Standard/Pro):**
 
 | Mode | Description | Required Input |
 |------|-------------|----------------|
 | Small/Medium/Large | Preset sizes with automatic macro estimation | Size selection |
-| Custom | User enters exact calories, optional protein | Calories (required), Protein (optional) |
-| Exact | Coach-required mode with full macro tracking | Protein, Carbs, Fats (all required) |
+| Saved Meal | User's previously saved meal templates | Meal selection |
+| Exact (Pro only) | Full macro tracking | Protein, Carbs, Fats (all required) |
+| Coach Meal (Pro only) | Coach-created meal with ingredients | Meal selection |
 
 **Meal Size Estimation by Goal (Preset Sizes):**
 
@@ -1058,6 +1077,81 @@ The session scheduling system enables coaches and members to schedule appointmen
 - **Member Home:** Trainer button navigates to `/sessions` (when has coach)
 - **Coach Dashboard:** Session requests card shows pending count with preview
 
+### 3.17 Difficulty Mode System
+
+The difficulty mode system allows members to choose their preferred complexity level for the app experience.
+
+#### FR-DIFF-001: Mode Definitions
+
+| Mode | Target User | Features | UI Complexity |
+|------|-------------|----------|---------------|
+| Simple | Casual users, beginners | One-tap logging, challenges, basic stats | Minimal |
+| Standard | Regular gym-goers | Preset sizes, saved meals, calorie ring | Balanced |
+| Pro | Serious athletes, coached members | Exact macros, coach meals, full analytics | Full |
+
+#### FR-DIFF-002: Simple Mode Experience
+- **Logging:** Quick one-tap buttons ("I trained", "I ate", "Drank water")
+- **Meals:** No size selection, no macro tracking, just "I ate"
+- **Display:** No calorie ring, no macro bars, no detailed stats
+- **Focus:** Challenge participation and accountability
+- **AI Chat:** Not available (redirects to upgrade)
+
+#### FR-DIFF-003: Standard Mode Experience
+- **Logging:** Training, water, preset meal sizes (S/M/L), saved meals
+- **Meals:** Preset sizes with estimated macros, saved meal templates
+- **Display:** Calorie ring, basic macro overview
+- **Features:** Photo meal logging with AI analysis, saved meals
+- **Restriction:** No custom/exact macro entry (Pro only)
+
+#### FR-DIFF-004: Pro Mode Experience
+- **Logging:** All options including exact macro entry (P/C/F)
+- **Meals:** Exact macros, coach-created meals, saved meals, full ingredient tracking
+- **Display:** Full calorie ring, detailed macro bars, all analytics
+- **Features:** All AI features, coach integration, custom targets
+- **Coach Integration:** `requireExactMacros` enforcement available
+
+#### FR-DIFF-005: Mode Selection
+- **Onboarding:** New users select mode during onboarding flow
+- **Profile:** Mode can be changed anytime via profile page
+- **Default:** "standard" for new members
+- **Persistence:** Stored in `Member.difficultyMode` field
+
+#### FR-DIFF-006: Mode Transition
+- **Upgrading (Simple → Standard → Pro):** Immediate, full features unlock
+- **Downgrading (Pro → Standard → Simple):** Immediate, features hide but data preserved
+- **Coach Override:** Coach assignment may require Pro mode for `requireExactMacros`
+
+### 3.18 Photo-Based Meal Logging
+
+AI-powered meal analysis from photos for faster logging.
+
+#### FR-PHOTO-001: Photo Capture
+- **Trigger:** User taps camera icon or "Snap Photo" button
+- **Input:** Camera capture or gallery selection
+- **Constraints:** Max 1MB file size, JPEG/PNG/WebP formats
+- **Storage:** Base64 encoded in DailyLog.mealPhotoUrl
+
+#### FR-PHOTO-002: AI Meal Analysis
+- **Purpose:** Estimate macros from meal photo using vision AI
+- **Model:** Claude 3 Haiku (cost-efficient)
+- **Output:** Estimated calories, protein, carbs, fats, meal description
+- **Confidence:** Returns "high", "medium", or "low" confidence level
+- **User Action:** Can accept AI estimates or edit before logging
+
+#### FR-PHOTO-003: Rate Limiting (Cost Control)
+- **Trial users:** 0 photo analyses per day (button disabled)
+- **Active subscribers:** 3 photo analyses per day
+- **Display:** Shows remaining uses "(2/3 danas)"
+- **Fallback:** When limit reached, use preset size estimation
+
+#### FR-PHOTO-004: Photo Analysis Flow
+1. User takes/selects photo
+2. Optionally describes meal in text input
+3. Selects meal size (S/M/L) for base estimation
+4. Optionally taps "AI Analiza" for vision-based estimate
+5. Reviews and edits estimates if needed
+6. Confirms to log meal with photo
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -1109,6 +1203,9 @@ model Member {
   gender              String?
   goal                String          // fat_loss | muscle_gain | recomposition
   status              String          @default("active")
+
+  // Difficulty mode for UI complexity
+  difficultyMode      String          @default("standard") // simple | standard | pro
 
   // Custom targets (member can set if no coach)
   customCalories      Int?            // Custom daily calorie target
@@ -2237,6 +2334,72 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
 
 // Response (400) - Not in the past
 { "error": "Cannot mark future session as completed" }
+```
+
+### 7.13 Photo Meal Analysis
+
+#### POST /api/ai/analyze-meal-photo
+```json
+// Request - Analyze meal photo with AI
+{
+  "photo": "base64-encoded-image-data",
+  "sizeHint": "medium",  // Optional: small | medium | large
+  "goal": "fat_loss"     // Optional: defaults to member's goal
+}
+
+// Response (200) - Successful analysis
+{
+  "success": true,
+  "estimation": {
+    "description": "Piletina sa risom",
+    "items": ["piletina ~150g", "beli pirinač ~100g", "mešana salata ~80g"],
+    "calories": 520,
+    "protein": 45,
+    "carbs": 50,
+    "fats": 12,
+    "confidence": "high"
+  },
+  "remaining": 2,
+  "limit": 3
+}
+
+// Response (429) - Rate limit exceeded
+{
+  "error": "Daily photo analysis limit reached",
+  "remaining": 0,
+  "limit": 3,
+  "message": "AI analiza nije dostupna (limit 3/dan). Koristi procenu na osnovu veličine obroka."
+}
+
+// Response (400) - Photo too large
+{ "error": "Photo too large. Maximum 1MB." }
+
+// Response (422) - Analysis failed
+{ "error": "Could not analyze meal photo. Try again or use manual entry." }
+```
+
+#### GET /api/ai/analyze-meal-photo
+```json
+// Response (200) - Current usage status
+{
+  "used": 1,
+  "remaining": 2,
+  "limit": 3,
+  "available": true
+}
+```
+
+### 7.14 Member Difficulty Mode
+
+#### PATCH /api/member/profile (Difficulty Mode)
+```json
+// Request - Update difficulty mode
+{ "difficultyMode": "pro" }
+
+// Response (200)
+{ "success": true }
+
+// Valid values: "simple" | "standard" | "pro"
 ```
 
 ---

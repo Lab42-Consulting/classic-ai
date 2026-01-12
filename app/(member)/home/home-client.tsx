@@ -15,6 +15,7 @@ import {
 import { AgentType } from "@/components/ui/agent-avatar";
 import { StatusType } from "@/components/ui/status-indicator";
 import { getGreeting, getTranslations } from "@/lib/i18n";
+import { useMember } from "@/lib/member-context";
 
 interface NudgeData {
   id: string;
@@ -73,6 +74,16 @@ interface UpcomingSessionData {
   location: string;
 }
 
+interface FundraisingGoalData {
+  id: string;
+  name: string;
+  description: string | null;
+  targetAmountEuros: number;
+  currentAmountEuros: number;
+  progressPercentage: number;
+  imageUrl: string | null;
+}
+
 interface HomeData {
   memberName: string;
   memberAvatarUrl: string | null;
@@ -109,6 +120,8 @@ interface HomeData {
   // Session scheduling
   pendingSessionRequests: SessionRequestData[];
   upcomingSessions: UpcomingSessionData[];
+  // Fundraising goals
+  fundraisingGoals: FundraisingGoalData[];
 }
 
 interface HomeClientProps {
@@ -145,6 +158,7 @@ interface LogEntry {
 
 export function HomeClient({ data }: HomeClientProps) {
   const router = useRouter();
+  const { difficultyMode } = useMember();
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [coachRequest, setCoachRequest] = useState<CoachRequestData | null>(data.pendingCoachRequest);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -159,9 +173,9 @@ export function HomeClient({ data }: HomeClientProps) {
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
 
-  // Difficulty mode helpers
-  const isSimpleMode = data.difficultyMode === "simple";
-  const isProMode = data.difficultyMode === "pro";
+  // Difficulty mode helpers - use context for immediate updates on mode change
+  const isSimpleMode = difficultyMode === "simple";
+  const isProMode = difficultyMode === "pro";
 
   // Animate macro ring when switching to macro view
   useEffect(() => {
@@ -921,6 +935,78 @@ export function HomeClient({ data }: HomeClientProps) {
                 </svg>
               </div>
             </button>
+          </SlideUp>
+        </div>
+      )}
+
+      {/* Fundraising Goals - Transparency Card */}
+      {data.fundraisingGoals.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={45}>
+            <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🎯</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Ciljevi teretane</h3>
+                  <p className="text-xs text-foreground-muted">Tvoja članarina pomaže!</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {data.fundraisingGoals.map((goal) => (
+                  <div key={goal.id} className="bg-white/5 rounded-xl p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      {/* Goal Photo */}
+                      {goal.imageUrl ? (
+                        <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={goal.imageUrl}
+                            alt={goal.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-2xl">🎯</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <h4 className="text-sm font-medium text-foreground truncate">{goal.name}</h4>
+                          <span className="text-sm font-bold text-amber-400 ml-2 flex-shrink-0">
+                            {goal.progressPercentage}%
+                          </span>
+                        </div>
+                        {goal.description && (
+                          <p className="text-xs text-foreground-muted mt-0.5 line-clamp-1">{goal.description}</p>
+                        )}
+                      </div>
+                    </div>
+
+                    {/* Progress bar */}
+                    <div className="h-2 bg-background-tertiary rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
+                        style={{ width: `${goal.progressPercentage}%` }}
+                      />
+                    </div>
+
+                    {/* Amount info */}
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground-muted">
+                        Prikupljeno: <span className="text-amber-400 font-medium">{goal.currentAmountEuros.toLocaleString()}€</span>
+                      </span>
+                      <span className="text-foreground-muted">
+                        Cilj: <span className="text-foreground">{goal.targetAmountEuros.toLocaleString()}€</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
           </SlideUp>
         </div>
       )}

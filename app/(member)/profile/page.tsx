@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { GlassCard, FadeIn, SlideUp, Button, Modal, Input, ImageCropper } from "@/components/ui";
 import { useLocale } from "@/lib/locale-context";
+import { useMember, type DifficultyMode } from "@/lib/member-context";
 import type { Locale } from "@/lib/i18n";
 
 interface ProfileData {
@@ -30,8 +31,6 @@ interface ProfileData {
   coachFats: number | null;
 }
 
-type DifficultyMode = "simple" | "standard" | "pro";
-
 type CredentialModalType = "id" | "pin" | null;
 
 const goalLabels: Record<string, Record<string, string>> = {
@@ -50,6 +49,7 @@ const goalLabels: Record<string, Record<string, string>> = {
 export default function ProfilePage() {
   const router = useRouter();
   const { locale, setLocale, t } = useLocale();
+  const { setDifficultyMode: setContextDifficultyMode } = useMember();
   const [data, setData] = useState<ProfileData>({
     name: "",
     memberId: "",
@@ -238,7 +238,7 @@ export default function ProfilePage() {
       });
       if (response.ok) {
         setData((prev) => ({ ...prev, difficultyMode: newMode }));
-        router.refresh(); // Invalidate cache so other pages see the change
+        setContextDifficultyMode(newMode); // Update context so other pages reflect the change immediately
       }
     } catch {
       // Handle silently

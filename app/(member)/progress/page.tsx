@@ -4,6 +4,7 @@ import { useState, useEffect } from "react";
 import { useRouter } from "next/navigation";
 import { Button, GlassCard, SlideUp, FadeIn, AnimatedNumber } from "@/components/ui";
 import { getTranslations } from "@/lib/i18n";
+import { useMember } from "@/lib/member-context";
 
 const t = getTranslations("sr");
 
@@ -21,8 +22,8 @@ interface ConsistencyData {
   breakdown: {
     training: number;
     logging: number;
-    calories: number;
-    protein: number;
+    calories: number | null; // null in simple mode
+    protein: number | null;  // null in simple mode
     water: number;
   };
   weeklyStats: {
@@ -46,6 +47,7 @@ interface ProgressData {
   };
   consistency: ConsistencyData;
   goal: string;
+  difficultyMode: "simple" | "standard" | "pro";
   hasCheckedInThisWeek: boolean;
 }
 
@@ -71,11 +73,13 @@ const consistencyBgColors: Record<string, string> = {
 
 export default function ProgressPage() {
   const router = useRouter();
+  const { difficultyMode } = useMember();
   const [data, setData] = useState<ProgressData | null>(null);
   const [loading, setLoading] = useState(true);
 
   useEffect(() => {
     const fetchProgress = async () => {
+      setLoading(true);
       try {
         const response = await fetch("/api/member/progress");
         if (response.ok) {
@@ -90,7 +94,7 @@ export default function ProgressPage() {
     };
 
     fetchProgress();
-  }, []);
+  }, [difficultyMode]); // Refetch when difficulty mode changes
 
   if (loading) {
     return (
@@ -212,36 +216,41 @@ export default function ProgressPage() {
                   </div>
                 </div>
 
-                {/* Score Breakdown */}
+                {/* Score Breakdown - adapts based on difficulty mode */}
                 <div className="space-y-3">
                   <ConsistencyBar
                     label="Treninzi"
                     value={data.consistency.breakdown.training}
-                    max={30}
+                    max={data.difficultyMode === "simple" ? 50 : 30}
                     detail={`${data.consistency.weeklyStats.trainingSessions}x ove nedelje`}
                   />
                   <ConsistencyBar
                     label="Logovanje"
                     value={data.consistency.breakdown.logging}
-                    max={20}
+                    max={data.difficultyMode === "simple" ? 33 : 20}
                     detail={`${data.consistency.weeklyStats.daysWithMeals}/7 dana`}
                   />
-                  <ConsistencyBar
-                    label="Kalorije"
-                    value={data.consistency.breakdown.calories}
-                    max={25}
-                    detail="blizina cilja"
-                  />
-                  <ConsistencyBar
-                    label="Proteini"
-                    value={data.consistency.breakdown.protein}
-                    max={15}
-                    detail="% cilja"
-                  />
+                  {/* Calories & Protein only shown in Standard/Pro modes */}
+                  {data.difficultyMode !== "simple" && data.consistency.breakdown.calories !== null && (
+                    <ConsistencyBar
+                      label="Kalorije"
+                      value={data.consistency.breakdown.calories}
+                      max={25}
+                      detail="blizina cilja"
+                    />
+                  )}
+                  {data.difficultyMode !== "simple" && data.consistency.breakdown.protein !== null && (
+                    <ConsistencyBar
+                      label="Proteini"
+                      value={data.consistency.breakdown.protein}
+                      max={15}
+                      detail="% cilja"
+                    />
+                  )}
                   <ConsistencyBar
                     label="Voda"
                     value={data.consistency.breakdown.water}
-                    max={10}
+                    max={data.difficultyMode === "simple" ? 17 : 10}
                     detail={`${data.consistency.weeklyStats.waterConsistentDays}/7 dana 4+ čaše`}
                   />
                 </div>

@@ -130,6 +130,12 @@ export default function ManageLayout({
                 Izazovi
               </Link>
               <Link
+                href="/gym-portal/manage/fundraising"
+                className="text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2 hidden sm:inline-flex"
+              >
+                Ciljevi
+              </Link>
+              <Link
                 href="/gym-portal/manage/branding"
                 className="text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2 hidden sm:inline-flex"
               >

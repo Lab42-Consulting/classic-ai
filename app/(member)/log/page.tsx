@@ -5,6 +5,7 @@ import { useRouter, useSearchParams } from "next/navigation";
 import { Button, GlassCard, Input, Modal, SlideUp, FadeIn, useToast } from "@/components/ui";
 import { getTranslations } from "@/lib/i18n";
 import { estimateMealMacros, Goal, MealSize as MealSizeType } from "@/lib/calculations";
+import { useMember } from "@/lib/member-context";
 
 type LogType = "meal" | "training" | "water" | "photo" | null;
 type MealSize = "small" | "medium" | "large" | "custom" | "saved";
@@ -39,6 +40,7 @@ function LogPageContent() {
   const router = useRouter();
   const searchParams = useSearchParams();
   const { showToast } = useToast();
+  const { difficultyMode } = useMember();
   const preselectedMealId = searchParams.get("mealId");
 
   const [selectedType, setSelectedType] = useState<LogType>(preselectedMealId ? "meal" : null);
@@ -50,7 +52,6 @@ function LogPageContent() {
   const [success, setSuccess] = useState(false);
   const [userGoal, setUserGoal] = useState<Goal>("fat_loss");
   const [requireExactMacros, setRequireExactMacros] = useState(false);
-  const [difficultyMode, setDifficultyMode] = useState<"simple" | "standard" | "pro">("standard");
   const [customCarbs, setCustomCarbs] = useState("");
   const [customFats, setCustomFats] = useState("");
   const [savedMeals, setSavedMeals] = useState<SavedMeal[]>([]);
@@ -120,7 +121,7 @@ function LogPageContent() {
         const data = await response.json();
         setUserGoal(data.goal || "fat_loss");
         setRequireExactMacros(data.requireExactMacros || false);
-        setDifficultyMode(data.difficultyMode || "standard");
+        // difficultyMode is now managed by MemberContext
       }
     } catch {
       // Use default values

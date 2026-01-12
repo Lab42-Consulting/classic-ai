@@ -42,6 +42,7 @@ model Gym {
   savedIngredients SavedIngredient[] // Gym-wide shared ingredients
   challenges      Challenge[]       // Gym challenges/competitions
   gymCheckins     GymCheckin[]      // Member check-ins at the gym
+  fundraisingGoals FundraisingGoal[] // Fundraising goals for gym improvements
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -715,4 +716,57 @@ model ChallengeWinner {
   @@index([memberId])
   @@index([memberId, wonAt])
   @@map("challenge_winners")
+}
+
+// Fundraising goals - track gym improvement campaigns with member visibility
+model FundraisingGoal {
+  id              String    @id @default(cuid())
+  gymId           String
+  gym             Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Goal details
+  name            String    // "New Squat Racks"
+  description     String?   @db.Text // "3 competition-grade power racks for the free weights area"
+  targetAmount    Int       // Target in cents (e.g., 500000 = €5,000)
+  currentAmount   Int       @default(0) // Current progress in cents
+  imageUrl        String?   @db.Text // Optional photo (base64)
+
+  // Visibility & status
+  isVisible       Boolean   @default(true)  // Show to members on home page
+  status          String    @default("active") // active | completed | archived
+
+  // Dates
+  startDate       DateTime  @default(now())
+  endDate         DateTime? // Optional deadline
+  completedAt     DateTime? // When goal was reached
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+
+  // Contribution tracking
+  contributions   FundraisingContribution[]
+
+  @@index([gymId])
+  @@index([gymId, status])
+  @@index([gymId, isVisible, status])
+  @@map("fundraising_goals")
+}
+
+// Tracks individual contributions to fundraising goals (from subscription payments)
+model FundraisingContribution {
+  id                String          @id @default(cuid())
+  fundraisingGoalId String
+  fundraisingGoal   FundraisingGoal @relation(fields: [fundraisingGoalId], references: [id], onDelete: Cascade)
+
+  amount            Int             // Amount in cents
+  source            String          // "subscription" | "manual"
+  memberId          String?         // Member who made the subscription payment (if applicable)
+  memberName        String?         // Cached member name for display
+  note              String?         // Optional note (e.g., "12-month renewal")
+
+  createdAt         DateTime        @default(now())
+
+  @@index([fundraisingGoalId])
+  @@index([fundraisingGoalId, createdAt])
+  @@map("fundraising_contributions")
 }

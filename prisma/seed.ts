@@ -72,18 +72,30 @@ interface MemberConfig {
 async function main() {
   console.log("🌱 Starting comprehensive seed...\n");
 
-  // Create Gym
+  // Create Gym with Pro tier (required for challenges, session scheduling, coach features)
+  const gymSubscribedAt = new Date();
+  const gymSubscribedUntil = new Date();
+  gymSubscribedUntil.setFullYear(gymSubscribedUntil.getFullYear() + 1); // 1 year subscription
+
   const gym = await prisma.gym.upsert({
     where: { id: "gym-classic-001" },
     update: {
       logo: "/logo/classic-logo-color.webp",
       aiMonthlyBudget: 50,
+      subscriptionTier: "pro",
+      subscriptionStatus: "active",
+      subscribedAt: gymSubscribedAt,
+      subscribedUntil: gymSubscribedUntil,
     },
     create: {
       id: "gym-classic-001",
       name: "Classic Gym Bulevar",
       logo: "/logo/classic-logo-color.webp",
       aiMonthlyBudget: 50,
+      subscriptionTier: "pro",
+      subscriptionStatus: "active",
+      subscribedAt: gymSubscribedAt,
+      subscribedUntil: gymSubscribedUntil,
       settings: {
         primaryMetric: "calories",
         branding: {
@@ -92,7 +104,7 @@ async function main() {
       },
     },
   });
-  console.log(`✅ Gym created: ${gym.name}`);
+  console.log(`✅ Gym created: ${gym.name} (${gym.subscriptionTier} tier, ${gym.subscriptionStatus})`);
 
   // Create Admin
   const adminPin = await hashPin("1234");

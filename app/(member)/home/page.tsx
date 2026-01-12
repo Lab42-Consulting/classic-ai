@@ -142,6 +142,25 @@ async function getMemberData(memberId: string) {
     },
   });
 
+  // Get active visible fundraising goals
+  const fundraisingGoals = await prisma.fundraisingGoal.findMany({
+    where: {
+      gymId: member.gymId,
+      status: "active",
+      isVisible: true,
+    },
+    orderBy: { createdAt: "desc" },
+    take: 3, // Show max 3 on home page
+    select: {
+      id: true,
+      name: true,
+      description: true,
+      targetAmount: true,
+      currentAmount: true,
+      imageUrl: true,
+    },
+  });
+
   // Check if member is participating and get their stats
   let isParticipating = false;
   let participationData: { totalPoints: number; rank: number } | null = null;
@@ -190,6 +209,7 @@ async function getMemberData(memberId: string) {
     activeChallenge,
     isParticipating,
     participationData,
+    fundraisingGoals,
   };
 }
 
@@ -300,7 +320,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData, fundraisingGoals } = data;
 
   // Redirect new users to simplified onboarding
   if (!member.hasSeenOnboarding) {
@@ -470,6 +490,16 @@ export default async function HomePage() {
       scheduledAt: session.scheduledAt.toISOString(),
       duration: session.duration,
       location: session.location,
+    })),
+    // Fundraising goals for transparency
+    fundraisingGoals: fundraisingGoals.map((goal) => ({
+      id: goal.id,
+      name: goal.name,
+      description: goal.description,
+      targetAmountEuros: goal.targetAmount / 100,
+      currentAmountEuros: goal.currentAmount / 100,
+      progressPercentage: Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)),
+      imageUrl: goal.imageUrl,
     })),
   };
 

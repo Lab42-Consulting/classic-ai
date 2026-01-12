@@ -82,7 +82,7 @@ export async function POST(
     const isFirstActivation = !member.subscribedAt;
     const amount = SUBSCRIPTION_PRICES[monthsToAdd] || 0;
 
-    // Update member subscription
+    // Update member subscription and add to fundraising goals
     const updatedMember = await prisma.$transaction(async (tx) => {
       // Update member
       const updated = await tx.member.update({
@@ -119,6 +119,47 @@ export async function POST(
           performedByType: "staff",
         },
       });
+
+      // Add contribution to active fundraising goals (transparency feature)
+      if (amount > 0) {
+        const amountInCents = amount * 100; // Convert € to cents
+
+        // Find all active fundraising goals for this gym
+        const activeGoals = await tx.fundraisingGoal.findMany({
+          where: {
+            gymId: member.gymId,
+            status: "active",
+          },
+        });
+
+        // Add contribution to each active goal
+        for (const goal of activeGoals) {
+          // Create contribution record
+          await tx.fundraisingContribution.create({
+            data: {
+              fundraisingGoalId: goal.id,
+              amount: amountInCents,
+              source: "subscription",
+              memberId: memberId,
+              memberName: member.name,
+              note: monthsToAdd ? `${monthsToAdd}-mesečna članarina` : "Članarina",
+            },
+          });
+
+          // Update goal's current amount
+          const newCurrentAmount = goal.currentAmount + amountInCents;
+          const isNowCompleted = newCurrentAmount >= goal.targetAmount;
+
+          await tx.fundraisingGoal.update({
+            where: { id: goal.id },
+            data: {
+              currentAmount: newCurrentAmount,
+              status: isNowCompleted ? "completed" : "active",
+              completedAt: isNowCompleted ? new Date() : null,
+            },
+          });
+        }
+      }
 
       return updated;
     });

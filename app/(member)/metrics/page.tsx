@@ -45,6 +45,7 @@ interface MetricEntry {
   note: string | null;
   status: "on_track" | "needs_attention" | "off_track" | "neutral";
   changeFromReference: number | null;
+  changeIsAbsolute: boolean;
 }
 
 interface MetricDetail {
@@ -652,7 +653,8 @@ export default function MetricsPage() {
                                     }
                                   >
                                     {entry.changeFromReference > 0 ? "+" : ""}
-                                    {entry.changeFromReference.toFixed(1)}%
+                                    {entry.changeFromReference.toFixed(1)}
+                                    {entry.changeIsAbsolute ? " p.p." : "%"}
                                   </span>
                                 ) : (
                                   <span className="text-foreground-muted">-</span>

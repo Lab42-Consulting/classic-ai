@@ -192,6 +192,24 @@ vi.mock('@/lib/db', () => {
     delete: vi.fn(),
   }
 
+  const customMetricMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const metricEntryMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
   // Build the prisma mock object
   const prismaMock = {
     member: memberMock,
@@ -217,6 +235,8 @@ vi.mock('@/lib/db', () => {
     sessionRequest: sessionRequestMock,
     sessionProposal: sessionProposalMock,
     scheduledSession: scheduledSessionMock,
+    customMetric: customMetricMock,
+    metricEntry: metricEntryMock,
     // $transaction passes the same mocks as tx argument
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {

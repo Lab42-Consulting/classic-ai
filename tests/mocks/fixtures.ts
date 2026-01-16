@@ -823,3 +823,172 @@ export const mockCancelledSession = {
   cancelledBy: 'member',
   cancellationReason: 'Need to reschedule due to schedule conflict',
 }
+
+// =============================================================================
+// CUSTOM METRICS FIXTURES
+// =============================================================================
+
+export const mockCustomMetric = {
+  id: 'metric-test-001',
+  memberId: mockMember.id,
+  createdByCoachId: null,
+  name: 'Bench Press',
+  unit: 'kg',
+  targetValue: 100,
+  referenceValue: 60,
+  higherIsBetter: true,
+  createdAt: new Date('2024-12-01'),
+  updatedAt: new Date('2024-12-01'),
+}
+
+export const mockCoachCreatedMetric = {
+  ...mockCustomMetric,
+  id: 'metric-test-002',
+  name: 'Body Fat %',
+  unit: '%',
+  targetValue: 15,
+  referenceValue: 20,
+  higherIsBetter: false,
+  createdByCoachId: mockStaffCoach.id,
+}
+
+export const mockMetricNoTarget = {
+  ...mockCustomMetric,
+  id: 'metric-test-003',
+  name: 'Hip Mobility',
+  unit: 'cm',
+  targetValue: null,
+  referenceValue: null,
+  higherIsBetter: true,
+}
+
+export const mockCustomMetricWithCoach = {
+  ...mockCoachCreatedMetric,
+  createdByCoach: {
+    name: mockStaffCoach.name,
+  },
+}
+
+export const mockCustomMetricWithoutCoach = {
+  ...mockCustomMetric,
+  createdByCoach: null,
+}
+
+export const mockMetricEntry = {
+  id: 'entry-test-001',
+  metricId: mockCustomMetric.id,
+  memberId: mockMember.id,
+  date: new Date('2024-12-15'),
+  value: 75,
+  note: 'Good progress',
+  createdAt: new Date('2024-12-15'),
+  updatedAt: new Date('2024-12-15'),
+}
+
+export const mockMetricEntryLatest = {
+  ...mockMetricEntry,
+  id: 'entry-test-002',
+  date: new Date('2024-12-20'),
+  value: 80,
+  note: 'New PR! 💪',
+}
+
+export const mockMetricEntryFirst = {
+  ...mockMetricEntry,
+  id: 'entry-test-003',
+  date: new Date('2024-12-01'),
+  value: 60,
+  note: 'Starting value',
+}
+
+export const mockMetricEntryBodyFat = {
+  ...mockMetricEntry,
+  id: 'entry-test-004',
+  metricId: mockCoachCreatedMetric.id,
+  date: new Date('2024-12-15'),
+  value: 18.5,
+  note: 'Down from 20%',
+}
+
+export const mockMetricWithEntries = {
+  ...mockCustomMetric,
+  createdByCoach: null,
+  entries: [mockMetricEntryLatest],
+  _count: { entries: 3 },
+}
+
+export const mockCoachMetricWithEntries = {
+  ...mockCoachCreatedMetric,
+  createdByCoach: { name: mockStaffCoach.name },
+  entries: [mockMetricEntryBodyFat],
+  _count: { entries: 5 },
+}
+
+// Mapped entry format (as returned by API)
+export const mockMappedMetricEntry = {
+  id: mockMetricEntry.id,
+  date: '2024-12-15',
+  value: 75,
+  note: 'Good progress',
+  status: 'needs_attention' as const,
+  changeFromReference: 25, // 25% increase from 60
+  changeIsAbsolute: false,
+}
+
+export const mockMappedMetricEntryBodyFat = {
+  id: mockMetricEntryBodyFat.id,
+  date: '2024-12-15',
+  value: 18.5,
+  note: 'Down from 20%',
+  status: 'needs_attention' as const,
+  changeFromReference: -1.5, // Absolute change for % units
+  changeIsAbsolute: true,
+}
+
+export const mockMetricDetailResponse = {
+  metric: {
+    id: mockCustomMetric.id,
+    name: mockCustomMetric.name,
+    unit: mockCustomMetric.unit,
+    targetValue: mockCustomMetric.targetValue,
+    referenceValue: mockCustomMetric.referenceValue,
+    higherIsBetter: mockCustomMetric.higherIsBetter,
+    isCoachCreated: false,
+    coachName: null,
+  },
+  entries: [mockMappedMetricEntry],
+  range: 30,
+}
+
+export const mockMetricListResponse = {
+  own: [
+    {
+      id: mockCustomMetric.id,
+      name: mockCustomMetric.name,
+      unit: mockCustomMetric.unit,
+      targetValue: mockCustomMetric.targetValue,
+      referenceValue: mockCustomMetric.referenceValue,
+      higherIsBetter: mockCustomMetric.higherIsBetter,
+      isCoachCreated: false,
+      coachName: null,
+      entryCount: 3,
+      latestEntry: { value: 80, date: '2024-12-20' },
+      createdAt: mockCustomMetric.createdAt.toISOString(),
+    },
+  ],
+  coach: [
+    {
+      id: mockCoachCreatedMetric.id,
+      name: mockCoachCreatedMetric.name,
+      unit: mockCoachCreatedMetric.unit,
+      targetValue: mockCoachCreatedMetric.targetValue,
+      referenceValue: mockCoachCreatedMetric.referenceValue,
+      higherIsBetter: mockCoachCreatedMetric.higherIsBetter,
+      isCoachCreated: true,
+      coachName: mockStaffCoach.name,
+      entryCount: 5,
+      latestEntry: { value: 18.5, date: '2024-12-15' },
+      createdAt: mockCoachCreatedMetric.createdAt.toISOString(),
+    },
+  ],
+}

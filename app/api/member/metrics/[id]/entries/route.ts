@@ -27,13 +27,23 @@ function getEntryStatus(
   }
 }
 
-// Calculate percentage change from reference
+// Calculate change from reference
+// For metrics with "%" unit, return absolute change (e.g., -5 meaning dropped 5 percentage points)
+// For other metrics, return percentage change (e.g., +20% meaning 20% increase)
 function getChangeFromReference(
   value: number,
-  reference: number | null
-): number | null {
+  reference: number | null,
+  unit: string
+): { value: number; isAbsolute: boolean } | null {
   if (reference === null || reference === 0) return null;
-  return ((value - reference) / reference) * 100;
+
+  // For percentage-based metrics (body fat %, etc.), show absolute change
+  if (unit.includes("%")) {
+    return { value: value - reference, isAbsolute: true };
+  }
+
+  // For other metrics, show percentage change
+  return { value: ((value - reference) / reference) * 100, isAbsolute: false };
 }
 
 // GET - Get entries for a metric with time range filter
@@ -111,19 +121,23 @@ export async function GET(
       metric.referenceValue ?? firstEntry?.value ?? null;
 
     // Map entries with status and change
-    const mappedEntries = entries.map((entry) => ({
-      id: entry.id,
-      date: entry.date.toISOString().split("T")[0],
-      value: entry.value,
-      note: entry.note,
-      status: getEntryStatus(
-        entry.value,
-        metric.targetValue,
-        effectiveReference,
-        metric.higherIsBetter
-      ),
-      changeFromReference: getChangeFromReference(entry.value, effectiveReference),
-    }));
+    const mappedEntries = entries.map((entry) => {
+      const change = getChangeFromReference(entry.value, effectiveReference, metric.unit);
+      return {
+        id: entry.id,
+        date: entry.date.toISOString().split("T")[0],
+        value: entry.value,
+        note: entry.note,
+        status: getEntryStatus(
+          entry.value,
+          metric.targetValue,
+          effectiveReference,
+          metric.higherIsBetter
+        ),
+        changeFromReference: change?.value ?? null,
+        changeIsAbsolute: change?.isAbsolute ?? false,
+      };
+    });
 
     return NextResponse.json({
       metric: {
@@ -257,6 +271,8 @@ export async function POST(
     const effectiveReference =
       metric.referenceValue ?? firstEntry?.value ?? null;
 
+    const change = getChangeFromReference(entry.value, effectiveReference, metric.unit);
+
     return NextResponse.json({
       success: true,
       entry: {
@@ -270,7 +286,8 @@ export async function POST(
           effectiveReference,
           metric.higherIsBetter
         ),
-        changeFromReference: getChangeFromReference(entry.value, effectiveReference),
+        changeFromReference: change?.value ?? null,
+        changeIsAbsolute: change?.isAbsolute ?? false,
       },
       isUpdate: !!existingEntry,
     });

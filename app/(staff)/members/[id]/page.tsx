@@ -58,6 +58,7 @@ interface MetricEntry {
   note: string | null;
   status: "on_track" | "needs_attention" | "off_track" | "neutral";
   changeFromReference: number | null;
+  changeIsAbsolute: boolean;
 }
 
 interface MetricDetail {
@@ -1365,7 +1366,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                                 : "text-foreground-muted"
                             }`}>
                               {entry.changeFromReference !== null
-                                ? `${entry.changeFromReference > 0 ? "+" : ""}${entry.changeFromReference.toFixed(1)}%`
+                                ? `${entry.changeFromReference > 0 ? "+" : ""}${entry.changeFromReference.toFixed(1)}${entry.changeIsAbsolute ? " p.p." : "%"}`
                                 : "-"}
                             </td>
                             <td className="px-4 py-3 text-center">
@@ -1505,7 +1506,7 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
                       : "text-foreground"
                   }`}>
                     {metricDetail.entries[0]?.changeFromReference !== null
-                      ? `${metricDetail.entries[0].changeFromReference > 0 ? "+" : ""}${metricDetail.entries[0].changeFromReference.toFixed(1)}%`
+                      ? `${metricDetail.entries[0].changeFromReference > 0 ? "+" : ""}${metricDetail.entries[0].changeFromReference.toFixed(1)}${metricDetail.entries[0].changeIsAbsolute ? " p.p." : "%"}`
                       : "-"}
                   </p>
                   <p className="text-xs text-foreground-muted">Ukupan napredak od starta</p>

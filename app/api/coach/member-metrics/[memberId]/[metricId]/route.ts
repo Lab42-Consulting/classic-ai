@@ -352,18 +352,38 @@ export async function GET(
       }
     };
 
+    // Calculate change from reference
+    // For metrics with "%" unit, return absolute change (e.g., -5 meaning dropped 5 percentage points)
+    // For other metrics, return percentage change (e.g., +20% meaning 20% increase)
+    const getChangeFromReference = (
+      value: number,
+      reference: number | null,
+      unit: string
+    ): { value: number; isAbsolute: boolean } | null => {
+      if (reference === null || reference === 0) return null;
+
+      // For percentage-based metrics (body fat %, etc.), show absolute change
+      if (unit.includes("%")) {
+        return { value: value - reference, isAbsolute: true };
+      }
+
+      // For other metrics, show percentage change
+      return { value: ((value - reference) / reference) * 100, isAbsolute: false };
+    };
+
     // Map entries
-    const mappedEntries = entries.map((entry) => ({
-      id: entry.id,
-      date: entry.date.toISOString().split("T")[0],
-      value: entry.value,
-      note: entry.note,
-      status: getEntryStatus(entry.value, metric.targetValue, metric.higherIsBetter),
-      changeFromReference:
-        effectiveReference && effectiveReference !== 0
-          ? ((entry.value - effectiveReference) / effectiveReference) * 100
-          : null,
-    }));
+    const mappedEntries = entries.map((entry) => {
+      const change = getChangeFromReference(entry.value, effectiveReference, metric.unit);
+      return {
+        id: entry.id,
+        date: entry.date.toISOString().split("T")[0],
+        value: entry.value,
+        note: entry.note,
+        status: getEntryStatus(entry.value, metric.targetValue, metric.higherIsBetter),
+        changeFromReference: change?.value ?? null,
+        changeIsAbsolute: change?.isAbsolute ?? false,
+      };
+    });
 
     return NextResponse.json({
       metric: {

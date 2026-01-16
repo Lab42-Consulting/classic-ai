@@ -28,6 +28,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Coach Nudges](#coach-nudges)
    - [Per-Member AI Knowledge](#per-member-ai-knowledge)
    - [Coach Meal Creation](#coach-meal-creation)
+   - [Coach Metrics](#coach-metrics)
    - [Session Scheduling (Coach)](#session-scheduling-coach)
 7. [Member Guide](#member-guide)
    - [Difficulty Modes](#difficulty-modes)
@@ -38,6 +39,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Challenges](#challenges)
    - [Home Screen](#home-screen)
    - [Progress Page](#progress-page)
+   - [Custom Metrics](#custom-metrics)
    - [Custom Nutrition Targets](#custom-nutrition-targets)
    - [Week Reset](#week-reset)
    - [Meal Logging Modes](#log-a-meal)
@@ -772,6 +774,74 @@ Click the cherries icon (🍒) next to any ingredient to auto-fill nutritional v
 
 **After saving**, the meal appears in the member's **"Od trenera" (Coach Meals)** section.
 
+### Coach Metrics
+
+Create and track custom performance metrics for your assigned members.
+
+**Accessing Member Metrics:**
+1. Go to the member's detail page
+2. Scroll to the **"Metrike"** (Metrics) section
+3. View both coach-created and member-created metrics
+
+#### Creating a Metric for a Member
+
+1. Click **"+ Nova metrika"** (New Metric) button
+2. Fill in the metric details:
+   - **Naziv** (Name): e.g., "Bench Press", "Procenat masti"
+   - **Jedinica** (Unit): e.g., "kg", "%", "cm", "sek"
+   - **Ciljna vrednost** (Target): Optional goal for the member to achieve
+   - **Referentna vrednost** (Reference): Optional starting point for comparison
+   - **Šta je bolje?** (What's better?): Higher or lower values
+3. Click **"Sačuvaj"** to create
+
+**Common Metric Examples:**
+
+| Metric | Unit | Higher/Lower | Use Case |
+|--------|------|--------------|----------|
+| Bench Press | kg | Higher | Strength tracking |
+| Čučanj (Squat) | kg | Higher | Strength tracking |
+| Procenat masti | % | Lower | Body composition |
+| Vertikalni skok | cm | Higher | Power/explosiveness |
+| Trčanje 5K | min | Lower | Cardio endurance |
+| Plank izdržaj | sek | Higher | Core strength |
+
+#### Viewing Metric Details
+
+Click on any metric card to see the detail view:
+
+**Table View:**
+- Date, value, change from start, status indicator
+- Scrollable list of all entries
+- Color-coded status dots (green/yellow/red/neutral)
+
+**Graph View:**
+- Line chart showing progress over time
+- Target line (green dashed)
+- Reference line (purple dashed)
+
+**Time Range:** Filter by 7d, 30d, 90d, or 1y
+
+**Summary Stats:**
+- Starting value (Početna vr.)
+- Latest value (Poslednja)
+- Total progress from start (Ukupan napredak od starta)
+
+#### Managing Coach-Created Metrics
+
+**Edit:** Click the edit icon to modify name, unit, target, or reference value
+
+**Delete:** Click delete to remove the metric (also deletes all entries)
+
+**Note:** You can only edit/delete metrics **you** created. Member-created metrics are read-only for coaches.
+
+#### Member Entry Flow
+
+Members add entries to metrics you create:
+1. Member goes to their Metrics page
+2. Selects your coach-created metric
+3. Adds daily entries with values and optional notes
+4. You can view their progress on the member detail page
+
 ### Reviewing Member Coach Requests
 
 Members can browse coaches and send requests to work with you:
@@ -1239,6 +1309,84 @@ For detailed tracking, visit the **Progress page** (`/progress`):
 | Calorie adherence | 25 points |
 | Protein adherence | 15 points |
 | Water consistency | 10 points |
+
+### Custom Metrics
+
+Track custom performance metrics over time (available in **Standard** and **Pro** modes).
+
+1. Go to `/metrics` or tap **"Metrike"** button on home screen
+2. Create metrics to track your progress (e.g., "Bench Press", "Body Fat %", "Jump Height")
+3. Log entries daily to track your improvement over time
+
+**Access:** The Metrics page replaces the Progress button on the home screen for Standard and Pro mode users. Simple mode users are redirected to the home page.
+
+#### Creating a Metric
+
+1. Tap the **+** button in the header
+2. Fill in the metric details:
+   - **Naziv metrike** (Name): e.g., "Bench Press", "Vertikalni skok"
+   - **Jedinica mere** (Unit): e.g., "kg", "cm", "sec", "%"
+   - **Ciljna vrednost** (Target): Optional goal value
+   - **Šta je bolje?** (What's better?): Choose "Veća" (higher) or "Manja" (lower)
+3. Tap **"Sačuvaj"** to create
+
+**Examples:**
+- Bench Press: unit "kg", target 100, higher is better
+- Body Fat %: unit "%", target 15, lower is better
+- 5K Run Time: unit "min", target 25, lower is better
+
+#### Adding Entries
+
+1. Select a metric using the swipe carousel
+2. Tap **"+ Dodaj unos"** (Add Entry)
+3. Enter:
+   - **Datum** (Date): Defaults to today
+   - **Vrednost** (Value): Your measurement
+   - **Napomena** (Note): Optional note
+4. Tap **"Sačuvaj"** to save
+
+**Note:** Only one entry per day per metric. Saving a new entry for the same date updates the existing one.
+
+#### Viewing Progress
+
+**Table View:**
+- Shows date, value, change from start, and status indicator
+- Scroll to see all entries
+- Delete entries with the X button
+
+**Graph View:**
+- Line chart showing values over time
+- Green dashed line shows your target (if set)
+- Purple dashed line shows your reference/starting value
+
+**Time Range Filters:**
+- 7 days, 30 days, 90 days, or 1 year
+
+#### Semaphore Status Colors
+
+Each entry displays a status dot based on your target:
+
+| Color | Meaning |
+|-------|---------|
+| 🟢 Green | On track - at or beyond target |
+| 🟡 Yellow | Needs attention - within 10% of target |
+| 🔴 Red | Off track - more than 10% from target |
+| 🔵 Blue/Neutral | No target set |
+
+**Change Display:**
+- Regular units (kg, cm): Shows percentage change from start (e.g., "+15%")
+- Percentage units (%): Shows absolute change in percentage points (e.g., "-3.2 p.p.")
+
+#### Coach-Created Metrics
+
+Your coach can create metrics for you to track. Coach-created metrics display:
+- A **coach badge** (👨‍🏫 Coach Name)
+- You can add entries but **cannot edit or delete** the metric itself
+- Only your coach can modify or remove coach-created metrics
+
+#### Swipe Navigation
+
+If you have multiple metrics, swipe left/right on the main card to switch between them. Dot indicators show which metric you're viewing.
 
 ### Custom Nutrition Targets
 
@@ -2108,6 +2256,74 @@ Access your profile and account settings:
   "notes": "Welcome!",
   "customGoal": "fat_loss",
   "customCalories": 2200
+}
+```
+
+### Custom Metrics (Member)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/metrics` | GET | Get all member metrics (own + coach-created) |
+| `/api/member/metrics` | POST | Create a new metric |
+| `/api/member/metrics/[id]` | PATCH | Update own metric (not coach-created) |
+| `/api/member/metrics/[id]` | DELETE | Delete own metric (not coach-created) |
+| `/api/member/metrics/[id]/entries?range=30` | GET | Get metric entries with time filter |
+| `/api/member/metrics/[id]/entries` | POST | Create/update entry for a date |
+| `/api/member/metrics/[id]/entries/[entryId]` | DELETE | Delete an entry |
+
+**GET `/api/member/metrics` response:**
+```json
+{
+  "own": [{ "id": "...", "name": "Bench Press", "unit": "kg", ... }],
+  "coach": [{ "id": "...", "name": "Body Fat %", "isCoachCreated": true, ... }]
+}
+```
+
+**GET `/api/member/metrics/[id]/entries` response:**
+```json
+{
+  "metric": { "id": "...", "name": "...", "targetValue": 100, ... },
+  "entries": [
+    {
+      "id": "...",
+      "date": "2026-01-15",
+      "value": 85,
+      "status": "needs_attention",
+      "changeFromReference": 41.7,
+      "changeIsAbsolute": false
+    }
+  ],
+  "range": 30
+}
+```
+
+**POST `/api/member/metrics/[id]/entries` body:**
+```json
+{
+  "date": "2026-01-15",
+  "value": 85,
+  "note": "Optional note"
+}
+```
+
+### Custom Metrics (Coach)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/coach/member-metrics/[memberId]` | GET | Get all metrics for a member |
+| `/api/coach/member-metrics/[memberId]` | POST | Create metric for member |
+| `/api/coach/member-metrics/[memberId]/[metricId]` | GET | Get metric entries |
+| `/api/coach/member-metrics/[memberId]/[metricId]` | PATCH | Update coach-created metric |
+| `/api/coach/member-metrics/[memberId]/[metricId]` | DELETE | Delete coach-created metric |
+
+**POST `/api/coach/member-metrics/[memberId]` body:**
+```json
+{
+  "name": "Procenat masti",
+  "unit": "%",
+  "targetValue": 15,
+  "referenceValue": 20,
+  "higherIsBetter": false
 }
 ```
 

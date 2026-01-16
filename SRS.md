@@ -2,8 +2,19 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.14
+**Version:** 1.15
 **Last Updated:** January 2026
+
+**Changelog v1.15:**
+- Added Custom Metrics feature for tracking member progress over time
+- Members can create their own metrics (e.g., "Bench Press", "Jump Height")
+- Coaches can create metrics for their assigned members
+- Metric entries support one value per day with upsert logic
+- Semaphore color system: green (on track), yellow (needs attention), red (off track), neutral (no target)
+- Table and graph views with time range filters (7d, 30d, 90d, 1y)
+- Smart change calculation: percentage change for regular units, absolute change for "%" units (e.g., body fat)
+- Added CustomMetric and MetricEntry models to Prisma schema
+- Metrics page accessible from home screen (replaces Progress button for Standard/Pro modes)
 
 **Changelog v1.14:**
 - Added Fundraising Goals feature for gym transparency and member engagement
@@ -1755,6 +1766,61 @@ model ScheduledSession {
 }
 ```
 
+### 5.16 CustomMetric Model
+
+```prisma
+model CustomMetric {
+  id               String        @id @default(cuid())
+  memberId         String
+  member           Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Coach-created marker (follows CustomMeal pattern)
+  createdByCoachId String?
+  createdByCoach   Staff?        @relation("CoachCreatedMetrics", fields: [createdByCoachId], references: [id], onDelete: SetNull)
+
+  // Metric definition
+  name             String        // e.g., "Bench Press", "Body Fat %"
+  unit             String        // Free-text: "kg", "cm", "sec", "%"
+
+  // Target/Semaphore configuration
+  targetValue      Float?        // Optional target to achieve
+  referenceValue   Float?        // Reference for comparison (null = use 1st entry)
+  higherIsBetter   Boolean       @default(true)  // false for body fat %, etc.
+
+  entries          MetricEntry[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([memberId])
+  @@index([memberId, createdByCoachId])
+  @@map("custom_metrics")
+}
+```
+
+### 5.17 MetricEntry Model
+
+```prisma
+model MetricEntry {
+  id        String       @id @default(cuid())
+  metricId  String
+  metric    CustomMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  memberId  String       // Denormalized for efficient queries
+
+  date      DateTime     @db.Date  // One entry per day per metric
+  value     Float
+  note      String?
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([metricId, date])   // One entry per metric per day
+  @@index([metricId, date])
+  @@index([memberId, date])
+  @@map("metric_entries")
+}
+```
+
 ---
 
 ## 6. User Interface Specifications
@@ -2524,6 +2590,205 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
 // Valid values: "simple" | "standard" | "pro"
 ```
 
+### 7.15 Custom Metrics (Member)
+
+#### GET /api/member/metrics
+```json
+// Response (200) - Get all metrics
+{
+  "own": [
+    {
+      "id": "metric-id",
+      "name": "Bench Press",
+      "unit": "kg",
+      "targetValue": 100,
+      "referenceValue": 60,
+      "higherIsBetter": true,
+      "isCoachCreated": false,
+      "coachName": null,
+      "entryCount": 12,
+      "latestEntry": { "value": 85, "date": "2026-01-15" },
+      "createdAt": "2025-12-01T10:00:00Z"
+    }
+  ],
+  "coach": [
+    {
+      "id": "metric-id-2",
+      "name": "Body Fat %",
+      "unit": "%",
+      "targetValue": 15,
+      "referenceValue": 20,
+      "higherIsBetter": false,
+      "isCoachCreated": true,
+      "coachName": "Coach Marko",
+      "entryCount": 8,
+      "latestEntry": { "value": 17.5, "date": "2026-01-14" },
+      "createdAt": "2025-11-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/member/metrics
+```json
+// Request - Create new metric
+{
+  "name": "Vertikalni skok",
+  "unit": "cm",
+  "targetValue": 50,           // Optional
+  "higherIsBetter": true       // Default: true
+}
+
+// Response (200)
+{
+  "success": true,
+  "metric": { ... }
+}
+```
+
+#### PATCH /api/member/metrics/[id]
+```json
+// Request - Update own metric (not coach-created)
+{
+  "name": "Updated Name",      // Optional
+  "unit": "cm",                // Optional
+  "targetValue": 55,           // Optional
+  "referenceValue": 40,        // Optional
+  "higherIsBetter": true       // Optional
+}
+
+// Response (200)
+{ "success": true, "metric": { ... } }
+
+// Response (403) - Cannot edit coach-created metric
+{ "error": "Ne možete izmeniti metriku koju je kreirao trener" }
+```
+
+#### DELETE /api/member/metrics/[id]
+```json
+// Response (200) - Own metric deleted
+{ "success": true }
+
+// Response (403) - Cannot delete coach-created metric
+{ "error": "Ne možete obrisati metriku koju je kreirao trener" }
+```
+
+#### GET /api/member/metrics/[id]/entries?range=30
+```json
+// Response (200)
+{
+  "metric": {
+    "id": "metric-id",
+    "name": "Bench Press",
+    "unit": "kg",
+    "targetValue": 100,
+    "referenceValue": 60,      // Effective reference (explicit or first entry)
+    "higherIsBetter": true,
+    "isCoachCreated": false,
+    "coachName": null
+  },
+  "entries": [
+    {
+      "id": "entry-id",
+      "date": "2026-01-15",
+      "value": 85,
+      "note": "Novi PR! 💪",
+      "status": "needs_attention",    // on_track | needs_attention | off_track | neutral
+      "changeFromReference": 41.7,    // Percentage change from reference
+      "changeIsAbsolute": false       // true for "%" units (e.g., body fat)
+    }
+  ],
+  "range": 30
+}
+```
+
+#### POST /api/member/metrics/[id]/entries
+```json
+// Request - Create/update entry (upsert by date)
+{
+  "date": "2026-01-15",
+  "value": 85,
+  "note": "Novi PR! 💪"        // Optional
+}
+
+// Response (200)
+{
+  "success": true,
+  "entry": { ... },
+  "isUpdate": false            // true if existing entry was updated
+}
+```
+
+#### DELETE /api/member/metrics/[id]/entries/[entryId]
+```json
+// Response (200)
+{ "success": true }
+```
+
+### 7.16 Custom Metrics (Coach)
+
+#### GET /api/coach/member-metrics/[memberId]
+```json
+// Response (200) - Get all metrics for a member
+{
+  "coachCreated": [            // Metrics created by this coach
+    { "id": "...", "name": "Bench Press", ... }
+  ],
+  "memberCreated": [           // Metrics created by member
+    { "id": "...", "name": "Plank izdržaj", ... }
+  ]
+}
+```
+
+#### POST /api/coach/member-metrics/[memberId]
+```json
+// Request - Create metric for member
+{
+  "name": "Procenat masti",
+  "unit": "%",
+  "targetValue": 15,
+  "referenceValue": 20,        // Optional
+  "higherIsBetter": false
+}
+
+// Response (200)
+{ "success": true, "metric": { ... } }
+
+// Response (403) - Not assigned to member
+{ "error": "You are not assigned to this member" }
+```
+
+#### GET /api/coach/member-metrics/[memberId]/[metricId]?range=30
+```json
+// Response (200) - Get metric entries for viewing
+{
+  "metric": { ... },
+  "entries": [ ... ],
+  "range": 30
+}
+```
+
+#### PATCH /api/coach/member-metrics/[memberId]/[metricId]
+```json
+// Request - Update coach-created metric
+{
+  "name": "Updated Name",
+  "targetValue": 12
+}
+
+// Response (403) - Can only edit own metrics
+{ "error": "Možete izmeniti samo metrike koje ste vi kreirali" }
+```
+
+#### DELETE /api/coach/member-metrics/[memberId]/[metricId]
+```json
+// Response (200)
+{ "success": true, "message": "Metrika je uspešno obrisana" }
+
+// Response (403) - Can only delete own metrics
+{ "error": "Možete obrisati samo metrike koje ste vi kreirali" }
+```
+
 ---
 
 ## 8. Business Logic
@@ -2579,7 +2844,62 @@ function estimateMealMacros(size: MealSize, goal: Goal): MacroEstimate {
 }
 ```
 
-### 8.3 Consistency Score
+### 8.3 Metric Semaphore Status
+
+```typescript
+type MetricStatus = "on_track" | "needs_attention" | "off_track" | "neutral";
+
+function getEntryStatus(
+  value: number,
+  target: number | null,
+  higherIsBetter: boolean
+): MetricStatus {
+  // No target = neutral (single color, no comparison)
+  if (target === null) {
+    return "neutral";
+  }
+
+  if (higherIsBetter) {
+    // Higher is better (e.g., bench press kg)
+    if (value >= target) return "on_track";           // Green: at or above target
+    if (value >= target * 0.9) return "needs_attention";  // Yellow: within 10%
+    return "off_track";                                // Red: more than 10% below
+  } else {
+    // Lower is better (e.g., body fat %)
+    if (value <= target) return "on_track";           // Green: at or below target
+    if (value <= target * 1.1) return "needs_attention";  // Yellow: within 10%
+    return "off_track";                                // Red: more than 10% above
+  }
+}
+```
+
+### 8.4 Metric Change Calculation
+
+```typescript
+// For metrics with "%" unit, return absolute change (e.g., -5 meaning dropped 5 percentage points)
+// For other metrics, return percentage change (e.g., +20% meaning 20% increase)
+function getChangeFromReference(
+  value: number,
+  reference: number | null,
+  unit: string
+): { value: number; isAbsolute: boolean } | null {
+  if (reference === null || reference === 0) return null;
+
+  // For percentage-based metrics (body fat %, etc.), show absolute change
+  if (unit.includes("%")) {
+    return { value: value - reference, isAbsolute: true };
+  }
+
+  // For other metrics, show percentage change
+  return { value: ((value - reference) / reference) * 100, isAbsolute: false };
+}
+
+// Display format:
+// - Absolute (isAbsolute: true): "-3.2 p.p." (percentage points)
+// - Percentage (isAbsolute: false): "+15.4%"
+```
+
+### 8.5 Consistency Score
 
 The consistency score normalizes based on available days, ensuring fair scoring for new members and those who reset their week.
 
@@ -2622,7 +2942,7 @@ function calculateConsistencyScore(input: ConsistencyInput): number {
 }
 ```
 
-### 8.4 Available Days Calculation
+### 8.6 Available Days Calculation
 
 ```typescript
 function calculateAvailableDays(
@@ -2651,7 +2971,7 @@ function calculateAvailableDays(
 }
 ```
 
-### 8.5 Trial Period Calculation
+### 8.7 Trial Period Calculation
 
 ```typescript
 function getTrialDayNumber(trialStartDate: Date): number {

@@ -91,6 +91,7 @@ model Member {
   coachKnowledge      CoachKnowledge[]  // Per-member AI knowledge from coach
   customMeals         CustomMeal[]      // Member's saved meals
   savedIngredients    SavedIngredient[] // Member's saved ingredients
+  customMetrics       CustomMetric[]    // Member's custom metrics (own + coach-created)
 
   // Dual-role: Staff member linked to this account (for coaches who track their own progress)
   staffAccount        Staff?            @relation("StaffMemberLink")
@@ -141,6 +142,7 @@ model Staff {
   nudges            CoachNudge[]
   coachKnowledge    CoachKnowledge[]
   createdMeals      CustomMeal[]      // Meals created by coach for their members
+  createdMetrics    CustomMetric[]    @relation("CoachCreatedMetrics") // Metrics created by coach for their members
 
   // Session scheduling
   sessionRequests   SessionRequest[]
@@ -769,4 +771,56 @@ model FundraisingContribution {
   @@index([fundraisingGoalId])
   @@index([fundraisingGoalId, createdAt])
   @@map("fundraising_contributions")
+}
+
+// Custom metrics for tracking member progress (e.g., "Bench Press", "Body Fat %", "Jump Height")
+// Both coaches and members can create metrics for a member
+model CustomMetric {
+  id               String        @id @default(cuid())
+  memberId         String
+  member           Member        @relation(fields: [memberId], references: [id], onDelete: Cascade)
+
+  // Coach-created marker (follows CustomMeal pattern)
+  // If set, this metric was created by a coach for the member
+  // Member can see and add entries but cannot delete the metric
+  createdByCoachId String?
+  createdByCoach   Staff?        @relation("CoachCreatedMetrics", fields: [createdByCoachId], references: [id], onDelete: SetNull)
+
+  // Metric definition
+  name             String        // e.g., "Bench Press", "Body Fat %"
+  unit             String        // Free-text: "kg", "cm", "sec", "%"
+
+  // Target/Semaphore configuration
+  targetValue      Float?        // Optional target to achieve
+  referenceValue   Float?        // Reference for comparison (null = use 1st entry)
+  higherIsBetter   Boolean       @default(true)  // false for body fat %, etc.
+
+  entries          MetricEntry[]
+
+  createdAt        DateTime      @default(now())
+  updatedAt        DateTime      @updatedAt
+
+  @@index([memberId])
+  @@index([memberId, createdByCoachId])
+  @@map("custom_metrics")
+}
+
+// Individual metric entries - one per metric per day (editable)
+model MetricEntry {
+  id        String       @id @default(cuid())
+  metricId  String
+  metric    CustomMetric @relation(fields: [metricId], references: [id], onDelete: Cascade)
+  memberId  String       // Denormalized for efficient queries
+
+  date      DateTime     @db.Date  // One entry per day per metric
+  value     Float
+  note      String?
+
+  createdAt DateTime     @default(now())
+  updatedAt DateTime     @updatedAt
+
+  @@unique([metricId, date])   // One entry per metric per day
+  @@index([metricId, date])
+  @@index([memberId, date])
+  @@map("metric_entries")
 }

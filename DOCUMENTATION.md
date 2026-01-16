@@ -17,6 +17,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Staff Management](#staff-management)
    - [Challenge Management](#challenge-management)
    - [Gym Branding](#gym-branding)
+   - [Fundraising Goals Management](#fundraising-goals-management)
 6. [Coach Guide](#coach-guide)
    - [Logging In as Coach](#logging-in-as-coach)
    - [Coach Dashboard](#coach-dashboard)
@@ -461,6 +462,84 @@ View check-in statistics:
 - **Ukupno**: All-time check-in count
 
 **Important:** This only affects challenge training points. Regular training logs work without check-in verification.
+
+---
+
+### Fundraising Goals Management
+
+Create and manage fundraising goals to show members how their subscription payments contribute to gym improvements and equipment purchases.
+
+**Location:** `/gym-portal/manage/fundraising`
+
+#### Creating a Fundraising Goal
+
+1. Navigate to **Fundraising Goals** from the Gym Portal sidebar
+2. Click **"Novi cilj"** (New Goal) button
+3. Fill in the goal details:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Naziv | Yes | Goal title (e.g., "Nova oprema za teretanu") |
+| Ciljni iznos | Yes | Target amount in euros (e.g., 500) |
+| Opis | No | Detailed description of the goal |
+| Fotografija | No | Photo of the equipment/improvement (max 2MB) |
+| Datum završetka | No | Optional deadline for the goal |
+| Vidljivo članovima | Yes | Toggle visibility on member home page |
+
+4. Click **"Sačuvaj"** (Save) to create the goal
+
+#### Adding Photos to Goals
+
+- Click the photo upload area or camera icon
+- Select an image from gallery or take a photo (mobile)
+- Preview shows the selected photo
+- Click "X" to remove before saving
+- **Constraints:** Max 2MB, JPEG/PNG/WebP formats
+
+#### Editing Goals
+
+1. Find the goal card in the goals list
+2. Click **"Uredi"** (Edit) button on active goals
+3. Modify any field including:
+   - Name and description
+   - Target amount
+   - Photo (replace or remove)
+   - Visibility toggle
+   - End date
+
+#### How Contributions Work
+
+**Automatic Tracking:**
+- When staff extends a member's subscription, the payment amount is automatically added to all active fundraising goals
+- Contribution records show member name, amount, and timestamp
+- Goals auto-complete when target is reached
+
+**Manual Entry:**
+- For cash payments or donations not tracked automatically
+- Use the "Dodaj iznos" (Add Amount) section on the goal detail page
+- Enter amount and optional note (e.g., "Gotovinska uplata - Ivan")
+
+#### Goal Statuses
+
+| Status | Display | Description |
+|--------|---------|-------------|
+| Active | Green badge | Goal is ongoing, accepting contributions |
+| Completed | Blue badge | Target amount reached |
+| Cancelled | Gray badge | Goal cancelled by admin |
+
+#### Visibility Control
+
+- **Visible:** Goal appears on member home page with progress bar
+- **Hidden:** Goal only visible to admins (useful for draft goals)
+- Toggle using the "Vidljivo članovima" checkbox
+
+#### Member View
+
+Members see active, visible goals on their home page:
+- Goal photo (56x56px) or fallback icon
+- Goal name and description
+- Progress bar showing percentage complete
+- Amount raised vs target
 
 ---
 
@@ -1131,6 +1210,16 @@ Your home screen shows **daily metrics only** for a focused, simplified view:
 
 **Profile Access:** Tap your avatar (initials) at the top to access your profile and logout.
 
+**Fundraising Goals Card:**
+
+If your gym has active fundraising goals, you'll see a card showing:
+- Goal photo (or target icon if no photo)
+- Goal name and description
+- Progress bar with percentage complete
+- Current amount raised vs target amount
+
+This shows how membership fees contribute to gym improvements like new equipment or facility upgrades.
+
 ### Progress Page
 
 For detailed tracking, visit the **Progress page** (`/progress`):
@@ -1752,6 +1841,91 @@ Access your profile and account settings:
   "customFats": 60,               // Optional
   "notes": "Initial notes",       // Optional
   "requireExactMacros": true      // Optional, default false
+}
+```
+
+### Fundraising Goals (Admin only)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/fundraising-goals` | GET | List all fundraising goals for the gym |
+| `/api/admin/fundraising-goals` | POST | Create a new fundraising goal |
+| `/api/admin/fundraising-goals/[id]` | GET | Get single goal with contributions |
+| `/api/admin/fundraising-goals/[id]` | PATCH | Update a fundraising goal |
+| `/api/admin/fundraising-goals/[id]` | DELETE | Delete a fundraising goal |
+
+**POST `/api/admin/fundraising-goals` body:**
+
+```json
+{
+  "name": "Nova oprema za teretanu",
+  "description": "Kupovina novih bučica i benč presa",
+  "targetAmount": 500,          // In euros
+  "imageUrl": "base64-string",  // Optional, max 2MB
+  "isVisible": true,            // Show on member home page
+  "endDate": "2026-06-30"       // Optional deadline
+}
+```
+
+**PATCH `/api/admin/fundraising-goals/[id]` body:**
+
+```json
+{
+  "name": "Updated name",       // Optional
+  "description": "Updated",     // Optional
+  "targetAmount": 600,          // Optional, in euros
+  "imageUrl": "base64-string",  // Optional, null to remove
+  "isVisible": false,           // Optional
+  "status": "completed",        // Optional: active, completed, cancelled
+  "endDate": "2026-07-31",      // Optional
+  "addAmount": 50,              // Optional: manual contribution (euros)
+  "addNote": "Cash payment"     // Optional: note for manual contribution
+}
+```
+
+**GET `/api/admin/fundraising-goals` response:**
+
+```json
+{
+  "goals": [
+    {
+      "id": "goal-cuid",
+      "name": "Nova oprema",
+      "description": "...",
+      "targetAmount": 50000,     // In cents
+      "currentAmount": 25000,    // In cents
+      "imageUrl": "base64...",
+      "isVisible": true,
+      "status": "active",
+      "progressPercentage": 50,
+      "contributionCount": 12,
+      "createdAt": "2026-01-01T00:00:00Z"
+    }
+  ]
+}
+```
+
+### Fundraising Goals (Member)
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/member/fundraising-goals` | GET | Get active, visible goals for home page |
+
+**GET `/api/member/fundraising-goals` response:**
+
+```json
+{
+  "goals": [
+    {
+      "id": "goal-cuid",
+      "name": "Nova oprema",
+      "description": "Kupovina novih bučica",
+      "targetAmount": 500,        // In euros
+      "currentAmount": 250,       // In euros
+      "imageUrl": "base64...",
+      "progressPercentage": 50
+    }
+  ]
 }
 ```
 

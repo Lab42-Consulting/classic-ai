@@ -2,8 +2,18 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.13
+**Version:** 1.14
 **Last Updated:** January 2026
+
+**Changelog v1.14:**
+- Added Fundraising Goals feature for gym transparency and member engagement
+- Admins can create and manage fundraising goals with photos
+- Goal progress tracked automatically from member subscription payments
+- Members see active goals on home page with progress indicator
+- Manual contribution entry available for cash/other payments
+- Photo upload support for goals (base64, max 2MB)
+- Edit functionality for existing goals (name, description, target, photo, visibility)
+- Automatic goal completion when target amount is reached
 
 **Changelog v1.13:**
 - Added Difficulty Mode system (Simple, Standard, Pro) for personalized complexity levels
@@ -1151,6 +1161,118 @@ AI-powered meal analysis from photos for faster logging.
 4. Optionally taps "AI Analiza" for vision-based estimate
 5. Reviews and edits estimates if needed
 6. Confirms to log meal with photo
+
+### 3.19 Fundraising Goals System
+
+The fundraising goals system provides transparency for gym members by showing how their subscription payments contribute to gym improvements and equipment purchases.
+
+#### FR-FUND-001: Fundraising Goal Creation (Admin)
+- **Purpose:** Admin creates fundraising goals for gym improvements
+- **Location:** `/gym-portal/manage/fundraising`
+- **Required Fields:**
+  - Name (goal title)
+  - Target Amount (in euros)
+- **Optional Fields:**
+  - Description (goal details)
+  - Photo (base64, max 2MB)
+  - End Date (deadline for completion)
+  - Visibility toggle (show/hide on member home page)
+- **Constraints:**
+  - Target amount must be greater than 0
+  - Photo formats: JPEG, PNG, WebP
+
+#### FR-FUND-002: Goal Photo Upload
+- **Purpose:** Add visual representation to fundraising goals
+- **Supported Actions:**
+  - Camera capture (mobile)
+  - Gallery selection
+- **Constraints:**
+  - Max file size: 2MB
+  - Formats: image/* (JPEG, PNG, WebP, etc.)
+  - Storage: Base64 encoded in `FundraisingGoal.imageUrl`
+- **UI:** Photo preview with remove option before saving
+
+#### FR-FUND-003: Goal Editing (Admin)
+- **Purpose:** Modify existing fundraising goals
+- **Location:** Goal card "Uredi" (Edit) button
+- **Editable Fields:**
+  - Name
+  - Description
+  - Target Amount
+  - Photo (replace/remove)
+  - Visibility
+  - End Date
+- **API:** `PATCH /api/admin/fundraising-goals/[id]`
+- **Constraint:** Cannot edit completed goals' target amount
+
+#### FR-FUND-004: Automatic Contribution Tracking
+- **Purpose:** Track subscription payments as contributions to active goals
+- **Trigger:** Member subscription extended (1, 3, 6, or 12 months)
+- **Process:**
+  1. Subscription extension creates `FundraisingContribution` record
+  2. Contribution linked to all active fundraising goals for the gym
+  3. Goal's `currentAmount` incremented by subscription amount
+  4. If goal reaches target, status auto-changes to "completed"
+- **Source Types:**
+  - `subscription`: Automatic from member subscription payments
+  - `manual`: Admin-entered contributions (cash, donations, etc.)
+
+#### FR-FUND-005: Manual Contribution Entry (Admin)
+- **Purpose:** Record cash payments or donations not tracked automatically
+- **Location:** Goal detail view → "Dodaj iznos" section
+- **Fields:**
+  - Amount (in euros)
+  - Note (description of contribution source)
+- **API:** `PATCH /api/admin/fundraising-goals/[id]` with `addAmount` and `addNote`
+- **Effect:** Creates contribution record with `source: "manual"`
+
+#### FR-FUND-006: Goal Status Management
+- **Statuses:**
+  - `active`: Goal is ongoing, accepting contributions
+  - `completed`: Target amount reached (auto or manual)
+  - `cancelled`: Goal cancelled by admin
+- **Auto-Completion:**
+  - When `currentAmount >= targetAmount`, status becomes "completed"
+  - `completedAt` timestamp recorded
+- **Manual Status Change:** Admin can manually complete or cancel goals
+
+#### FR-FUND-007: Member Home Page Integration
+- **Location:** Member home dashboard (`/home`)
+- **Display Conditions:**
+  - Goal has `isVisible: true`
+  - Goal has `status: "active"`
+- **Display Elements:**
+  - Goal photo (56x56px) or fallback emoji icon
+  - Goal name
+  - Progress bar showing currentAmount/targetAmount
+  - Percentage completed
+  - Description (truncated)
+- **Styling:** Amber gradient card matching gym theme
+
+#### FR-FUND-008: Goal Visibility Control
+- **Purpose:** Control which goals are shown to members
+- **Toggle:** "Vidljivo članovima" checkbox
+- **Effect:**
+  - `isVisible: true`: Goal appears on member home page
+  - `isVisible: false`: Goal hidden from members (admin-only)
+- **Use Case:** Hide draft goals or internal goals
+
+#### FR-FUND-009: Contribution History
+- **Location:** `/api/admin/fundraising-goals/[id]`
+- **Display:** Last 50 contributions ordered by date (newest first)
+- **Contribution Data:**
+  - Amount
+  - Source (subscription/manual)
+  - Member name (if from subscription)
+  - Note
+  - Timestamp
+- **Purpose:** Audit trail for financial transparency
+
+#### FR-FUND-010: Progress Calculation
+- **Formula:** `progressPercentage = (currentAmount / targetAmount) * 100`
+- **Display:** Capped at 100% for UI display
+- **Currency:** Stored in cents internally, displayed in euros
+- **Conversion:** `displayAmount = storedAmount / 100`
 
 ---
 

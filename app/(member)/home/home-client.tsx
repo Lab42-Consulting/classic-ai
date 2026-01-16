@@ -1682,11 +1682,11 @@ export function HomeClient({ data }: HomeClientProps) {
               <span className="text-sm text-foreground-muted">{data.hasCoach ? "Termini" : "Trener"}</span>
             </button>
             <button
-              onClick={() => router.push("/progress")}
+              onClick={() => router.push("/metrics")}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">📈</span>
-              <span className="text-sm text-foreground-muted">{t.home.progress}</span>
+              <span className="text-2xl block mb-2">📊</span>
+              <span className="text-sm text-foreground-muted">Metrike</span>
             </button>
             <button
               onClick={() => router.push("/meals")}

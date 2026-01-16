@@ -8,6 +8,15 @@ import { CreateEditMealModal, MealFormData } from "@/components/meals";
 import { getTranslations } from "@/lib/i18n";
 import { formatPortion } from "@/lib/constants/units";
 import { SubscriptionExtendModal } from "@/components/staff/subscription-extend-modal";
+import {
+  LineChart,
+  Line,
+  XAxis,
+  YAxis,
+  Tooltip,
+  ResponsiveContainer,
+  ReferenceLine,
+} from "recharts";
 
 const t = getTranslations("sr");
 
@@ -26,6 +35,44 @@ interface CoachMeal {
   totalFats?: number | null;
   ingredientCount: number;
   createdAt: string;
+}
+
+interface CoachMetric {
+  id: string;
+  name: string;
+  unit: string;
+  targetValue: number | null;
+  referenceValue: number | null;
+  higherIsBetter: boolean;
+  isCoachCreated: boolean;
+  coachName: string | null;
+  entryCount: number;
+  latestEntry: { value: number; date: string } | null;
+  createdAt: string;
+}
+
+interface MetricEntry {
+  id: string;
+  date: string;
+  value: number;
+  note: string | null;
+  status: "on_track" | "needs_attention" | "off_track" | "neutral";
+  changeFromReference: number | null;
+}
+
+interface MetricDetail {
+  metric: {
+    id: string;
+    name: string;
+    unit: string;
+    targetValue: number | null;
+    referenceValue: number | null;
+    higherIsBetter: boolean;
+    isCoachCreated: boolean;
+    coachName: string | null;
+  };
+  entries: MetricEntry[];
+  range: number;
 }
 
 interface MemberDetail {
@@ -131,17 +178,30 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
   const [coachMeals, setCoachMeals] = useState<CoachMeal[]>([]);
   const [showMealModal, setShowMealModal] = useState(false);
 
+  // Coach metrics state
+  const [coachMetrics, setCoachMetrics] = useState<CoachMetric[]>([]);
+  const [memberMetrics, setMemberMetrics] = useState<CoachMetric[]>([]);
+  const [showMetricModal, setShowMetricModal] = useState(false);
+
+  // Metric detail state
+  const [selectedMetric, setSelectedMetric] = useState<CoachMetric | null>(null);
+  const [metricDetail, setMetricDetail] = useState<MetricDetail | null>(null);
+  const [metricDetailLoading, setMetricDetailLoading] = useState(false);
+  const [metricViewMode, setMetricViewMode] = useState<"table" | "graph">("table");
+  const [metricRange, setMetricRange] = useState<string>("30");
+
   // Subscription state
   const [showSubscriptionModal, setShowSubscriptionModal] = useState(false);
 
   useEffect(() => {
     const fetchData = async () => {
       try {
-        const [memberRes, templatesRes, knowledgeRes, mealsRes] = await Promise.all([
+        const [memberRes, templatesRes, knowledgeRes, mealsRes, metricsRes] = await Promise.all([
           fetch(`/api/coach/member/${id}`),
           fetch("/api/coach/nudge?templates=true"),
           fetch(`/api/coach/knowledge?memberId=${id}`),
           fetch(`/api/coach/member-meals/${id}`),
+          fetch(`/api/coach/member-metrics/${id}`),
         ]);
 
         if (memberRes.ok) {
@@ -176,6 +236,12 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
         if (mealsRes.ok) {
           const mealsData = await mealsRes.json();
           setCoachMeals(mealsData.meals || []);
+        }
+
+        if (metricsRes.ok) {
+          const metricsData = await metricsRes.json();
+          setCoachMetrics(metricsData.coachCreated || []);
+          setMemberMetrics(metricsData.memberCreated || []);
         }
       } catch {
         setError("Greška pri povezivanju");
@@ -333,6 +399,87 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
       }
     } catch {
       // Handle error
+    }
+  };
+
+  const handleCreateMetric = async (metricData: {
+    name: string;
+    unit: string;
+    targetValue: number | null;
+    higherIsBetter: boolean;
+  }) => {
+    try {
+      const response = await fetch(`/api/coach/member-metrics/${id}`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify(metricData),
+      });
+
+      if (response.ok) {
+        const result = await response.json();
+        setCoachMetrics((prev) => [result.metric, ...prev]);
+        setShowMetricModal(false);
+      }
+    } catch {
+      // Handle error
+    }
+  };
+
+  const handleDeleteMetric = async (metricId: string) => {
+    try {
+      const response = await fetch(`/api/coach/member-metrics/${id}/${metricId}`, {
+        method: "DELETE",
+      });
+
+      if (response.ok) {
+        setCoachMetrics((prev) => prev.filter((m) => m.id !== metricId));
+      }
+    } catch {
+      // Handle error
+    }
+  };
+
+  const fetchMetricDetail = async (metric: CoachMetric, range: string = "30") => {
+    setSelectedMetric(metric);
+    setMetricDetailLoading(true);
+    setMetricRange(range);
+
+    try {
+      const response = await fetch(`/api/coach/member-metrics/${id}/${metric.id}?range=${range}`);
+      if (response.ok) {
+        const data = await response.json();
+        setMetricDetail(data);
+      }
+    } catch {
+      // Handle error
+    } finally {
+      setMetricDetailLoading(false);
+    }
+  };
+
+  const getStatusColor = (status: string) => {
+    switch (status) {
+      case "on_track":
+        return "text-success";
+      case "needs_attention":
+        return "text-warning";
+      case "off_track":
+        return "text-error";
+      default:
+        return "text-foreground-muted";
+    }
+  };
+
+  const getStatusBg = (status: string) => {
+    switch (status) {
+      case "on_track":
+        return "bg-success/20";
+      case "needs_attention":
+        return "bg-warning/20";
+      case "off_track":
+        return "bg-error/20";
+      default:
+        return "bg-foreground-muted/10";
     }
   };
 
@@ -776,6 +923,114 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
             )}
           </GlassCard>
         </SlideUp>
+
+        {/* Coach Metrics Section */}
+        <SlideUp delay={500}>
+          <GlassCard>
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h3 className="text-sm font-medium text-foreground-muted">Metrike za člana</h3>
+                <p className="text-xs text-foreground-muted/70">
+                  Metrike koje si kreirao/la za ovog člana
+                </p>
+              </div>
+              <button
+                onClick={() => setShowMetricModal(true)}
+                className="px-3 py-1.5 bg-accent text-white text-sm rounded-lg hover:bg-accent/90 transition-colors"
+              >
+                + Dodaj
+              </button>
+            </div>
+
+            {coachMetrics.length === 0 ? (
+              <div className="text-center py-6">
+                <div className="w-12 h-12 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-3">
+                  <span className="text-2xl">📊</span>
+                </div>
+                <p className="text-sm text-foreground-muted">
+                  Još nisi kreirao/la metrike za ovog člana
+                </p>
+              </div>
+            ) : (
+              <div className="space-y-2">
+                {coachMetrics.map((metric) => (
+                  <div
+                    key={metric.id}
+                    onClick={() => fetchMetricDetail(metric)}
+                    className="flex items-center justify-between p-3 bg-background-tertiary rounded-xl cursor-pointer hover:bg-background-tertiary/80 transition-colors"
+                  >
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <p className="font-medium text-foreground truncate">{metric.name}</p>
+                        <span className="text-xs text-foreground-muted/50">({metric.entryCount} unosa)</span>
+                      </div>
+                      <div className="flex items-center gap-3 text-xs text-foreground-muted">
+                        <span>{metric.unit}</span>
+                        {metric.latestEntry && (
+                          <span className="text-accent">
+                            Zadnji: {metric.latestEntry.value} {metric.unit}
+                          </span>
+                        )}
+                        {metric.targetValue && (
+                          <span className="text-success">Cilj: {metric.targetValue}</span>
+                        )}
+                      </div>
+                    </div>
+                    <div className="flex items-center gap-2">
+                      <span className="text-foreground-muted/50 text-lg">›</span>
+                      <button
+                        onClick={(e) => {
+                          e.stopPropagation();
+                          handleDeleteMetric(metric.id);
+                        }}
+                        className="p-2 text-error hover:bg-error/10 rounded-lg transition-colors"
+                        title="Obriši metriku"
+                      >
+                        <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                          <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 7l-.867 12.142A2 2 0 0116.138 21H7.862a2 2 0 01-1.995-1.858L5 7m5 4v6m4-6v6m1-10V4a1 1 0 00-1-1h-4a1 1 0 00-1 1v3M4 7h16" />
+                        </svg>
+                      </button>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            )}
+
+            {/* Member's own metrics (read-only view) */}
+            {memberMetrics.length > 0 && (
+              <div className="mt-4 pt-4 border-t border-border">
+                <h4 className="text-xs font-medium text-foreground-muted mb-3">
+                  Metrike kreirane od strane člana:
+                </h4>
+                <div className="space-y-2">
+                  {memberMetrics.map((metric) => (
+                    <div
+                      key={metric.id}
+                      onClick={() => fetchMetricDetail(metric)}
+                      className="flex items-center justify-between p-3 bg-background-tertiary/50 rounded-xl cursor-pointer hover:bg-background-tertiary/70 transition-colors"
+                    >
+                      <div className="flex-1 min-w-0">
+                        <p className="font-medium text-foreground truncate">{metric.name}</p>
+                        <div className="flex items-center gap-3 text-xs text-foreground-muted">
+                          <span>{metric.unit}</span>
+                          {metric.latestEntry && (
+                            <span>
+                              Zadnji: {metric.latestEntry.value} {metric.unit}
+                            </span>
+                          )}
+                          <span className="text-foreground-muted/50">
+                            ({metric.entryCount} unosa)
+                          </span>
+                        </div>
+                      </div>
+                      <span className="text-foreground-muted/50 text-lg">›</span>
+                    </div>
+                  ))}
+                </div>
+              </div>
+            )}
+          </GlassCard>
+        </SlideUp>
       </main>
 
       {/* Action Buttons */}
@@ -1000,6 +1255,419 @@ export default function MemberDetailPage({ params }: { params: Promise<{ id: str
           }}
         />
       )}
+
+      {/* Metric Detail Modal */}
+      {selectedMetric && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+          <div className="bg-background w-full rounded-t-3xl p-6 max-h-[90vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-4">
+              <div>
+                <h2 className="text-lg font-bold text-foreground">{selectedMetric.name}</h2>
+                <p className="text-xs text-foreground-muted">
+                  {selectedMetric.unit}
+                  {selectedMetric.targetValue && (
+                    <span className="ml-2 text-success">• Cilj: {selectedMetric.targetValue}</span>
+                  )}
+                  {selectedMetric.isCoachCreated && (
+                    <span className="ml-2 text-accent">• Kreirao trener</span>
+                  )}
+                </p>
+              </div>
+              <button
+                onClick={() => {
+                  setSelectedMetric(null);
+                  setMetricDetail(null);
+                }}
+                className="p-2 text-foreground-muted"
+              >
+                ✕
+              </button>
+            </div>
+
+            {/* View Mode Toggle & Time Range */}
+            <div className="flex items-center justify-between mb-4">
+              <div className="flex p-1 bg-background-tertiary rounded-xl">
+                <button
+                  onClick={() => setMetricViewMode("table")}
+                  className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                    metricViewMode === "table"
+                      ? "bg-accent text-white shadow-sm"
+                      : "text-foreground-muted hover:text-foreground"
+                  }`}
+                >
+                  📋 Tabela
+                </button>
+                <button
+                  onClick={() => setMetricViewMode("graph")}
+                  className={`px-4 py-2 text-sm rounded-lg transition-all ${
+                    metricViewMode === "graph"
+                      ? "bg-accent text-white shadow-sm"
+                      : "text-foreground-muted hover:text-foreground"
+                  }`}
+                >
+                  📈 Grafikon
+                </button>
+              </div>
+
+              <select
+                value={metricRange}
+                onChange={(e) => fetchMetricDetail(selectedMetric, e.target.value)}
+                className="px-3 py-1.5 bg-background-tertiary rounded-lg text-sm text-foreground border-none focus:outline-none focus:ring-2 focus:ring-accent"
+              >
+                <option value="7">7 dana</option>
+                <option value="30">30 dana</option>
+                <option value="90">90 dana</option>
+                <option value="365">1 godina</option>
+              </select>
+            </div>
+
+            {metricDetailLoading ? (
+              <div className="flex items-center justify-center py-12">
+                <div className="w-8 h-8 border-2 border-accent border-t-transparent rounded-full animate-spin" />
+              </div>
+            ) : metricDetail && metricDetail.entries.length > 0 ? (
+              <>
+                {metricViewMode === "table" ? (
+                  /* Table View */
+                  <div className="rounded-xl border border-border overflow-hidden">
+                    <div className="max-h-[40vh] overflow-y-auto">
+                    <table className="w-full">
+                      <thead className="sticky top-0">
+                        <tr className="bg-background-tertiary">
+                          <th className="text-left px-4 py-3 text-xs font-medium text-foreground-muted">Datum</th>
+                          <th className="text-right px-4 py-3 text-xs font-medium text-foreground-muted">Vrednost</th>
+                          <th className="text-right px-4 py-3 text-xs font-medium text-foreground-muted">Od starta</th>
+                          <th className="text-center px-4 py-3 text-xs font-medium text-foreground-muted">Status</th>
+                        </tr>
+                      </thead>
+                      <tbody>
+                        {metricDetail.entries.map((entry, idx) => (
+                          <tr
+                            key={entry.id}
+                            className={idx % 2 === 0 ? "bg-background" : "bg-background-secondary"}
+                          >
+                            <td className="px-4 py-3 text-sm text-foreground">
+                              {new Date(entry.date).toLocaleDateString("sr-RS", {
+                                day: "numeric",
+                                month: "short",
+                              })}
+                            </td>
+                            <td className="px-4 py-3 text-sm text-foreground text-right font-medium">
+                              {entry.value} {metricDetail.metric.unit}
+                            </td>
+                            <td className={`px-4 py-3 text-sm text-right ${
+                              entry.changeFromReference !== null
+                                ? entry.changeFromReference > 0
+                                  ? metricDetail.metric.higherIsBetter ? "text-success" : "text-error"
+                                  : entry.changeFromReference < 0
+                                    ? metricDetail.metric.higherIsBetter ? "text-error" : "text-success"
+                                    : "text-foreground-muted"
+                                : "text-foreground-muted"
+                            }`}>
+                              {entry.changeFromReference !== null
+                                ? `${entry.changeFromReference > 0 ? "+" : ""}${entry.changeFromReference.toFixed(1)}%`
+                                : "-"}
+                            </td>
+                            <td className="px-4 py-3 text-center">
+                              <span className={`inline-block w-3 h-3 rounded-full ${getStatusBg(entry.status)} ${getStatusColor(entry.status)}`}>
+                                <span className="sr-only">{entry.status}</span>
+                              </span>
+                            </td>
+                          </tr>
+                        ))}
+                      </tbody>
+                    </table>
+                    </div>
+                  </div>
+                ) : (
+                  /* Graph View */
+                  <div className="bg-background-secondary rounded-xl p-4">
+                    <ResponsiveContainer width="100%" height={300}>
+                      <LineChart
+                        data={[...metricDetail.entries].reverse().map((e) => ({
+                          date: new Date(e.date).toLocaleDateString("sr-RS", {
+                            day: "numeric",
+                            month: "short",
+                          }),
+                          value: e.value,
+                        }))}
+                        margin={{ top: 10, right: 10, left: 0, bottom: 0 }}
+                      >
+                        <XAxis
+                          dataKey="date"
+                          stroke="var(--foreground-muted)"
+                          tick={{ fill: "var(--foreground-muted)", fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                        />
+                        <YAxis
+                          stroke="var(--foreground-muted)"
+                          tick={{ fill: "var(--foreground-muted)", fontSize: 10 }}
+                          tickLine={false}
+                          axisLine={false}
+                          domain={["auto", "auto"]}
+                          width={40}
+                        />
+                        <Tooltip
+                          contentStyle={{
+                            backgroundColor: "var(--background-secondary)",
+                            border: "1px solid var(--border)",
+                            borderRadius: "8px",
+                          }}
+                          labelStyle={{ color: "var(--foreground)", fontWeight: 600 }}
+                          formatter={(value) => [
+                            `${value ?? 0} ${metricDetail.metric.unit}`,
+                            "Vrednost",
+                          ]}
+                        />
+                        {metricDetail.metric.targetValue && (
+                          <ReferenceLine
+                            y={metricDetail.metric.targetValue}
+                            stroke="#22c55e"
+                            strokeDasharray="5 5"
+                            label={{
+                              value: `Cilj: ${metricDetail.metric.targetValue}`,
+                              fill: "#22c55e",
+                              fontSize: 10,
+                              position: "right",
+                            }}
+                          />
+                        )}
+                        {metricDetail.metric.referenceValue && (
+                          <ReferenceLine
+                            y={metricDetail.metric.referenceValue}
+                            stroke="#f59e0b"
+                            strokeDasharray="3 3"
+                            label={{
+                              value: `Ref: ${metricDetail.metric.referenceValue}`,
+                              fill: "#f59e0b",
+                              fontSize: 10,
+                              position: "right",
+                            }}
+                          />
+                        )}
+                        <Line
+                          type="monotone"
+                          dataKey="value"
+                          stroke="var(--accent)"
+                          strokeWidth={2}
+                          dot={{ fill: "var(--accent)", strokeWidth: 0, r: 4 }}
+                          activeDot={{ r: 6, fill: "var(--accent)" }}
+                        />
+                      </LineChart>
+                    </ResponsiveContainer>
+
+                    {/* Legend */}
+                    <div className="flex items-center justify-center gap-6 mt-4 text-xs text-foreground-muted">
+                      <div className="flex items-center gap-2">
+                        <div className="w-3 h-0.5 bg-accent" />
+                        <span>Vrednost</span>
+                      </div>
+                      {metricDetail.metric.targetValue && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-0.5 bg-success" style={{ borderStyle: "dashed" }} />
+                          <span>Cilj</span>
+                        </div>
+                      )}
+                      {metricDetail.metric.referenceValue && (
+                        <div className="flex items-center gap-2">
+                          <div className="w-3 h-0.5 bg-warning" style={{ borderStyle: "dashed" }} />
+                          <span>Referenca</span>
+                        </div>
+                      )}
+                    </div>
+                  </div>
+                )}
+
+                {/* Summary Stats */}
+                <div className="grid grid-cols-2 gap-3 mt-4">
+                  <div className="bg-background-tertiary rounded-xl p-3 text-center">
+                    <p className="text-lg font-bold text-foreground">
+                      {metricDetail.metric.referenceValue ?? "-"} {metricDetail.metric.unit}
+                    </p>
+                    <p className="text-xs text-foreground-muted">Početna vr.</p>
+                  </div>
+                  <div className="bg-background-tertiary rounded-xl p-3 text-center">
+                    <p className="text-lg font-bold text-foreground">
+                      {metricDetail.entries[0]?.value ?? "-"} {metricDetail.metric.unit}
+                    </p>
+                    <p className="text-xs text-foreground-muted">Poslednja</p>
+                  </div>
+                </div>
+                <div className="mt-3 bg-background-tertiary rounded-xl p-4 text-center">
+                  <p className={`text-2xl font-bold ${
+                    metricDetail.entries[0]?.changeFromReference !== null
+                      ? metricDetail.entries[0].changeFromReference > 0
+                        ? metricDetail.metric.higherIsBetter ? "text-success" : "text-error"
+                        : metricDetail.entries[0].changeFromReference < 0
+                          ? metricDetail.metric.higherIsBetter ? "text-error" : "text-success"
+                          : "text-foreground"
+                      : "text-foreground"
+                  }`}>
+                    {metricDetail.entries[0]?.changeFromReference !== null
+                      ? `${metricDetail.entries[0].changeFromReference > 0 ? "+" : ""}${metricDetail.entries[0].changeFromReference.toFixed(1)}%`
+                      : "-"}
+                  </p>
+                  <p className="text-xs text-foreground-muted">Ukupan napredak od starta</p>
+                </div>
+              </>
+            ) : (
+              <div className="text-center py-12">
+                <div className="w-16 h-16 bg-background-tertiary rounded-full flex items-center justify-center mx-auto mb-4">
+                  <span className="text-3xl">📊</span>
+                </div>
+                <p className="text-foreground-muted">
+                  Nema unosa za izabrani period
+                </p>
+              </div>
+            )}
+          </div>
+        </div>
+      )}
+
+      {/* Create Metric Modal */}
+      {showMetricModal && (
+        <div className="fixed inset-0 bg-black/80 z-50 flex items-end">
+          <div className="bg-background w-full rounded-t-3xl p-6 max-h-[80vh] overflow-y-auto">
+            <div className="flex items-center justify-between mb-6">
+              <h2 className="text-lg font-bold text-foreground">Nova metrika</h2>
+              <button
+                onClick={() => setShowMetricModal(false)}
+                className="p-2 text-foreground-muted"
+              >
+                ✕
+              </button>
+            </div>
+
+            <CreateMetricForm
+              onSubmit={handleCreateMetric}
+              onCancel={() => setShowMetricModal(false)}
+            />
+          </div>
+        </div>
+      )}
+    </div>
+  );
+}
+
+// Create Metric Form Component
+function CreateMetricForm({
+  onSubmit,
+  onCancel,
+}: {
+  onSubmit: (data: {
+    name: string;
+    unit: string;
+    targetValue: number | null;
+    higherIsBetter: boolean;
+  }) => void;
+  onCancel: () => void;
+}) {
+  const [name, setName] = useState("");
+  const [unit, setUnit] = useState("");
+  const [targetValue, setTargetValue] = useState("");
+  const [higherIsBetter, setHigherIsBetter] = useState(true);
+  const [submitting, setSubmitting] = useState(false);
+
+  const handleSubmit = async () => {
+    if (!name.trim() || !unit.trim()) return;
+
+    setSubmitting(true);
+    await onSubmit({
+      name: name.trim(),
+      unit: unit.trim(),
+      targetValue: targetValue ? parseFloat(targetValue) : null,
+      higherIsBetter,
+    });
+    setSubmitting(false);
+  };
+
+  return (
+    <div className="space-y-4">
+      <div>
+        <label className="block text-sm text-foreground-muted mb-2">
+          Naziv metrike *
+        </label>
+        <input
+          type="text"
+          value={name}
+          onChange={(e) => setName(e.target.value)}
+          placeholder="npr. Bench Press, Skok u vis"
+          className="w-full px-4 py-3 glass rounded-xl text-foreground placeholder:text-foreground-muted/50 outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-foreground-muted mb-2">
+          Jedinica mere *
+        </label>
+        <input
+          type="text"
+          value={unit}
+          onChange={(e) => setUnit(e.target.value)}
+          placeholder="npr. kg, cm, sec, %"
+          className="w-full px-4 py-3 glass rounded-xl text-foreground placeholder:text-foreground-muted/50 outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div>
+        <label className="block text-sm text-foreground-muted mb-2">
+          Ciljna vrednost (opciono)
+        </label>
+        <input
+          type="number"
+          step="any"
+          value={targetValue}
+          onChange={(e) => setTargetValue(e.target.value)}
+          placeholder="npr. 100"
+          className="w-full px-4 py-3 glass rounded-xl text-foreground placeholder:text-foreground-muted/50 outline-none focus:ring-2 focus:ring-accent"
+        />
+      </div>
+
+      <div className="py-2">
+        <label className="block text-sm text-foreground-muted mb-2">
+          Šta je bolje?
+        </label>
+        <div className="grid grid-cols-2 gap-2">
+          <button
+            type="button"
+            onClick={() => setHigherIsBetter(true)}
+            className={`px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+              higherIsBetter
+                ? "bg-success text-white"
+                : "bg-background-tertiary text-foreground-muted hover:bg-background-tertiary/80"
+            }`}
+          >
+            <span className="block text-base mb-0.5">↑ Veća</span>
+            <span className="text-xs opacity-80">npr. snaga, skok</span>
+          </button>
+          <button
+            type="button"
+            onClick={() => setHigherIsBetter(false)}
+            className={`px-3 py-3 rounded-xl text-sm font-medium transition-all ${
+              !higherIsBetter
+                ? "bg-success text-white"
+                : "bg-background-tertiary text-foreground-muted hover:bg-background-tertiary/80"
+            }`}
+          >
+            <span className="block text-base mb-0.5">↓ Manja</span>
+            <span className="text-xs opacity-80">npr. % masti, vreme</span>
+          </button>
+        </div>
+      </div>
+
+      <div className="flex gap-3 mt-6">
+        <Button variant="secondary" className="flex-1" onClick={onCancel}>
+          Otkaži
+        </Button>
+        <Button
+          className="flex-1 btn-press"
+          onClick={handleSubmit}
+          disabled={!name.trim() || !unit.trim() || submitting}
+        >
+          {submitting ? "Čuvanje..." : "Sačuvaj"}
+        </Button>
+      </div>
     </div>
   );
 }

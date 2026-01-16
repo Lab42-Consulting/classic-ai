@@ -625,6 +625,10 @@ async function main() {
 
   console.log(`  ✅ Created scheduled challenge "${scheduledChallenge.name}" (starts March 1st)`);
 
+  // Seed custom metrics
+  console.log("\n📊 Seeding custom metrics...");
+  await seedMetrics(createdMembers, coaches, today);
+
   // Print summary
   printSummary(coachConfigs, members);
 }
@@ -717,6 +721,344 @@ async function seedIngredients(memberId: string, gymId: string) {
   }
 }
 
+async function seedMetrics(
+  createdMembers: { id: string; memberId: string; coachIndex: number | null; activityLevel: ActivityLevel }[],
+  coaches: { id: string }[],
+  today: Date
+) {
+  // Define metric templates
+  const metricTemplates = [
+    { name: "Bench Press", unit: "kg", higherIsBetter: true, baseValue: 60, variance: 40 },
+    { name: "Čučanj", unit: "kg", higherIsBetter: true, baseValue: 80, variance: 50 },
+    { name: "Mrtvo dizanje", unit: "kg", higherIsBetter: true, baseValue: 100, variance: 60 },
+    { name: "Procenat masti", unit: "%", higherIsBetter: false, baseValue: 20, variance: 10 },
+    { name: "Vertikalni skok", unit: "cm", higherIsBetter: true, baseValue: 40, variance: 20 },
+    { name: "Trčanje 5K", unit: "min", higherIsBetter: false, baseValue: 28, variance: 10 },
+    { name: "Pokretljivost kukova", unit: "cm", higherIsBetter: true, baseValue: 30, variance: 15 },
+    { name: "Plank izdržaj", unit: "sek", higherIsBetter: true, baseValue: 60, variance: 60 },
+  ];
+
+  let coachMetricCount = 0;
+  let memberMetricCount = 0;
+  let entryCount = 0;
+
+  // Helper to generate realistic progression
+  const generateEntries = (
+    metricId: string,
+    memberId: string,
+    baseValue: number,
+    higherIsBetter: boolean,
+    numEntries: number,
+    daysSpan: number
+  ) => {
+    const entries: { metricId: string; memberId: string; date: Date; value: number; note: string | null }[] = [];
+    let currentValue = baseValue;
+
+    for (let i = 0; i < numEntries; i++) {
+      const daysAgo = Math.floor((daysSpan / numEntries) * (numEntries - i - 1));
+      const entryDate = new Date(today);
+      entryDate.setDate(entryDate.getDate() - daysAgo);
+      entryDate.setHours(0, 0, 0, 0);
+
+      // Progress in the "better" direction with some variance
+      const progressDirection = higherIsBetter ? 1 : -1;
+      const progressAmount = (Math.random() * 0.5 + 0.2) * progressDirection;
+      const randomVariance = (Math.random() - 0.5) * 0.8;
+      currentValue = currentValue + progressAmount + randomVariance;
+
+      // Round appropriately
+      const roundedValue = Math.round(currentValue * 10) / 10;
+
+      entries.push({
+        metricId,
+        memberId,
+        date: entryDate,
+        value: roundedValue,
+        note: i === 0 ? "Početna vrednost" : (i === numEntries - 1 && Math.random() > 0.5 ? "Novi PR! 💪" : null),
+      });
+    }
+
+    return entries;
+  };
+
+  // ========== Coach-created metrics ==========
+  // Coaches create metrics for some of their members (not all)
+  const coachedMembers = createdMembers.filter(m => m.coachIndex !== null);
+
+  // Coach 0 (MANJA) creates "Bench Press" and "Procenat masti" for 3 of their 5 members
+  const manjaMembers = coachedMembers.filter(m => m.coachIndex === 0).slice(0, 3);
+  for (const member of manjaMembers) {
+    // Bench Press
+    const benchTemplate = metricTemplates[0];
+    const startBench = benchTemplate.baseValue + (Math.random() - 0.5) * benchTemplate.variance;
+    const targetBench = Math.round(startBench * 1.2);
+
+    const benchMetric = await prisma.customMetric.create({
+      data: {
+        memberId: member.id,
+        createdByCoachId: coaches[0].id,
+        name: benchTemplate.name,
+        unit: benchTemplate.unit,
+        targetValue: targetBench,
+        referenceValue: Math.round(startBench),
+        higherIsBetter: benchTemplate.higherIsBetter,
+      },
+    });
+    coachMetricCount++;
+
+    // Add entries based on activity level
+    const entryCountForMember = member.activityLevel === "high" ? 12 : member.activityLevel === "medium" ? 8 : 4;
+    const entries = generateEntries(benchMetric.id, member.id, startBench, true, entryCountForMember, 60);
+    for (const entry of entries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+
+    // Body fat % for some members
+    if (member.activityLevel === "high" || member.activityLevel === "medium") {
+      const fatTemplate = metricTemplates[3];
+      const startFat = fatTemplate.baseValue + (Math.random() - 0.5) * fatTemplate.variance;
+      const targetFat = Math.round(startFat * 0.85);
+
+      const fatMetric = await prisma.customMetric.create({
+        data: {
+          memberId: member.id,
+          createdByCoachId: coaches[0].id,
+          name: fatTemplate.name,
+          unit: fatTemplate.unit,
+          targetValue: targetFat,
+          referenceValue: Math.round(startFat * 10) / 10,
+          higherIsBetter: fatTemplate.higherIsBetter,
+        },
+      });
+      coachMetricCount++;
+
+      const fatEntries = generateEntries(fatMetric.id, member.id, startFat, false, entryCountForMember, 60);
+      for (const entry of fatEntries) {
+        await prisma.metricEntry.create({ data: entry });
+        entryCount++;
+      }
+    }
+  }
+
+  // Coach 1 (GATI) creates "Čučanj" and "Mrtvo dizanje" for 2 members
+  const gatiMembers = coachedMembers.filter(m => m.coachIndex === 1).slice(0, 2);
+  for (const member of gatiMembers) {
+    // Squat
+    const squatTemplate = metricTemplates[1];
+    const startSquat = squatTemplate.baseValue + (Math.random() - 0.5) * squatTemplate.variance;
+    const targetSquat = Math.round(startSquat * 1.25);
+
+    const squatMetric = await prisma.customMetric.create({
+      data: {
+        memberId: member.id,
+        createdByCoachId: coaches[1].id,
+        name: squatTemplate.name,
+        unit: squatTemplate.unit,
+        targetValue: targetSquat,
+        referenceValue: Math.round(startSquat),
+        higherIsBetter: squatTemplate.higherIsBetter,
+      },
+    });
+    coachMetricCount++;
+
+    const entryCountForMember = member.activityLevel === "high" ? 10 : 6;
+    const entries = generateEntries(squatMetric.id, member.id, startSquat, true, entryCountForMember, 45);
+    for (const entry of entries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+
+    // Deadlift
+    const dlTemplate = metricTemplates[2];
+    const startDl = dlTemplate.baseValue + (Math.random() - 0.5) * dlTemplate.variance;
+    const targetDl = Math.round(startDl * 1.2);
+
+    const dlMetric = await prisma.customMetric.create({
+      data: {
+        memberId: member.id,
+        createdByCoachId: coaches[1].id,
+        name: dlTemplate.name,
+        unit: dlTemplate.unit,
+        targetValue: targetDl,
+        referenceValue: Math.round(startDl),
+        higherIsBetter: dlTemplate.higherIsBetter,
+      },
+    });
+    coachMetricCount++;
+
+    const dlEntries = generateEntries(dlMetric.id, member.id, startDl, true, entryCountForMember, 45);
+    for (const entry of dlEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  // Coach 2 (NINA) creates "Vertikalni skok" for 2 members
+  const ninaMembers = coachedMembers.filter(m => m.coachIndex === 2).slice(0, 2);
+  for (const member of ninaMembers) {
+    const jumpTemplate = metricTemplates[4];
+    const startJump = jumpTemplate.baseValue + (Math.random() - 0.5) * jumpTemplate.variance;
+    const targetJump = Math.round(startJump * 1.15);
+
+    const jumpMetric = await prisma.customMetric.create({
+      data: {
+        memberId: member.id,
+        createdByCoachId: coaches[2].id,
+        name: jumpTemplate.name,
+        unit: jumpTemplate.unit,
+        targetValue: targetJump,
+        referenceValue: Math.round(startJump),
+        higherIsBetter: jumpTemplate.higherIsBetter,
+      },
+    });
+    coachMetricCount++;
+
+    const entryCountForMember = member.activityLevel === "high" ? 8 : 5;
+    const entries = generateEntries(jumpMetric.id, member.id, startJump, true, entryCountForMember, 30);
+    for (const entry of entries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  // ========== Member-created metrics ==========
+  // Some members create their own metrics (with or without coach)
+
+  // STRUJA (no coach) tracks "Trčanje 5K" and "Plank izdržaj"
+  const struja = createdMembers.find(m => m.memberId === "STRUJA");
+  if (struja) {
+    // 5K run time
+    const runTemplate = metricTemplates[5];
+    const startRun = runTemplate.baseValue + (Math.random() - 0.5) * runTemplate.variance;
+    const targetRun = Math.round((startRun * 0.9) * 10) / 10;
+
+    const runMetric = await prisma.customMetric.create({
+      data: {
+        memberId: struja.id,
+        createdByCoachId: null, // Member created
+        name: runTemplate.name,
+        unit: runTemplate.unit,
+        targetValue: targetRun,
+        referenceValue: null, // Will use first entry
+        higherIsBetter: runTemplate.higherIsBetter,
+      },
+    });
+    memberMetricCount++;
+
+    const runEntries = generateEntries(runMetric.id, struja.id, startRun, false, 8, 40);
+    for (const entry of runEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+
+    // Plank hold
+    const plankTemplate = metricTemplates[7];
+    const startPlank = plankTemplate.baseValue + (Math.random() - 0.5) * plankTemplate.variance;
+
+    const plankMetric = await prisma.customMetric.create({
+      data: {
+        memberId: struja.id,
+        createdByCoachId: null,
+        name: plankTemplate.name,
+        unit: plankTemplate.unit,
+        targetValue: 120, // 2 minute goal
+        referenceValue: null,
+        higherIsBetter: plankTemplate.higherIsBetter,
+      },
+    });
+    memberMetricCount++;
+
+    const plankEntries = generateEntries(plankMetric.id, struja.id, startPlank, true, 6, 30);
+    for (const entry of plankEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  // TEST member tracks "Pokretljivost kukova" (no target set - neutral display)
+  const testMember = createdMembers.find(m => m.memberId === "TEST");
+  if (testMember) {
+    const hipTemplate = metricTemplates[6];
+    const startHip = hipTemplate.baseValue + (Math.random() - 0.5) * hipTemplate.variance;
+
+    const hipMetric = await prisma.customMetric.create({
+      data: {
+        memberId: testMember.id,
+        createdByCoachId: null,
+        name: hipTemplate.name,
+        unit: hipTemplate.unit,
+        targetValue: null, // No target - neutral semaphore
+        referenceValue: null,
+        higherIsBetter: hipTemplate.higherIsBetter,
+      },
+    });
+    memberMetricCount++;
+
+    const hipEntries = generateEntries(hipMetric.id, testMember.id, startHip, true, 5, 25);
+    for (const entry of hipEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  // One coached member (SD03) also creates their own metric in addition to coach ones
+  const sd03 = createdMembers.find(m => m.memberId === "SD03");
+  if (sd03) {
+    const plankTemplate = metricTemplates[7];
+    const startPlank = plankTemplate.baseValue + (Math.random() - 0.5) * plankTemplate.variance;
+
+    const plankMetric = await prisma.customMetric.create({
+      data: {
+        memberId: sd03.id,
+        createdByCoachId: null, // Member created their own
+        name: plankTemplate.name,
+        unit: plankTemplate.unit,
+        targetValue: 90,
+        referenceValue: null,
+        higherIsBetter: plankTemplate.higherIsBetter,
+      },
+    });
+    memberMetricCount++;
+
+    const plankEntries = generateEntries(plankMetric.id, sd03.id, startPlank, true, 7, 35);
+    for (const entry of plankEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  // II07 (coached by GATI) creates their own "Procenat masti" metric
+  const ii07 = createdMembers.find(m => m.memberId === "II07");
+  if (ii07) {
+    const fatTemplate = metricTemplates[3];
+    const startFat = 18 + (Math.random() - 0.5) * 6; // Female range
+
+    const fatMetric = await prisma.customMetric.create({
+      data: {
+        memberId: ii07.id,
+        createdByCoachId: null,
+        name: fatTemplate.name,
+        unit: fatTemplate.unit,
+        targetValue: 16,
+        referenceValue: Math.round(startFat * 10) / 10,
+        higherIsBetter: fatTemplate.higherIsBetter,
+      },
+    });
+    memberMetricCount++;
+
+    const fatEntries = generateEntries(fatMetric.id, ii07.id, startFat, false, 10, 50);
+    for (const entry of fatEntries) {
+      await prisma.metricEntry.create({ data: entry });
+      entryCount++;
+    }
+  }
+
+  console.log(`  ✅ Created ${coachMetricCount} coach-created metrics`);
+  console.log(`  ✅ Created ${memberMetricCount} member-created metrics`);
+  console.log(`  ✅ Added ${entryCount} metric entries`);
+}
+
 function printSummary(coachConfigs: { staffId: string; pin: string; name: string }[], members: MemberConfig[]) {
   console.log("\n\n✨ Seed completed!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -767,6 +1109,22 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   }
   console.log("  └──────────┴────────┴───────────────┴────────────┴──────────┴────────────┘");
 
+  console.log("\n  📊 METRICS DISTRIBUTION:");
+  console.log("  ┌──────────────────────────────────────────────────────────────────┐");
+  console.log("  │ Coach-Created Metrics:                                           │");
+  console.log("  │ ├─ MANJA: Bench Press + Body Fat % for MJ01, AN02, SD03          │");
+  console.log("  │ ├─ GATI:  Čučanj + Mrtvo dizanje for MP06, II07                  │");
+  console.log("  │ └─ NINA:  Vertikalni skok for SM11, PP12                         │");
+  console.log("  │                                                                  │");
+  console.log("  │ Member-Created Metrics:                                          │");
+  console.log("  │ ├─ STRUJA: Trčanje 5K + Plank izdržaj (no coach)                 │");
+  console.log("  │ ├─ TEST:   Pokretljivost kukova (no target - neutral)            │");
+  console.log("  │ ├─ SD03:   Plank izdržaj (own metric + coach metrics)            │");
+  console.log("  │ └─ II07:   Procenat masti (own metric, has coach)                │");
+  console.log("  │                                                                  │");
+  console.log("  │ Members WITHOUT metrics: CEPA, NEW1, NEW2, NS05, AZ14, etc.      │");
+  console.log("  └──────────────────────────────────────────────────────────────────┘");
+
   console.log("\n  📋 TEST SCENARIOS:");
   console.log("  • Admin coach performance: Login as S-ADMIN, check /api/admin/coach-performance");
   console.log("  • Coach dashboard: Login as any coach to see assigned member stats");
@@ -774,6 +1132,9 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  • Coach request flow: Login as STRUJA or TEST (no coach assigned)");
   console.log("  • Expired subscription: M14 has expired status");
   console.log("  • Trial members: M09, NEW01, NEW02 are on trial");
+  console.log("  • Metrics (coach view): Login as MANJA, view MJ01's metrics");
+  console.log("  • Metrics (member view): Login as STRUJA to see own metrics");
+  console.log("  • Metrics (no target): Login as TEST to see neutral semaphore");
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }

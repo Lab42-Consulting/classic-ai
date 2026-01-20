@@ -304,13 +304,21 @@ export async function GET(
       );
     }
 
-    // Calculate date range
+    // Calculate date range using UTC to match stored dates
     const days = parseInt(range, 10) || 30;
-    const endDate = new Date();
-    endDate.setHours(23, 59, 59, 999);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    startDate.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const endDate = new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23, 59, 59, 999
+    ));
+    const startDate = new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - days,
+      0, 0, 0, 0
+    ));
 
     // Fetch entries within range
     const entries = await prisma.metricEntry.findMany({

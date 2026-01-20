@@ -90,13 +90,21 @@ export async function GET(
       );
     }
 
-    // Calculate date range
+    // Calculate date range using UTC to match stored dates
     const days = parseInt(range, 10) || 30;
-    const endDate = new Date();
-    endDate.setHours(23, 59, 59, 999);
-    const startDate = new Date();
-    startDate.setDate(startDate.getDate() - days);
-    startDate.setHours(0, 0, 0, 0);
+    const now = new Date();
+    const endDate = new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate(),
+      23, 59, 59, 999
+    ));
+    const startDate = new Date(Date.UTC(
+      now.getFullYear(),
+      now.getMonth(),
+      now.getDate() - days,
+      0, 0, 0, 0
+    ));
 
     // Fetch entries within range
     const entries = await prisma.metricEntry.findMany({
@@ -217,17 +225,27 @@ export async function POST(
       );
     }
 
-    // Parse the date
-    const entryDate = new Date(date);
+    // Parse the date - use UTC to avoid timezone issues
+    // date is expected as "YYYY-MM-DD" string
+    const dateParts = date.split("-");
+    if (dateParts.length !== 3) {
+      return NextResponse.json(
+        { error: "Neispravan format datuma (očekivan: YYYY-MM-DD)" },
+        { status: 400 }
+      );
+    }
+    const entryDate = new Date(Date.UTC(
+      parseInt(dateParts[0], 10),
+      parseInt(dateParts[1], 10) - 1, // months are 0-indexed
+      parseInt(dateParts[2], 10),
+      12, 0, 0, 0 // Use noon UTC to avoid any date boundary issues
+    ));
     if (isNaN(entryDate.getTime())) {
       return NextResponse.json(
         { error: "Neispravan format datuma" },
         { status: 400 }
       );
     }
-
-    // Set to start of day for consistent storage
-    entryDate.setHours(0, 0, 0, 0);
 
     // Check if entry exists for this date (upsert)
     const existingEntry = await prisma.metricEntry.findUnique({

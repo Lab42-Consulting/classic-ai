@@ -756,9 +756,13 @@ async function seedMetrics(
 
     for (let i = 0; i < numEntries; i++) {
       const daysAgo = Math.floor((daysSpan / numEntries) * (numEntries - i - 1));
-      const entryDate = new Date(today);
-      entryDate.setDate(entryDate.getDate() - daysAgo);
-      entryDate.setHours(0, 0, 0, 0);
+      // Use UTC noon to avoid timezone boundary issues
+      const entryDate = new Date(Date.UTC(
+        today.getFullYear(),
+        today.getMonth(),
+        today.getDate() - daysAgo,
+        12, 0, 0, 0
+      ));
 
       // Progress in the "better" direction with some variance
       const progressDirection = higherIsBetter ? 1 : -1;

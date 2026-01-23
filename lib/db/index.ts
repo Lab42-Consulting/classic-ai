@@ -16,17 +16,26 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient(): PrismaClient {
   // Create a connection pool with Neon serverless driver
   // This is optimized for serverless environments like Vercel
-  // Use DEV_DATABASE_URL for development, DATABASE_URL for staging/production
-  const isDevelopment = process.env.NODE_ENV === "development";
-  const connectionString = isDevelopment
+  //
+  // Database selection logic:
+  // - Local development (NODE_ENV=development): DEV_DATABASE_URL
+  // - Vercel Preview/Development (VERCEL_ENV=preview|development): STAGING_DATABASE_URL
+  // - Vercel Production (VERCEL_ENV=production): DATABASE_URL
+  const vercelEnv = process.env.VERCEL_ENV; // 'production' | 'preview' | 'development' | undefined
+  const isLocalDev = process.env.NODE_ENV === "development" && !vercelEnv;
+  const isVercelPreview = vercelEnv === "preview" || vercelEnv === "development";
+
+  const connectionString = isLocalDev
     ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
-    : process.env.DATABASE_URL;
+    : isVercelPreview
+      ? process.env.STAGING_DATABASE_URL || process.env.DATABASE_URL
+      : process.env.DATABASE_URL;
 
   if (!connectionString) {
+    const envType = isLocalDev ? "local" : isVercelPreview ? "staging" : "production";
     throw new Error(
-      isDevelopment
-        ? "DEV_DATABASE_URL or DATABASE_URL environment variable is not set"
-        : "DATABASE_URL environment variable is not set"
+      `Database URL not configured for ${envType} environment. ` +
+      `Set ${isLocalDev ? "DEV_DATABASE_URL" : isVercelPreview ? "STAGING_DATABASE_URL" : "DATABASE_URL"}.`
     );
   }
 

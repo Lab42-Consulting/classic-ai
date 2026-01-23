@@ -177,11 +177,25 @@ DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/gym_db?sslmode=
 
 **How Connection Pooling Works (Already Implemented)**
 
-Unlike standard Prisma setups, this project uses the `@prisma/adapter-neon` package which handles connection pooling automatically:
+Unlike standard Prisma setups, this project uses the `@prisma/adapter-neon` package which handles connection pooling automatically.
+
+**Database Selection Logic (`lib/db/index.ts`):**
 
 ```typescript
-// lib/db/index.ts (already configured)
-import { PrismaNeon } from "@prisma/adapter-neon";
+// Automatically selects the right database based on environment:
+// - Local development (NODE_ENV=development): DEV_DATABASE_URL
+// - Vercel Preview (VERCEL_ENV=preview): STAGING_DATABASE_URL
+// - Vercel Production (VERCEL_ENV=production): DATABASE_URL
+
+const vercelEnv = process.env.VERCEL_ENV;
+const isLocalDev = process.env.NODE_ENV === "development" && !vercelEnv;
+const isVercelPreview = vercelEnv === "preview" || vercelEnv === "development";
+
+const connectionString = isLocalDev
+  ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
+  : isVercelPreview
+    ? process.env.STAGING_DATABASE_URL || process.env.DATABASE_URL
+    : process.env.DATABASE_URL;
 
 const adapter = new PrismaNeon({
   connectionString,
@@ -189,11 +203,9 @@ const adapter = new PrismaNeon({
   idleTimeoutMillis: 30000,     // Close idle connections after 30s
   connectionTimeoutMillis: 10000 // Timeout for new connections
 });
-
-const prisma = new PrismaClient({ adapter });
 ```
 
-This means you only need **one DATABASE_URL** - no separate `DIRECT_DATABASE_URL` needed.
+This means you need different DATABASE_URL variables per environment - no separate `DIRECT_DATABASE_URL` needed.
 
 ### Database Branching (Advanced - Neon Feature)
 
@@ -216,8 +228,10 @@ Neon supports database branching - create instant copies of your database:
 See `.env.example` for the complete list of environment variables. Key variables:
 
 ```bash
-# Database (Neon PostgreSQL)
-DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/gym_db?sslmode=require"
+# Database (Neon PostgreSQL) - Different per environment
+DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/gym_prod?sslmode=require"
+STAGING_DATABASE_URL="postgresql://user:pass@ep-xxx.region.aws.neon.tech/gym_staging?sslmode=require"
+DEV_DATABASE_URL="postgresql://user:pass@localhost:5432/gym_dev"  # Local only
 
 # Authentication (generate unique per environment!)
 JWT_SECRET="minimum-32-character-secret-key-here"
@@ -240,13 +254,15 @@ In Vercel Dashboard, set variables with proper scoping:
 
 | Variable | Production | Preview | Development |
 |----------|------------|---------|-------------|
-| `DATABASE_URL` | prod-db-url | staging-db-url | - |
+| `DATABASE_URL` | prod-db-url | - | - |
+| `STAGING_DATABASE_URL` | - | staging-db-url | staging-db-url |
 | `JWT_SECRET` | prod-secret | staging-secret | - |
-| `ANTHROPIC_API_KEY` | prod-key | staging-key | - |
+| `ANTHROPIC_API_KEY` | your-key | your-key | - |
 | `NEXT_PUBLIC_APP_URL` | https://classicmethod.app | https://staging.classicmethod.app | - |
-| `NODE_ENV` | production | staging | - |
 
-**Important:** Never share JWT_SECRET or DATABASE_URL between environments!
+**Note:** `NODE_ENV` is automatically set by Vercel to `production` for all deployments. The app uses `VERCEL_ENV` (automatically set by Vercel) to distinguish between Production and Preview environments.
+
+**Important:** Never share JWT_SECRET between environments! Each environment should have a unique secret.
 
 ---
 

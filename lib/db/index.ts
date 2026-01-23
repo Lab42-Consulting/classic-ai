@@ -16,10 +16,18 @@ const globalForPrisma = globalThis as unknown as {
 function createPrismaClient(): PrismaClient {
   // Create a connection pool with Neon serverless driver
   // This is optimized for serverless environments like Vercel
-  const connectionString = process.env.DATABASE_URL;
+  // Use DEV_DATABASE_URL for development, DATABASE_URL for staging/production
+  const isDevelopment = process.env.NODE_ENV === "development";
+  const connectionString = isDevelopment
+    ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
+    : process.env.DATABASE_URL;
 
   if (!connectionString) {
-    throw new Error("DATABASE_URL environment variable is not set");
+    throw new Error(
+      isDevelopment
+        ? "DEV_DATABASE_URL or DATABASE_URL environment variable is not set"
+        : "DATABASE_URL environment variable is not set"
+    );
   }
 
   // Create Prisma adapter using Neon with connection pool configuration

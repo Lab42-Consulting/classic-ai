@@ -11,6 +11,7 @@ import {
   FadeIn,
   AgentAvatar,
   agentMeta,
+  useToast,
 } from "@/components/ui";
 import { AgentType } from "@/components/ui/agent-avatar";
 import { StatusType } from "@/components/ui/status-indicator";
@@ -159,6 +160,7 @@ interface LogEntry {
 export function HomeClient({ data }: HomeClientProps) {
   const router = useRouter();
   const { difficultyMode } = useMember();
+  const { showToast } = useToast();
   const [dismissedNudges, setDismissedNudges] = useState<Set<string>>(new Set());
   const [coachRequest, setCoachRequest] = useState<CoachRequestData | null>(data.pendingCoachRequest);
   const [showConfirmModal, setShowConfirmModal] = useState(false);
@@ -1682,10 +1684,16 @@ export function HomeClient({ data }: HomeClientProps) {
               <span className="text-sm text-foreground-muted">{data.hasCoach ? "Termini" : "Trener"}</span>
             </button>
             <button
-              onClick={() => router.push("/metrics")}
+              onClick={() => {
+                if (isSimpleMode) {
+                  showToast("Metrike su dostupne u Standard ili Pro režimu. Promeni režim u podešavanjima.", "info", 5000);
+                } else {
+                  router.push("/metrics");
+                }
+              }}
               className="glass rounded-2xl p-4 card-hover btn-press flex flex-col items-center"
             >
-              <span className="text-2xl block mb-2">📊</span>
+              <span className="text-2xl block mb-2">📈</span>
               <span className="text-sm text-foreground-muted">Metrike</span>
             </button>
             <button

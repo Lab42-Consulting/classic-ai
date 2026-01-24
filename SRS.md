@@ -2,8 +2,28 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.15
+**Version:** 1.16
 **Last Updated:** January 2026
+
+**Changelog v1.16:**
+- **Goal Voting System**: Replaced Fundraising Goals with unified Goal Voting System
+  - Multi-option goals with voting phase before fundraising
+  - Single-option goals skip voting and go directly to fundraising
+  - Members can vote and change votes anytime before deadline
+  - Live transparent vote counts displayed to all members
+  - Auto-transition to fundraising when voting deadline passes
+  - Winner selection based on vote count (displayOrder as tiebreaker)
+  - New models: Goal, GoalOption, GoalVote, GoalContribution
+- **Public Gym Portal**: Transformed /gym-portal into public marketing website
+  - Hero section with gym branding, name, and CTAs
+  - Trainers section displaying coaches with `showOnWebsite: true`
+  - Features section showcasing gym services/amenities
+  - Gallery section for gym photos
+  - Contact section with address, phone, opening hours
+  - Admin management moved to /gym-portal/manage
+  - Added `showOnWebsite` and `specialty` fields to Staff model
+- **Root URL**: Changed root URL (/) to redirect to /gym-portal (public marketing)
+- **Test Suite**: Fixed all goal voting tests (43 tests passing)
 
 **Changelog v1.15:**
 - Added Custom Metrics feature for tracking member progress over time
@@ -17,7 +37,7 @@
 - Metrics page accessible from home screen (replaces Progress button for Standard/Pro modes)
 
 **Changelog v1.14:**
-- Added Fundraising Goals feature for gym transparency and member engagement
+- Added Fundraising Goals feature for gym transparency and member engagement (superseded by Goal Voting in v1.16)
 - Admins can create and manage fundraising goals with photos
 - Goal progress tracked automatically from member subscription payments
 - Members see active goals on home page with progress indicator

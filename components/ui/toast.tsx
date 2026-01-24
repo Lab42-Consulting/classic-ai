@@ -56,7 +56,7 @@ function ToastContainer({
   onRemove: (id: string) => void;
 }) {
   return (
-    <div className="fixed bottom-20 left-0 right-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none">
+    <div className="fixed top-4 left-0 right-0 z-[100] flex flex-col items-center gap-2 px-4 pointer-events-none safe-area-top">
       {toasts.map((toast) => (
         <ToastItem key={toast.id} toast={toast} onRemove={onRemove} />
       ))}
@@ -141,7 +141,7 @@ function ToastItem({
         flex items-center gap-3 shadow-lg
         transition-all duration-300 ease-out
         ${getColors()}
-        ${isVisible && !isLeaving ? "opacity-100 translate-y-0" : "opacity-0 translate-y-4"}
+        ${isVisible && !isLeaving ? "opacity-100 translate-y-0" : "opacity-0 -translate-y-4"}
       `}
     >
       <div className="flex-shrink-0">{getIcon()}</div>

@@ -35,6 +35,10 @@ model Gym {
   phone           String?           // Contact phone
   address         String?           // Gym address
 
+  // Public website content (customizable by admin)
+  about           String?           @db.Text // About section for public website
+  openingHours    String?           @db.Text // Opening hours (e.g., "Mon-Fri: 6:00-22:00, Sat-Sun: 8:00-20:00")
+
   members         Member[]
   staff           Staff[]
   aiUsageMonthly  AIUsageMonthly[]
@@ -42,7 +46,8 @@ model Gym {
   savedIngredients SavedIngredient[] // Gym-wide shared ingredients
   challenges      Challenge[]       // Gym challenges/competitions
   gymCheckins     GymCheckin[]      // Member check-ins at the gym
-  fundraisingGoals FundraisingGoal[] // Fundraising goals for gym improvements
+  fundraisingGoals FundraisingGoal[] // Fundraising goals for gym improvements (legacy - being replaced)
+  goals           Goal[]            // Goal voting system (replaces fundraisingGoals)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -129,6 +134,8 @@ model Staff {
   locale            String            @default("sr") // sr | en
   avatarUrl         String?           @db.Text // Base64 encoded avatar image
   bio               String?           @db.Text // Short bio/description for coach profile
+  specialty         String?           // Trainer specialty (e.g., "Strength Training", "Yoga")
+  showOnWebsite     Boolean           @default(true) // Whether to show on public gym website
   gymId             String
   gym               Gym               @relation(fields: [gymId], references: [id], onDelete: Cascade)
 
@@ -823,4 +830,119 @@ model MetricEntry {
   @@index([metricId, date])
   @@index([memberId, date])
   @@map("metric_entries")
+}
+
+// ============================================================================
+// GOAL VOTING SYSTEM
+// Unified system for gym improvement goals with optional voting phase
+// Replaces the simpler FundraisingGoal model
+// ============================================================================
+
+// Goal - unified model supporting both voting and fundraising phases
+model Goal {
+  id                   String    @id @default(cuid())
+  gymId                String
+  gym                  Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Goal details
+  name                 String    // "Equipment Upgrade Q1 2026"
+  description          String?   @db.Text
+
+  // Status: draft | voting | fundraising | completed | cancelled
+  status               String    @default("draft")
+
+  // Voting phase (null for single-option goals that skip voting)
+  votingEndsAt         DateTime?
+
+  // Winning option (set after voting ends or immediately for single-option)
+  winningOptionId      String?
+
+  // Fundraising tracking (amount collected toward winning option's target)
+  currentAmount        Int       @default(0)  // Amount in cents
+
+  // Visibility to members
+  isVisible            Boolean   @default(true)
+
+  // Timestamps
+  createdAt            DateTime  @default(now())
+  updatedAt            DateTime  @updatedAt
+  votingEndedAt        DateTime? // When voting was closed
+  completedAt          DateTime? // When target amount was reached
+
+  // Relations
+  options              GoalOption[]
+  votes                GoalVote[]
+  contributions        GoalContribution[]
+
+  @@index([gymId])
+  @@index([gymId, status])
+  @@index([gymId, isVisible, status])
+  @@map("goals")
+}
+
+// GoalOption - equipment/improvement options that members can vote on
+model GoalOption {
+  id              String    @id @default(cuid())
+  goalId          String
+  goal            Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  // Option details
+  name            String    // "Squat Rack", "Bench Press", "New Mats"
+  description     String?   @db.Text
+  imageUrl        String?   @db.Text  // Base64 encoded image
+  targetAmount    Int       // Target amount in cents
+
+  // Cached vote count (updated atomically with votes for fast queries)
+  voteCount       Int       @default(0)
+
+  // Display order for tie-breaking (lower number = higher priority)
+  displayOrder    Int       @default(0)
+
+  createdAt       DateTime  @default(now())
+
+  // Relations
+  votes           GoalVote[]
+
+  @@index([goalId])
+  @@index([goalId, voteCount])
+  @@map("goal_options")
+}
+
+// GoalVote - member votes on goal options (one vote per member per goal)
+model GoalVote {
+  id              String     @id @default(cuid())
+  goalId          String
+  goal            Goal       @relation(fields: [goalId], references: [id], onDelete: Cascade)
+  optionId        String
+  option          GoalOption @relation(fields: [optionId], references: [id], onDelete: Cascade)
+  memberId        String     // Reference to member who voted
+
+  createdAt       DateTime   @default(now())
+  updatedAt       DateTime   @updatedAt
+
+  // Ensure one vote per member per goal
+  @@unique([goalId, memberId])
+  @@index([goalId])
+  @@index([optionId])
+  @@index([memberId])
+  @@map("goal_votes")
+}
+
+// GoalContribution - tracks contributions toward fundraising goals
+model GoalContribution {
+  id              String    @id @default(cuid())
+  goalId          String
+  goal            Goal      @relation(fields: [goalId], references: [id], onDelete: Cascade)
+
+  amount          Int       // Amount in cents
+  source          String    // "subscription" | "manual"
+  memberId        String?   // Member who made the subscription payment (if applicable)
+  memberName      String?   // Cached member name for display
+  note            String?   // Optional note (e.g., "12-month subscription")
+
+  createdAt       DateTime  @default(now())
+
+  @@index([goalId])
+  @@index([goalId, createdAt])
+  @@map("goal_contributions")
 }

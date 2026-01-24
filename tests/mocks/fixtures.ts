@@ -992,3 +992,181 @@ export const mockMetricListResponse = {
     },
   ],
 }
+
+// =============================================================================
+// GOAL VOTING SYSTEM FIXTURES
+// =============================================================================
+
+export const mockGoalOption1 = {
+  id: 'option-test-001',
+  goalId: 'goal-test-001',
+  name: 'Squat Rack',
+  description: 'Professional squat rack for strength training',
+  imageUrl: null,
+  targetAmount: 200000, // 2000€ in cents
+  voteCount: 5,
+  displayOrder: 0,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockGoalOption2 = {
+  id: 'option-test-002',
+  goalId: 'goal-test-001',
+  name: 'New Mats',
+  description: 'High-quality floor mats for the gym',
+  imageUrl: null,
+  targetAmount: 50000, // 500€ in cents
+  voteCount: 3,
+  displayOrder: 1,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockGoalOption3 = {
+  id: 'option-test-003',
+  goalId: 'goal-test-001',
+  name: 'Bench Press',
+  description: 'Olympic bench press station',
+  imageUrl: null,
+  targetAmount: 150000, // 1500€ in cents
+  voteCount: 2,
+  displayOrder: 2,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockGoalVoting = {
+  id: 'goal-test-001',
+  gymId: mockGym.id,
+  name: 'Q1 2026 Equipment Upgrade',
+  description: 'Vote for the equipment you want most!',
+  status: 'voting',
+  votingEndsAt: new Date(Date.now() + 7 * 24 * 60 * 60 * 1000), // 7 days from now
+  winningOptionId: null,
+  currentAmount: 0,
+  isVisible: true,
+  createdAt: new Date('2024-12-01'),
+  updatedAt: new Date('2024-12-01'),
+  votingEndedAt: null,
+  completedAt: null,
+}
+
+export const mockGoalVotingWithOptions = {
+  ...mockGoalVoting,
+  options: [mockGoalOption1, mockGoalOption2, mockGoalOption3],
+  _count: { votes: 10, contributions: 0 },
+}
+
+export const mockGoalDraft = {
+  ...mockGoalVoting,
+  id: 'goal-test-002',
+  name: 'Draft Goal',
+  status: 'draft',
+  votingEndsAt: null,
+  _count: { votes: 0, contributions: 0 },
+}
+
+export const mockGoalFundraising = {
+  ...mockGoalVoting,
+  id: 'goal-test-003',
+  name: 'Fundraising Goal',
+  status: 'fundraising',
+  votingEndsAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000), // Ended 7 days ago
+  votingEndedAt: new Date(Date.now() - 7 * 24 * 60 * 60 * 1000),
+  winningOptionId: 'option-test-004',
+  currentAmount: 50000, // 500€ in cents
+}
+
+export const mockGoalFundraisingOption = {
+  id: 'option-test-004',
+  goalId: 'goal-test-003',
+  name: 'Cardio Equipment',
+  description: 'New treadmill for cardio workouts',
+  imageUrl: null,
+  targetAmount: 100000, // 1000€ in cents
+  voteCount: 8,
+  displayOrder: 0,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockGoalFundraisingWithOption = {
+  ...mockGoalFundraising,
+  options: [mockGoalFundraisingOption],
+  _count: { votes: 8, contributions: 5 },
+}
+
+export const mockGoalCompleted = {
+  ...mockGoalFundraising,
+  id: 'goal-test-004',
+  name: 'Completed Goal',
+  status: 'completed',
+  currentAmount: 100000, // 1000€ - met the target
+  completedAt: new Date('2024-12-15'),
+}
+
+export const mockGoalSingleOption = {
+  ...mockGoalVoting,
+  id: 'goal-test-005',
+  name: 'Single Option Goal',
+  status: 'fundraising', // Single-option goes straight to fundraising
+  votingEndsAt: null,
+  winningOptionId: 'option-test-005',
+  currentAmount: 25000, // 250€
+}
+
+export const mockSingleGoalOption = {
+  id: 'option-test-005',
+  goalId: 'goal-test-005',
+  name: 'New Dumbbells',
+  description: 'Set of rubber hex dumbbells',
+  imageUrl: null,
+  targetAmount: 80000, // 800€ in cents
+  voteCount: 0,
+  displayOrder: 0,
+  createdAt: new Date('2024-12-01'),
+}
+
+export const mockGoalVote = {
+  id: 'vote-test-001',
+  goalId: mockGoalVoting.id,
+  optionId: mockGoalOption1.id,
+  memberId: mockMember.id,
+  createdAt: new Date('2024-12-05'),
+  updatedAt: new Date('2024-12-05'),
+}
+
+export const mockGoalVote2 = {
+  id: 'vote-test-002',
+  goalId: mockGoalVoting.id,
+  optionId: mockGoalOption2.id,
+  memberId: 'member-test-002',
+  createdAt: new Date('2024-12-06'),
+  updatedAt: new Date('2024-12-06'),
+}
+
+export const mockGoalContribution = {
+  id: 'contribution-test-001',
+  goalId: mockGoalFundraising.id,
+  amount: 500, // 5€ in cents
+  source: 'subscription',
+  memberId: mockMember.id,
+  memberName: mockMember.name,
+  note: '1-mesečna članarina',
+  createdAt: new Date('2024-12-10'),
+}
+
+export const mockGoalContributionManual = {
+  id: 'contribution-test-002',
+  goalId: mockGoalFundraising.id,
+  amount: 10000, // 100€ in cents
+  source: 'manual',
+  memberId: null,
+  memberName: null,
+  note: 'Donacija od sponzora',
+  createdAt: new Date('2024-12-11'),
+}
+
+export const mockExpiredVotingGoal = {
+  ...mockGoalVoting,
+  id: 'goal-test-expired',
+  name: 'Expired Voting Goal',
+  votingEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired yesterday
+}

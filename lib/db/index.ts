@@ -14,9 +14,6 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  // Create a connection pool with Neon serverless driver
-  // This is optimized for serverless environments like Vercel
-  //
   // Database selection logic:
   // - Local development (NODE_ENV=development): DEV_DATABASE_URL
   // - Vercel Preview/Development (VERCEL_ENV=preview|development): STAGING_DATABASE_URL
@@ -39,8 +36,25 @@ function createPrismaClient(): PrismaClient {
     );
   }
 
-  // Create Prisma adapter using Neon with connection pool configuration
-  // PrismaNeon manages the pool internally
+  // Check if using local PostgreSQL (doesn't support Neon WebSocket adapter)
+  const isLocalDatabase = connectionString.includes("localhost") || connectionString.includes("127.0.0.1");
+
+  if (isLocalDatabase) {
+    // Use standard Prisma client for local PostgreSQL
+    return new PrismaClient({
+      datasources: {
+        db: {
+          url: connectionString,
+        },
+      },
+      log:
+        process.env.NODE_ENV === "development"
+          ? ["query", "error", "warn"]
+          : ["error"],
+    });
+  }
+
+  // Use Neon adapter for cloud databases (optimized for serverless)
   const adapter = new PrismaNeon({
     connectionString,
     max: 10, // Maximum connections in the pool

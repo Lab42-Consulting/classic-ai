@@ -1,5 +1,10 @@
 @import "tailwindcss";
 
+/* Smooth scroll for anchor links */
+html {
+  scroll-behavior: smooth;
+}
+
 :root {
   /* Dark mode first - Gym inspired palette */
   --background: #0a0a0a;

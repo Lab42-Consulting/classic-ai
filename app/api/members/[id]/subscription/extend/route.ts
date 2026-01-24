@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { addContribution } from "@/lib/goals/voting";
 
 // Pricing for subscription extensions
 const SUBSCRIPTION_PRICES: Record<number, number> = {
@@ -124,52 +125,48 @@ export async function POST(
       if (amount > 0) {
         const amountInCents = amount * 100; // Convert € to cents
 
-        // Find all active fundraising goals for this gym
-        const activeGoals = await tx.fundraisingGoal.findMany({
+        // Find all goals in fundraising status for this gym
+        const activeGoals = await tx.goal.findMany({
           where: {
             gymId: member.gymId,
-            status: "active",
+            status: "fundraising",
           },
+          select: { id: true },
         });
 
-        // Add contribution to each active goal
-        for (const goal of activeGoals) {
-          // Create contribution record
-          await tx.fundraisingContribution.create({
-            data: {
-              fundraisingGoalId: goal.id,
-              amount: amountInCents,
-              source: "subscription",
-              memberId: memberId,
-              memberName: member.name,
-              note: monthsToAdd ? `${monthsToAdd}-mesečna članarina` : "Članarina",
-            },
-          });
-
-          // Update goal's current amount
-          const newCurrentAmount = goal.currentAmount + amountInCents;
-          const isNowCompleted = newCurrentAmount >= goal.targetAmount;
-
-          await tx.fundraisingGoal.update({
-            where: { id: goal.id },
-            data: {
-              currentAmount: newCurrentAmount,
-              status: isNowCompleted ? "completed" : "active",
-              completedAt: isNowCompleted ? new Date() : null,
-            },
-          });
-        }
+        // Store goal IDs to add contributions outside transaction
+        // (addContribution has its own transaction)
+        return {
+          updated,
+          goalIds: activeGoals.map((g) => g.id),
+          amountInCents,
+          memberName: member.name,
+          note: monthsToAdd ? `${monthsToAdd}-mesečna članarina` : "Članarina",
+        };
       }
 
-      return updated;
+      return { updated, goalIds: [], amountInCents: 0, memberName: "", note: "" };
     });
+
+    // Add contributions to each active goal outside the main transaction
+    // (addContribution uses its own Serializable transaction)
+    for (const goalId of updatedMember.goalIds) {
+      await addContribution(
+        goalId,
+        updatedMember.amountInCents,
+        "subscription",
+        memberId,
+        updatedMember.memberName,
+        updatedMember.note
+      );
+    }
 
     return NextResponse.json({
       success: true,
       member: {
-        ...updatedMember,
-        subscribedAt: updatedMember.subscribedAt?.toISOString(),
-        subscribedUntil: updatedMember.subscribedUntil?.toISOString(),
+        ...updatedMember.updated,
+        subscribedAt: updatedMember.updated.subscribedAt?.toISOString(),
+        subscribedUntil: updatedMember.updated.subscribedUntil?.toISOString(),
       },
       message: isFirstActivation
         ? "Članarina uspešno aktivirana"

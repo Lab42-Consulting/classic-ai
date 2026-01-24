@@ -68,6 +68,11 @@ export async function middleware(request: NextRequest) {
     return NextResponse.next();
   }
 
+  // Root path always shows gym portal (public marketing page)
+  if (pathname === "/") {
+    return NextResponse.redirect(new URL("/gym-portal", request.url));
+  }
+
   // Get session from cookie
   const token = request.cookies.get("gym-session")?.value;
 
@@ -99,14 +104,6 @@ export async function middleware(request: NextRequest) {
   }
 
   if (isStaffPath && session.userType !== "staff") {
-    return NextResponse.redirect(new URL("/home", request.url));
-  }
-
-  // Redirect root to appropriate home
-  if (pathname === "/") {
-    if (session.userType === "staff") {
-      return NextResponse.redirect(new URL("/dashboard", request.url));
-    }
     return NextResponse.redirect(new URL("/home", request.url));
   }
 

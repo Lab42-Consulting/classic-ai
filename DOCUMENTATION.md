@@ -11,13 +11,14 @@ A digital accountability and guidance system for gym members and staff.
 3. [Database Setup](#database-setup)
 4. [Running the Application](#running-the-application)
 5. [Admin Guide (Gym Portal)](#admin-guide-gym-portal)
+   - [Public Gym Portal](#public-gym-portal)
    - [Logging In as Admin](#logging-in-as-admin)
    - [Admin Dashboard](#admin-dashboard)
    - [Member Management](#member-management)
    - [Staff Management](#staff-management)
    - [Challenge Management](#challenge-management)
    - [Gym Branding](#gym-branding)
-   - [Fundraising Goals Management](#fundraising-goals-management)
+   - [Goal Voting System](#goal-voting-system)
 6. [Coach Guide](#coach-guide)
    - [Logging In as Coach](#logging-in-as-coach)
    - [Coach Dashboard](#coach-dashboard)
@@ -146,6 +147,37 @@ npm start
 ## Admin Guide (Gym Portal)
 
 Administrators use the **Gym Portal** at `/gym-portal/manage` - a desktop-first interface for comprehensive gym management.
+
+### Public Gym Portal
+
+The root URL (`/`) and `/gym-portal` serve as a **public marketing website** for your gym. This is what potential members see when they visit your gym's website.
+
+**Sections:**
+
+| Section | Description |
+|---------|-------------|
+| **Hero** | Large banner with gym name, tagline, and "Postani član" (Become a member) CTA |
+| **Trainers** | Shows coaches who have `showOnWebsite: true` with their name, photo, and specialty |
+| **Features** | Displays gym services and amenities |
+| **Gallery** | Photo grid showcasing gym facilities |
+| **Contact** | Address, phone number, and opening hours |
+
+**Customizing Trainers Display:**
+
+To show/hide trainers on the public website:
+1. Go to `/gym-portal/manage/staff`
+2. Click on a coach
+3. Toggle **"Prikaži na sajtu"** (Show on website)
+4. Optionally set their **specialty** (e.g., "Strength Training", "Nutrition Coach")
+
+**Contact Information:**
+
+Contact details are pulled from the Gym settings:
+- **Address**: Set in gym settings
+- **Phone**: Set in gym settings
+- **Opening Hours**: Set in gym settings (supports line breaks for multiple days)
+
+**Note:** The "Postani član" buttons direct users to the Contact section since membership requires visiting the gym in person.
 
 ### Logging In as Admin
 
@@ -467,81 +499,119 @@ View check-in statistics:
 
 ---
 
-### Fundraising Goals Management
+### Goal Voting System
 
-Create and manage fundraising goals to show members how their subscription payments contribute to gym improvements and equipment purchases.
+Create goals with multiple options and let members vote on their preferred equipment or improvements before fundraising begins.
 
-**Location:** `/gym-portal/manage/fundraising`
+**Location:** `/gym-portal/manage/goals`
 
-#### Creating a Fundraising Goal
+#### How It Works
 
-1. Navigate to **Fundraising Goals** from the Gym Portal sidebar
+The Goal Voting System has two phases:
+
+1. **Voting Phase** (for multi-option goals): Members vote on which option they prefer
+2. **Fundraising Phase**: After voting ends, the winning option becomes the fundraising target
+
+**Single-option goals skip voting** and go directly to fundraising.
+
+#### Creating a Goal
+
+1. Navigate to **Ciljevi** (Goals) from the Gym Portal sidebar
 2. Click **"Novi cilj"** (New Goal) button
 3. Fill in the goal details:
 
 | Field | Required | Description |
 |-------|----------|-------------|
-| Naziv | Yes | Goal title (e.g., "Nova oprema za teretanu") |
-| Ciljni iznos | Yes | Target amount in euros (e.g., 500) |
-| Opis | No | Detailed description of the goal |
-| Fotografija | No | Photo of the equipment/improvement (max 2MB) |
-| Datum završetka | No | Optional deadline for the goal |
+| Naziv | Yes | Goal title (e.g., "Q1 2026 Nadogradnja opreme") |
+| Opis | No | Detailed description of what you're planning |
+| Opcije | Yes | At least one equipment/improvement option |
+| Rok za glasanje | Conditional | Required if you have 2+ options |
 | Vidljivo članovima | Yes | Toggle visibility on member home page |
 
-4. Click **"Sačuvaj"** (Save) to create the goal
+4. For each **option**, provide:
+   - **Name**: e.g., "Squat Rack", "New Mats"
+   - **Description**: Details about this option
+   - **Photo**: Optional image (max 2MB)
+   - **Target Amount**: Cost in euros
 
-#### Adding Photos to Goals
-
-- Click the photo upload area or camera icon
-- Select an image from gallery or take a photo (mobile)
-- Preview shows the selected photo
-- Click "X" to remove before saving
-- **Constraints:** Max 2MB, JPEG/PNG/WebP formats
-
-#### Editing Goals
-
-1. Find the goal card in the goals list
-2. Click **"Uredi"** (Edit) button on active goals
-3. Modify any field including:
-   - Name and description
-   - Target amount
-   - Photo (replace or remove)
-   - Visibility toggle
-   - End date
-
-#### How Contributions Work
-
-**Automatic Tracking:**
-- When staff extends a member's subscription, the payment amount is automatically added to all active fundraising goals
-- Contribution records show member name, amount, and timestamp
-- Goals auto-complete when target is reached
-
-**Manual Entry:**
-- For cash payments or donations not tracked automatically
-- Use the "Dodaj iznos" (Add Amount) section on the goal detail page
-- Enter amount and optional note (e.g., "Gotovinska uplata - Ivan")
+5. Click **"Sačuvaj"** to create as draft
 
 #### Goal Statuses
 
-| Status | Display | Description |
+| Status | Serbian | Description |
 |--------|---------|-------------|
-| Active | Green badge | Goal is ongoing, accepting contributions |
-| Completed | Blue badge | Target amount reached |
-| Cancelled | Gray badge | Goal cancelled by admin |
+| Draft | Nacrt | Created but not published, admin-only |
+| Voting | Glasanje | Voting is open, members can vote |
+| Fundraising | Prikupljanje | Winner selected, tracking contributions |
+| Completed | Završeno | Target amount reached |
+| Cancelled | Otkazano | Cancelled by admin |
 
-#### Visibility Control
+#### Publishing a Goal
 
-- **Visible:** Goal appears on member home page with progress bar
-- **Hidden:** Goal only visible to admins (useful for draft goals)
-- Toggle using the "Vidljivo članovima" checkbox
+1. Go to goal detail page
+2. For draft goals, click **"Objavi"** (Publish)
+3. What happens:
+   - **Multi-option goal**: Status becomes "Voting"
+   - **Single-option goal**: Status becomes "Fundraising" (voting skipped)
+
+#### Voting Phase
+
+**For Members:**
+- Active voting goals appear on member home page
+- Members see all options with live vote counts
+- Click on an option to vote
+- Can change vote anytime before deadline
+- Countdown timer shows time remaining
+
+**For Admins:**
+- View vote distribution in goal detail page
+- See which option is leading
+- Can close voting early with **"Završi glasanje"**
+
+#### Winner Selection
+
+When voting ends (deadline passes or admin closes):
+1. Option with highest vote count wins
+2. If tied, option with lower `displayOrder` wins (first-added option)
+3. Goal automatically transitions to "Fundraising"
+4. Winning option becomes the fundraising target
+
+#### Fundraising Phase
+
+**Automatic Contributions:**
+- When staff extends a member's subscription, payment is added to active fundraising goals
+- Contribution records show member name, amount, timestamp
+
+**Manual Contributions:**
+- Click **"Dodaj doprinos"** (Add Contribution)
+- Enter amount in euros and optional note
+- Used for cash payments or donations
+
+**Completion:**
+- Goal auto-completes when `currentAmount >= targetAmount`
+- Status changes to "Completed"
 
 #### Member View
 
-Members see active, visible goals on their home page:
-- Goal photo (56x56px) or fallback icon
+Members see goals on their home page based on status:
+
+**Voting Goals:**
 - Goal name and description
-- Progress bar showing percentage complete
-- Amount raised vs target
+- All options with vote counts and percentages
+- Their current vote highlighted
+- "Glasaj" (Vote) button on each option
+- Countdown to voting deadline
+
+**Fundraising Goals:**
+- Winning option name and photo
+- Progress bar showing amount raised vs target
+- Percentage complete
+
+#### Deleting Goals
+
+- **Draft goals** with no votes can be deleted
+- Goals with votes or contributions cannot be deleted
+- Use "Cancel" instead to archive unwanted goals
 
 ---
 
@@ -1280,13 +1350,20 @@ Your home screen shows **daily metrics only** for a focused, simplified view:
 
 **Profile Access:** Tap your avatar (initials) at the top to access your profile and logout.
 
-**Fundraising Goals Card:**
+**Goals Cards:**
 
-If your gym has active fundraising goals, you'll see a card showing:
-- Goal photo (or target icon if no photo)
-- Goal name and description
-- Progress bar with percentage complete
-- Current amount raised vs target amount
+Your gym may have active goals displayed on your home page:
+
+**Voting Goals:**
+- Goal name and voting deadline countdown
+- All options with live vote counts and percentages
+- Your current vote highlighted with a checkmark
+- Tap any option to vote (can change vote anytime)
+
+**Fundraising Goals:**
+- Winning option name and photo
+- Progress bar showing amount raised vs target
+- Percentage complete indicator
 
 This shows how membership fees contribute to gym improvements like new equipment or facility upgrades.
 
@@ -1992,89 +2069,126 @@ Access your profile and account settings:
 }
 ```
 
-### Fundraising Goals (Admin only)
+### Goal Voting System (Admin)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/admin/fundraising-goals` | GET | List all fundraising goals for the gym |
-| `/api/admin/fundraising-goals` | POST | Create a new fundraising goal |
-| `/api/admin/fundraising-goals/[id]` | GET | Get single goal with contributions |
-| `/api/admin/fundraising-goals/[id]` | PATCH | Update a fundraising goal |
-| `/api/admin/fundraising-goals/[id]` | DELETE | Delete a fundraising goal |
+| `/api/admin/goals` | GET | List all goals with options and vote counts |
+| `/api/admin/goals` | POST | Create a new goal with options |
+| `/api/admin/goals/[id]` | GET | Get goal detail with contributions |
+| `/api/admin/goals/[id]` | PATCH | Update goal, publish, close voting, add contribution |
+| `/api/admin/goals/[id]` | DELETE | Delete draft goal (no votes) |
 
-**POST `/api/admin/fundraising-goals` body:**
-
-```json
-{
-  "name": "Nova oprema za teretanu",
-  "description": "Kupovina novih bučica i benč presa",
-  "targetAmount": 500,          // In euros
-  "imageUrl": "base64-string",  // Optional, max 2MB
-  "isVisible": true,            // Show on member home page
-  "endDate": "2026-06-30"       // Optional deadline
-}
-```
-
-**PATCH `/api/admin/fundraising-goals/[id]` body:**
+**POST `/api/admin/goals` body:**
 
 ```json
 {
-  "name": "Updated name",       // Optional
-  "description": "Updated",     // Optional
-  "targetAmount": 600,          // Optional, in euros
-  "imageUrl": "base64-string",  // Optional, null to remove
-  "isVisible": false,           // Optional
-  "status": "completed",        // Optional: active, completed, cancelled
-  "endDate": "2026-07-31",      // Optional
-  "addAmount": 50,              // Optional: manual contribution (euros)
-  "addNote": "Cash payment"     // Optional: note for manual contribution
+  "name": "Q1 2026 Nadogradnja opreme",
+  "description": "Glasajte za opremu koju želite!",
+  "options": [
+    {
+      "name": "Squat Rack",
+      "description": "Profesionalni squat rack",
+      "imageUrl": "base64-string",
+      "targetAmount": 2000
+    },
+    {
+      "name": "New Mats",
+      "description": "Strunjače za istezanje",
+      "targetAmount": 500
+    }
+  ],
+  "votingEndsAt": "2026-02-15T23:59:59Z",
+  "isVisible": true
 }
 ```
 
-**GET `/api/admin/fundraising-goals` response:**
+**PATCH `/api/admin/goals/[id]` actions:**
+
+```json
+// Publish goal (draft → voting or fundraising)
+{ "action": "publish" }
+
+// Close voting early (voting → fundraising)
+{ "action": "close_voting" }
+
+// Cancel goal
+{ "action": "cancel" }
+
+// Add manual contribution (fundraising only)
+{
+  "addAmount": 50,
+  "addNote": "Gotovinska uplata"
+}
+```
+
+**GET `/api/admin/goals` response:**
 
 ```json
 {
   "goals": [
     {
       "id": "goal-cuid",
-      "name": "Nova oprema",
+      "name": "Q1 2026 Nadogradnja",
       "description": "...",
-      "targetAmount": 50000,     // In cents
-      "currentAmount": 25000,    // In cents
-      "imageUrl": "base64...",
+      "status": "voting",
       "isVisible": true,
-      "status": "active",
-      "progressPercentage": 50,
-      "contributionCount": 12,
-      "createdAt": "2026-01-01T00:00:00Z"
+      "votingEndsAt": "2026-02-15T23:59:59Z",
+      "totalVotes": 25,
+      "options": [
+        {
+          "id": "option-1",
+          "name": "Squat Rack",
+          "targetAmount": 2000,
+          "voteCount": 15,
+          "percentage": 60
+        }
+      ],
+      "createdAt": "2026-01-15T00:00:00Z"
     }
   ]
 }
 ```
 
-### Fundraising Goals (Member)
+### Goal Voting System (Member)
 
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/member/fundraising-goals` | GET | Get active, visible goals for home page |
+| `/api/member/goals` | GET | Get active voting and fundraising goals |
+| `/api/member/goals/[id]/vote` | POST | Cast or change vote |
 
-**GET `/api/member/fundraising-goals` response:**
+**GET `/api/member/goals` response:**
 
 ```json
 {
-  "goals": [
+  "votingGoals": [
     {
       "id": "goal-cuid",
-      "name": "Nova oprema",
-      "description": "Kupovina novih bučica",
-      "targetAmount": 500,        // In euros
-      "currentAmount": 250,       // In euros
-      "imageUrl": "base64...",
+      "name": "Q1 2026 Nadogradnja",
+      "votingEndsAt": "2026-02-15T23:59:59Z",
+      "totalVotes": 25,
+      "myVoteOptionId": "option-1",
+      "options": [
+        { "id": "option-1", "name": "Squat Rack", "voteCount": 15, "percentage": 60 }
+      ]
+    }
+  ],
+  "fundraisingGoals": [
+    {
+      "id": "goal-cuid-2",
+      "name": "Completed Vote Goal",
+      "currentAmount": 500,
+      "targetAmount": 1000,
       "progressPercentage": 50
     }
   ]
 }
+```
+
+**POST `/api/member/goals/[id]/vote` body:**
+
+```json
+{ "optionId": "option-1" }
 ```
 
 ### Coach Nudges

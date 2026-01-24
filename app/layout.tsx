@@ -16,6 +16,10 @@ export const metadata: Metadata = {
   title: "Classic Gym",
   description: "Your digital gym coach - track progress, understand nutrition, stay consistent",
   manifest: "/manifest.json",
+  icons: {
+    icon: "/favicon.ico",
+    apple: "/icons/apple-touch-icon.png",
+  },
   appleWebApp: {
     capable: true,
     statusBarStyle: "black-translucent",

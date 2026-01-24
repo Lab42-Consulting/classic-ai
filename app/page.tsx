@@ -1,16 +1,6 @@
 import { redirect } from "next/navigation";
-import { getSession } from "@/lib/auth";
 
 export default async function RootPage() {
-  const session = await getSession();
-
-  if (!session) {
-    redirect("/login");
-  }
-
-  if (session.userType === "staff") {
-    redirect("/dashboard");
-  }
-
-  redirect("/home");
+  // Root URL shows the public gym portal (marketing website)
+  redirect("/gym-portal");
 }

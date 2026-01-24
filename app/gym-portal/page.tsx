@@ -1,1258 +1,1173 @@
-"use client";
-
-import { useState } from "react";
 import Link from "next/link";
-import { AgentAvatar, agentMeta, AgentType } from "@/components/ui/agent-avatar";
+import prisma from "@/lib/db";
+import { getSession } from "@/lib/auth";
+import { redirect } from "next/navigation";
 
-const aiAgents: { type: AgentType; features: string[] }[] = [
-  {
-    type: "nutrition",
-    features: [
-      "Personalizovani kalorijski ciljevi",
-      "Analiza makronutrijenata",
-      "Preporuke obroka",
-      "Praćenje unosa hrane",
-    ],
-  },
-  {
-    type: "supplements",
-    features: [
-      "Preporuke suplementacije",
-      "Optimalno doziranje",
-      "Vreme uzimanja",
-      "Interakcije i upozorenja",
-    ],
-  },
-  {
-    type: "training",
-    features: [
-      "Praćenje vežbi i setova",
-      "Tehnika izvođenja",
-      "Programiranje treninga",
-      "Saveti za oporavak",
-    ],
-  },
-];
+async function getGymData() {
+  // Get the first gym (single-gym deployment)
+  const gym = await prisma.gym.findFirst({
+    select: {
+      id: true,
+      name: true,
+      logo: true,
+      about: true,
+      address: true,
+      phone: true,
+      openingHours: true,
+      primaryColor: true,
+      _count: {
+        select: {
+          members: true,
+        },
+      },
+    },
+  });
 
-const coachFeatures = [
-  {
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M17 20h5v-2a3 3 0 00-5.356-1.857M17 20H7m10 0v-2c0-.656-.126-1.283-.356-1.857M7 20H2v-2a3 3 0 015.356-1.857M7 20v-2c0-.656.126-1.283.356-1.857m0 0a5.002 5.002 0 019.288 0M15 7a3 3 0 11-6 0 3 3 0 016 0zm6 3a2 2 0 11-4 0 2 2 0 014 0zM7 10a2 2 0 11-4 0 2 2 0 014 0z" />
-      </svg>
-    ),
-    title: "Direktna konekcija",
-    description: "Članovi biraju trenere, treneri prihvataju članove. Personalizovana veza koja gradi poverenje.",
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-      </svg>
-    ),
-    title: "Programiranje ishrane",
-    description: "Treneri kreiraju personalizovane planove ishrane za svoje članove direktno iz aplikacije.",
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-      </svg>
-    ),
-    title: "Praćenje napretka",
-    description: "Treneri vide sve - obroke, treninge, unos vode. Kompletna slika napretka svakog člana.",
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 17h5l-1.405-1.405A2.032 2.032 0 0118 14.158V11a6.002 6.002 0 00-4-5.659V5a2 2 0 10-4 0v.341C7.67 6.165 6 8.388 6 11v3.159c0 .538-.214 1.055-.595 1.436L4 17h5m6 0v1a3 3 0 11-6 0v-1m6 0H9" />
-      </svg>
-    ),
-    title: "Dnevni podsticaji",
-    description: "Treneri šalju dnevne podsticaje - motivaciju, savete ili podsetnik za članove.",
-  },
-  {
-    icon: (
-      <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-        <path strokeLinecap="round" strokeLinejoin="round" d="M10.325 4.317c.426-1.756 2.924-1.756 3.35 0a1.724 1.724 0 002.573 1.066c1.543-.94 3.31.826 2.37 2.37a1.724 1.724 0 001.065 2.572c1.756.426 1.756 2.924 0 3.35a1.724 1.724 0 00-1.066 2.573c.94 1.543-.826 3.31-2.37 2.37a1.724 1.724 0 00-2.572 1.065c-.426 1.756-2.924 1.756-3.35 0a1.724 1.724 0 00-2.573-1.066c-1.543.94-3.31-.826-2.37-2.37a1.724 1.724 0 00-1.065-2.572c-1.756-.426-1.756-2.924 0-3.35a1.724 1.724 0 001.066-2.573c-.94-1.543.826-3.31 2.37-2.37.996.608 2.296.07 2.572-1.065z" />
-        <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-      </svg>
-    ),
-    title: "AI personalizacija",
-    description: "Treneri programiraju AI za svakog člana - alergije, preferencije, ograničenja.",
-  },
-];
+  if (!gym) return null;
 
-const recipeFeatures = [
-  {
-    title: "Članovi dele recepte",
-    description: "Članovi mogu da podele svoje omiljene recepte sa celom teretanom - zajednica koja se hrani zajedno.",
-    icon: "🤝",
-  },
-  {
-    title: "Nutricionistički podaci",
-    description: "Svaki recept ima detaljne makro i mikro nutrijente - članovi znaju tačno šta unose.",
-    icon: "📊",
-  },
-  {
-    title: "Jednostavno korišćenje",
-    description: "Članovi dodaju recepte iz biblioteke direktno u svoj dnevni plan ishrane jednim klikom.",
-    icon: "✨",
-  },
-];
+  // Get trainers who should appear on website (lowercase "coach")
+  const trainers = await prisma.staff.findMany({
+    where: {
+      gymId: gym.id,
+      role: { in: ["coach", "COACH"] }, // Support both cases
+      showOnWebsite: true,
+    },
+    select: {
+      id: true,
+      name: true,
+      avatarUrl: true,
+      bio: true,
+      specialty: true,
+    },
+    orderBy: { name: "asc" },
+  });
 
-const stats = [
-  { value: "3", label: "AI Asistenta" },
-  { value: "24/7", label: "Dostupnost" },
-  { value: "3", label: "Paketa" },
-  { value: "od 99€", label: "Mesečno" },
-];
-
-const pricingTiers = [
-  {
-    name: "Starter",
-    price: 99,
-    description: "Za manje teretane koje počinju sa digitalizacijom",
-    features: [
-      "Do 50 aktivnih članova",
-      "3 AI asistenta",
-      "10 AI poruka po članu dnevno",
-      "Praćenje napretka članova",
-      "QR prijava u teretanu",
-      "Biblioteka recepata",
-      "Tehnička podrška",
-    ],
-    notIncluded: ["Izazovi i takmičenja", "Zakazivanje termina", "Trenerske funkcije"],
-    popular: false,
-    color: "gray",
-  },
-  {
-    name: "Pro",
-    price: 199,
-    description: "Najpopularnije rešenje za rastuce teretane",
-    features: [
-      "Do 150 aktivnih članova",
-      "3 AI asistenta",
-      "25 AI poruka po članu dnevno",
-      "Izazovi i takmičenja",
-      "Zakazivanje termina sa trenerima",
-      "Trenerske funkcije",
-      "Programiranje ishrane",
-      "Analitika i statistika",
-      "Prioritetna podrška",
-    ],
-    notIncluded: ["Prilagođeno brendiranje"],
-    popular: true,
-    color: "accent",
-  },
-  {
-    name: "Elite",
-    price: 299,
-    description: "Za velike teretane sa naprednim potrebama",
-    features: [
-      "Neograničen broj članova",
-      "3 AI asistenta",
-      "50 AI poruka po članu dnevno",
-      "Sve Pro funkcije",
-      "Prilagođeno brendiranje",
-      "Logo i boje aplikacije",
-      "Dedicirani account manager",
-      "Prioritetna tehnička podrška",
-    ],
-    notIncluded: [],
-    popular: false,
-    color: "amber",
-  },
-];
-
-function PhoneCarousel() {
-  const [activeSlide, setActiveSlide] = useState(0);
-
-  return (
-    <div className="relative order-2 lg:order-1 flex justify-center">
-      <div className="relative">
-        {/* Phone Frame */}
-        <div className="relative w-[280px] sm:w-[320px]">
-          <div className="bg-[#1a1a1a] rounded-[36px] sm:rounded-[48px] p-2.5 sm:p-3 shadow-2xl shadow-accent/20 border border-white/20">
-            <div className="bg-background rounded-[30px] sm:rounded-[40px] overflow-hidden h-[480px] sm:h-[580px] border border-white/10 flex flex-col">
-              {/* Status Bar */}
-              <div className="h-7 sm:h-8 bg-background flex items-center justify-center flex-shrink-0">
-                <div className="w-16 sm:w-20 h-1.5 bg-white/20 rounded-full" />
-              </div>
-
-              {/* Carousel Container */}
-              <div className="relative flex-1 overflow-hidden">
-                {/* Bottom fade overlay */}
-                <div className="absolute bottom-0 left-0 right-0 h-6 bg-gradient-to-t from-background to-transparent z-10 pointer-events-none" />
-                {/* Slide 1 - Member Detail */}
-                <div
-                  className={`absolute inset-0 transition-all duration-500 ease-out ${
-                    activeSlide === 0 ? "translate-x-0 opacity-100" : "-translate-x-full opacity-0"
-                  }`}
-                >
-                  <div className="h-full overflow-hidden">
-                    <div className="animate-phone-scroll">
-                      {/* App Content - Member Detail */}
-                      <div className="px-4 sm:px-5 pb-24">
-                        {/* Header */}
-                        <div className="flex items-center justify-between py-3">
-                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </div>
-                          <p className="text-sm sm:text-base font-semibold text-foreground">Profil klijenta</p>
-                          <div className="w-8 sm:w-9" />
-                        </div>
-
-                        {/* Member Header Card */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-accent/20 mb-4">
-                          <div className="flex items-start gap-3 mb-3">
-                            <div className="w-14 h-14 sm:w-16 sm:h-16 rounded-full bg-accent/20 flex items-center justify-center flex-shrink-0">
-                              <span className="text-accent font-bold text-base sm:text-lg">AN</span>
-                            </div>
-                            <div className="flex-1 min-w-0">
-                              <div className="flex items-start justify-between">
-                                <div>
-                                  <p className="text-base sm:text-lg font-bold text-foreground">Ana Nikolić</p>
-                                  <p className="text-xs sm:text-sm text-foreground-muted">M-2847 · Mršavljenje</p>
-                                </div>
-                                <div className="px-2.5 py-1 rounded-full bg-success/10 flex items-center gap-1">
-                                  <span className="text-xs">↘️</span>
-                                  <span className="text-xs sm:text-sm text-success font-medium">-2.5kg</span>
-                                </div>
-                              </div>
-                            </div>
-                          </div>
-                          {/* Quick Stats */}
-                          <div className="grid grid-cols-4 gap-3 text-center">
-                            <div>
-                              <p className="text-base sm:text-lg font-bold text-foreground">68</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">kg</p>
-                            </div>
-                            <div>
-                              <p className="text-base sm:text-lg font-bold text-foreground">4</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">tren/ned</p>
-                            </div>
-                            <div>
-                              <p className="text-base sm:text-lg font-bold text-foreground">6/7</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">loguje</p>
-                            </div>
-                            <div>
-                              <p className="text-base sm:text-lg font-bold text-foreground">12</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">vode</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* AI Summary Card */}
-                        <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20 mb-4">
-                          <div className="flex items-start gap-3">
-                            <span className="text-xl">🤖</span>
-                            <div>
-                              <p className="text-xs sm:text-sm font-medium text-accent mb-1">Rezime ponašanja</p>
-                              <p className="text-[11px] sm:text-xs text-foreground leading-relaxed">
-                                Ana redovno beleži obroke i treninge. Ispunjava kalorijski cilj u 85% dana. Proteini su joj ispod cilja - preporučiti više izvora proteina.
-                              </p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Nutrition Stats */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
-                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Prosek ove nedelje</p>
-                          <div className="space-y-3">
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-foreground">Kalorije</span>
-                              <div className="flex items-center gap-3">
-                                <div className="w-20 sm:w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                                  <div className="h-full w-[82%] bg-accent rounded-full" />
-                                </div>
-                                <span className="text-[10px] sm:text-xs text-foreground-muted">1640/2000</span>
-                              </div>
-                            </div>
-                            <div className="flex items-center justify-between">
-                              <span className="text-xs sm:text-sm text-foreground">Proteini</span>
-                              <div className="flex items-center gap-3">
-                                <div className="w-20 sm:w-24 h-2 bg-white/10 rounded-full overflow-hidden">
-                                  <div className="h-full w-[65%] bg-warning rounded-full" />
-                                </div>
-                                <span className="text-[10px] sm:text-xs text-foreground-muted">85g/130g</span>
-                              </div>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Weight Progress */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
-                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Napredak težine</p>
-                          <div className="space-y-2">
-                            {[
-                              { week: 4, emoji: "😄", weight: "68.0" },
-                              { week: 3, emoji: "🙂", weight: "68.8" },
-                              { week: 2, emoji: "🙂", weight: "69.5" },
-                              { week: 1, emoji: "😐", weight: "70.5" },
-                            ].map((item) => (
-                              <div key={item.week} className="flex items-center justify-between py-1.5 border-b border-white/5 last:border-0">
-                                <span className="text-[10px] sm:text-xs text-foreground-muted">Ned {item.week}</span>
-                                <div className="flex items-center gap-2">
-                                  <span className="text-sm">{item.emoji}</span>
-                                  <span className="text-xs sm:text-sm font-medium text-foreground">{item.weight} kg</span>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* AI Settings */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
-                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-1">AI Podešavanja</p>
-                          <p className="text-[10px] sm:text-xs text-foreground-muted/70 mb-3">Tvoje smernice za AI agente</p>
-                          <div className="space-y-2">
-                            {[
-                              { name: "Ishrana", emoji: "🥗", hasContent: true },
-                              { name: "Suplementi", emoji: "💊", hasContent: true },
-                              { name: "Trening", emoji: "💪", hasContent: false },
-                            ].map((agent) => (
-                              <div key={agent.name} className="flex items-center gap-3 p-2.5 bg-white/5 rounded-xl">
-                                <div className="w-8 h-8 rounded-full bg-white/10 flex items-center justify-center">
-                                  <span className="text-sm">{agent.emoji}</span>
-                                </div>
-                                <div className="flex-1">
-                                  <p className="text-xs sm:text-sm font-medium text-foreground">{agent.name}</p>
-                                  <p className="text-[10px] sm:text-xs text-foreground-muted">
-                                    {agent.hasContent ? "Smernice postavljene" : "Dodaj smernice"}
-                                  </p>
-                                </div>
-                                <div className={`w-2 h-2 rounded-full ${agent.hasContent ? "bg-emerald-500" : "bg-foreground-muted/30"}`} />
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Coach Meals */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
-                          <div className="flex items-center justify-between mb-3">
-                            <p className="text-xs sm:text-sm font-medium text-foreground-muted">Obroci za člana</p>
-                            <span className="px-3 py-1 bg-accent text-white text-[10px] sm:text-xs rounded-lg font-medium">
-                              + Dodaj
-                            </span>
-                          </div>
-                          <div className="space-y-2">
-                            {[
-                              { name: "Proteinski doručak", kcal: 420, protein: 35 },
-                              { name: "Piletina sa povrćem", kcal: 380, protein: 42 },
-                            ].map((meal, i) => (
-                              <div key={i} className="flex items-center justify-between p-2.5 bg-background rounded-xl">
-                                <div>
-                                  <p className="text-xs sm:text-sm font-medium text-foreground">{meal.name}</p>
-                                  <p className="text-[10px] sm:text-xs text-foreground-muted">{meal.kcal} kcal · P: {meal.protein}g</p>
-                                </div>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Action Buttons */}
-                        <div className="flex gap-3 mt-4">
-                          <div className="flex-1 py-2.5 bg-white/10 rounded-xl text-center">
-                            <span className="text-[10px] sm:text-xs font-medium text-foreground">📝 Beleška</span>
-                          </div>
-                          <div className="flex-1 py-2.5 bg-accent rounded-xl text-center">
-                            <span className="text-[10px] sm:text-xs font-medium text-white">💬 Poruka</span>
-                          </div>
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 2 - Member Registration/Setup */}
-                <div
-                  className={`absolute inset-0 transition-all duration-500 ease-out ${
-                    activeSlide === 1 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-                  }`}
-                >
-                  <div className="h-full overflow-hidden">
-                    <div className="animate-phone-scroll" style={{ animationDelay: "3s" }}>
-                      {/* App Content - Registration Setup */}
-                      <div className="px-4 sm:px-5 pb-24">
-                        {/* Header */}
-                        <div className="flex items-center justify-between py-3">
-                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </div>
-                          <p className="text-sm sm:text-base font-semibold text-foreground">Postavi plan</p>
-                          <div className="w-8 sm:w-9" />
-                        </div>
-
-                        {/* Selected Member Card */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
-                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-2">Član</p>
-                          <div className="flex items-center gap-3">
-                            <div className="w-12 h-12 sm:w-14 sm:h-14 rounded-full bg-accent/20 flex items-center justify-center">
-                              <span className="text-accent font-bold text-sm sm:text-base">SP</span>
-                            </div>
-                            <div>
-                              <p className="text-sm sm:text-base font-medium text-foreground">Stefan Petrović</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">M-3102 · 82kg</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Goal Selection */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
-                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-3">Cilj *</p>
-                          <div className="space-y-2">
-                            {[
-                              { label: "Gubitak masnoće", selected: false },
-                              { label: "Rast mišića", selected: true },
-                              { label: "Rekompozicija", selected: false },
-                            ].map((goal, i) => (
-                              <div
-                                key={i}
-                                className={`p-3 rounded-xl border-2 transition-all ${
-                                  goal.selected
-                                    ? "border-accent bg-accent/10"
-                                    : "border-white/10 bg-white/5"
-                                }`}
-                              >
-                                <span className={`text-xs sm:text-sm font-medium ${goal.selected ? "text-accent" : "text-foreground"}`}>
-                                  {goal.label}
-                                </span>
-                              </div>
-                            ))}
-                          </div>
-                        </div>
-
-                        {/* Custom Targets */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
-                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-3">Prilagođeni ciljevi</p>
-                          <div className="grid grid-cols-3 gap-2 mb-3">
-                            <div>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">Proteini</p>
-                              <div className="bg-background rounded-xl px-3 py-2 text-center">
-                                <span className="text-xs sm:text-sm font-medium text-foreground">180g</span>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">UH</p>
-                              <div className="bg-background rounded-xl px-3 py-2 text-center">
-                                <span className="text-xs sm:text-sm font-medium text-foreground">250g</span>
-                              </div>
-                            </div>
-                            <div>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted mb-1">Masti</p>
-                              <div className="bg-background rounded-xl px-3 py-2 text-center">
-                                <span className="text-xs sm:text-sm font-medium text-foreground">70g</span>
-                              </div>
-                            </div>
-                          </div>
-                          <div>
-                            <div className="flex items-center justify-between mb-1">
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Kalorije</p>
-                              <span className="text-[9px] sm:text-[10px] text-accent">auto</span>
-                            </div>
-                            <div className="bg-background rounded-xl px-3 py-2 text-center">
-                              <span className="text-sm sm:text-base font-bold text-accent">2,350 kcal</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Macro Tracking Toggle */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
-                          <div className="flex items-start gap-3">
-                            <div className="w-5 h-5 sm:w-6 sm:h-6 rounded border-2 border-accent bg-accent flex items-center justify-center flex-shrink-0 mt-0.5">
-                              <svg className="w-3 h-3 sm:w-4 sm:h-4 text-white" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={3} d="M5 13l4 4L19 7" />
-                              </svg>
-                            </div>
-                            <div>
-                              <p className="text-xs sm:text-sm font-medium text-foreground">Zahtevaj makrose</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">Član mora uneti P/UH/M</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Notes */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/10 mb-4">
-                          <p className="text-[10px] sm:text-xs font-medium text-foreground-muted mb-2">Beleške</p>
-                          <div className="bg-background rounded-xl p-3 min-h-[48px]">
-                            <p className="text-[10px] sm:text-xs text-foreground-muted italic">Fokus na compound vežbe...</p>
-                          </div>
-                        </div>
-
-                        {/* Submit Button */}
-                        <div className="w-full py-3 bg-accent rounded-xl text-xs sm:text-sm font-semibold text-white text-center">
-                          Dodeli člana
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Slide 3 - Session Scheduling */}
-                <div
-                  className={`absolute inset-0 transition-all duration-500 ease-out ${
-                    activeSlide === 2 ? "translate-x-0 opacity-100" : "translate-x-full opacity-0"
-                  }`}
-                >
-                  <div className="h-full overflow-hidden">
-                    <div className="animate-phone-scroll" style={{ animationDelay: "6s" }}>
-                      {/* App Content - Sessions */}
-                      <div className="px-4 sm:px-5 pb-24">
-                        {/* Header */}
-                        <div className="flex items-center justify-between py-3">
-                          <div className="w-8 h-8 sm:w-9 sm:h-9 rounded-full bg-white/10 flex items-center justify-center">
-                            <svg className="w-4 h-4 sm:w-5 sm:h-5 text-foreground" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                              <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M15 19l-7-7 7-7" />
-                            </svg>
-                          </div>
-                          <p className="text-sm sm:text-base font-semibold text-foreground">Termini</p>
-                          <div className="w-8 sm:w-9" />
-                        </div>
-
-                        {/* Session Request Card */}
-                        <div className="bg-accent/10 rounded-2xl p-4 border border-accent/20 mb-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <span className="flex h-2 w-2 relative">
-                              <span className="animate-ping absolute inline-flex h-full w-full rounded-full bg-accent opacity-75"></span>
-                              <span className="relative inline-flex rounded-full h-2 w-2 bg-accent"></span>
-                            </span>
-                            <p className="text-xs sm:text-sm font-medium text-accent">Novi zahtev</p>
-                          </div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-violet-500/20 flex items-center justify-center">
-                              <span className="text-violet-400 font-bold text-sm">MJ</span>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground">Marko Jovanović</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">Lični trening · 60 min</p>
-                            </div>
-                          </div>
-                          <div className="bg-background/50 rounded-xl p-3 mb-3">
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground">
-                              <span>📅</span>
-                              <span>Sreda, 15. jan · 18:00</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground-muted mt-1">
-                              <span>📍</span>
-                              <span>U teretani</span>
-                            </div>
-                          </div>
-                          <div className="flex gap-2">
-                            <div className="flex-1 py-2 bg-white/10 rounded-lg text-center">
-                              <span className="text-[10px] sm:text-xs font-medium text-foreground">Predloži drugo</span>
-                            </div>
-                            <div className="flex-1 py-2 bg-accent rounded-lg text-center">
-                              <span className="text-[10px] sm:text-xs font-medium text-white">Prihvati</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Upcoming Session */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-emerald-500/20 mb-4">
-                          <div className="flex items-center gap-2 mb-3">
-                            <div className="w-2 h-2 rounded-full bg-emerald-500" />
-                            <p className="text-xs sm:text-sm font-medium text-emerald-400">Potvrđeno</p>
-                          </div>
-                          <div className="flex items-center gap-3 mb-3">
-                            <div className="w-10 h-10 sm:w-12 sm:h-12 rounded-full bg-accent/20 flex items-center justify-center">
-                              <span className="text-accent font-bold text-sm">AN</span>
-                            </div>
-                            <div className="flex-1">
-                              <p className="text-sm font-medium text-foreground">Ana Nikolić</p>
-                              <p className="text-[10px] sm:text-xs text-foreground-muted">Konsultacije · 45 min</p>
-                            </div>
-                          </div>
-                          <div className="bg-background/50 rounded-xl p-3">
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground">
-                              <span>📅</span>
-                              <span>Danas · 16:30</span>
-                            </div>
-                            <div className="flex items-center gap-2 text-xs sm:text-sm text-foreground-muted mt-1">
-                              <span>📍</span>
-                              <span>Online</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Calendar Preview - Full Month */}
-                        <div className="bg-white/5 rounded-2xl p-3 sm:p-4 border border-white/5 mb-4">
-                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-2">Januar 2026</p>
-                          <div className="grid grid-cols-7 gap-0.5 text-center mb-1">
-                            {["P", "U", "S", "Č", "P", "S", "N"].map((d, i) => (
-                              <span key={i} className="text-[8px] sm:text-[9px] text-foreground-muted py-1">{d}</span>
-                            ))}
-                          </div>
-                          {/* January 2026: starts Thursday, 31 days */}
-                          <div className="grid grid-cols-7 gap-0.5">
-                            {/* Week 1: empty Mon-Wed, then 1-4 */}
-                            {[null, null, null, 1, 2, 3, 4].map((day, i) => (
-                              <div
-                                key={`w1-${i}`}
-                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
-                                  day === 3 ? "bg-emerald-500/30 text-foreground" :
-                                  day ? "bg-white/5 text-foreground-muted" : ""
-                                }`}
-                              >
-                                {day}
-                              </div>
-                            ))}
-                            {/* Week 2: 5-11 */}
-                            {[5, 6, 7, 8, 9, 10, 11].map((day) => (
-                              <div
-                                key={day}
-                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
-                                  day === 7 ? "ring-1 ring-accent bg-white/10 text-foreground font-medium" :
-                                  day === 9 ? "bg-emerald-500/30 text-foreground" :
-                                  "bg-white/5 text-foreground-muted"
-                                }`}
-                              >
-                                {day}
-                              </div>
-                            ))}
-                            {/* Week 3: 12-18 */}
-                            {[12, 13, 14, 15, 16, 17, 18].map((day) => (
-                              <div
-                                key={day}
-                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
-                                  day === 15 ? "bg-accent/30 text-accent font-medium" :
-                                  day === 17 ? "bg-emerald-500/30 text-foreground" :
-                                  "bg-white/5 text-foreground-muted"
-                                }`}
-                              >
-                                {day}
-                              </div>
-                            ))}
-                            {/* Week 4: 19-25 */}
-                            {[19, 20, 21, 22, 23, 24, 25].map((day) => (
-                              <div
-                                key={day}
-                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
-                                  day === 21 ? "bg-emerald-500/30 text-foreground" :
-                                  "bg-white/5 text-foreground-muted"
-                                }`}
-                              >
-                                {day}
-                              </div>
-                            ))}
-                            {/* Week 5: 26-31 + empty */}
-                            {[26, 27, 28, 29, 30, 31, null].map((day, i) => (
-                              <div
-                                key={`w5-${i}`}
-                                className={`aspect-square rounded flex items-center justify-center text-[10px] sm:text-xs ${
-                                  day ? "bg-white/5 text-foreground-muted" : ""
-                                }`}
-                              >
-                                {day}
-                              </div>
-                            ))}
-                          </div>
-                          {/* Legend */}
-                          <div className="flex items-center justify-center gap-3 mt-2 pt-2 border-t border-white/5">
-                            <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-sm bg-accent/30" />
-                              <span className="text-[8px] text-foreground-muted">Zahtev</span>
-                            </div>
-                            <div className="flex items-center gap-1">
-                              <div className="w-2 h-2 rounded-sm bg-emerald-500/30" />
-                              <span className="text-[8px] text-foreground-muted">Završeno</span>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Quick Stats */}
-                        <div className="bg-white/5 rounded-2xl p-4 border border-white/5 mb-4">
-                          <p className="text-xs sm:text-sm font-medium text-foreground-muted mb-3">Ovaj mesec</p>
-                          <div className="grid grid-cols-3 gap-2 text-center">
-                            <div>
-                              <p className="text-lg sm:text-xl font-bold text-foreground">12</p>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Završeno</p>
-                            </div>
-                            <div>
-                              <p className="text-lg sm:text-xl font-bold text-accent">3</p>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Zakazano</p>
-                            </div>
-                            <div>
-                              <p className="text-lg sm:text-xl font-bold text-warning">1</p>
-                              <p className="text-[9px] sm:text-[10px] text-foreground-muted">Na čekanju</p>
-                            </div>
-                          </div>
-                        </div>
-
-                        {/* Schedule Button */}
-                        <div className="w-full py-3 bg-accent rounded-xl text-xs sm:text-sm font-semibold text-white text-center">
-                          Zakaži termin
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              </div>
-            </div>
-          </div>
-
-          {/* Carousel Navigation */}
-          <div className="flex items-center justify-center gap-3 mt-6">
-            <div className="flex gap-2">
-              <button
-                onClick={() => setActiveSlide(0)}
-                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 0 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
-              />
-              <button
-                onClick={() => setActiveSlide(1)}
-                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 1 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
-              />
-              <button
-                onClick={() => setActiveSlide(2)}
-                className={`w-3 h-3 rounded-full transition-all ${activeSlide === 2 ? "bg-accent w-8" : "bg-white/20 hover:bg-white/40"}`}
-              />
-            </div>
-            <button
-              onClick={() => setActiveSlide((activeSlide + 1) % 3)}
-              className="flex items-center gap-1.5 text-xs sm:text-sm text-foreground-muted hover:text-accent transition-colors"
-            >
-              <span>Sledeći prikaz</span>
-              <svg className="w-4 h-4" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-              </svg>
-            </button>
-          </div>
-        </div>
-
-        {/* Floating notification */}
-        <div className="absolute -top-2 -right-2 sm:top-4 sm:-right-8 z-10 bg-background border border-emerald-500/30 rounded-xl px-3 py-2 shadow-xl">
-          <div className="flex items-center gap-2">
-            <div className="w-6 h-6 rounded-full bg-emerald-500/20 flex items-center justify-center">
-              <svg className="w-3 h-3 text-emerald-400" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M5 13l4 4L19 7" />
-              </svg>
-            </div>
-            <p className="text-[10px] sm:text-xs font-medium text-foreground">Član aktivan!</p>
-          </div>
-        </div>
-
-        {/* Floating plan badge */}
-        <div className="absolute bottom-20 -left-2 sm:bottom-24 sm:-left-8 z-10 bg-background border border-accent/30 rounded-xl px-3 py-2 shadow-xl">
-          <div className="flex items-center gap-2">
-            <span className="text-base">📋</span>
-            <span className="text-[10px] sm:text-xs font-medium text-accent">Plan kreiran</span>
-          </div>
-        </div>
-      </div>
-    </div>
-  );
+  return { gym, trainers };
 }
 
-export default function GymPortalPage() {
+// Placeholder gallery images (gym can customize these later)
+const galleryImages = [
+  { id: 1, placeholder: "Trening zona", icon: "dumbbell" },
+  { id: 2, placeholder: "Kardio oprema", icon: "heart" },
+  { id: 3, placeholder: "Grupni treninzi", icon: "users" },
+  { id: 4, placeholder: "Svlacionice", icon: "locker" },
+];
+
+export default async function GymPortalPage() {
+  // Check if user is logged in as staff
+  const session = await getSession();
+
+  // If logged in as staff, redirect to manage dashboard
+  if (session && session.userType === "staff") {
+    redirect("/gym-portal/manage");
+  }
+
+  const data = await getGymData();
+
+  // If no gym exists yet, show setup message
+  if (!data) {
+    return (
+      <div className="min-h-screen bg-background flex items-center justify-center p-4">
+        <div className="text-center">
+          <div className="w-16 h-16 rounded-full bg-accent/10 flex items-center justify-center mx-auto mb-4">
+            <svg className="w-8 h-8 text-accent" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M19 21V5a2 2 0 00-2-2H7a2 2 0 00-2 2v16m14 0h2m-2 0h-5m-9 0H3m2 0h5M9 7h1m-1 4h1m4-4h1m-1 4h1m-5 10v-5a1 1 0 011-1h2a1 1 0 011 1v5m-4 0h4" />
+            </svg>
+          </div>
+          <h1 className="text-2xl font-bold text-foreground mb-2">Teretana nije podesena</h1>
+          <p className="text-foreground-muted mb-6">Kontaktirajte administratora da podesi teretanu.</p>
+          <Link
+            href="/gym-portal/gym-signup"
+            className="inline-flex items-center gap-2 px-6 py-3 bg-accent hover:bg-accent/90 text-white font-medium rounded-xl transition-colors"
+          >
+            Registruj teretanu
+          </Link>
+        </div>
+      </div>
+    );
+  }
+
+  const { gym, trainers } = data;
+  const accentColor = gym.primaryColor || "#ef4444";
+
   return (
     <div className="min-h-screen bg-background">
       {/* Header */}
-      <header className="border-b border-border bg-background/80 backdrop-blur-sm sticky top-0 z-50">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex items-center justify-between h-16">
-            {/* Logo */}
-            <Link href="/gym-portal" className="flex items-center gap-3">
-              <div className="w-10 h-10 rounded-xl bg-accent flex items-center justify-center">
-                <span className="text-xl font-bold text-white">C</span>
-              </div>
-              <div className="hidden sm:block">
-                <span className="text-lg font-semibold text-foreground">Classic Method</span>
-                <span className="text-sm text-foreground-muted ml-2">Gym Portal</span>
-              </div>
-            </Link>
-
-            {/* Navigation */}
-            <nav className="flex items-center gap-2 sm:gap-4">
-              <a
-                href="/gym-portal#ai-assistants"
-                className="hidden sm:inline-flex text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2"
-              >
-                Mogucnosti
+      <header className="fixed top-0 left-0 right-0 z-50">
+        <div className="mx-4 sm:mx-6 lg:mx-8 mt-4">
+          <div className="max-w-7xl mx-auto bg-background-secondary/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-black/5">
+            <div className="flex items-center justify-between h-16 px-4 sm:px-6">
+              {/* Logo */}
+              <a href="#" className="flex items-center gap-3 group">
+                {gym.logo ? (
+                  <img
+                    src={gym.logo}
+                    alt={gym.name}
+                    className="w-10 h-10 rounded-xl object-cover ring-2 ring-white/10 group-hover:ring-white/20 transition-all"
+                  />
+                ) : (
+                  <div
+                    className="w-10 h-10 rounded-xl flex items-center justify-center ring-2 ring-white/10 group-hover:ring-white/20 transition-all"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    <span className="text-xl font-bold text-white">
+                      {gym.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <span className="text-lg font-semibold text-foreground hidden sm:block">{gym.name}</span>
               </a>
-              <Link
-                href="/staff-login?redirect=/gym-portal/manage"
-                className="text-sm text-foreground-muted hover:text-foreground transition-colors px-3 py-2"
-              >
-                Prijava
-              </Link>
-              <Link
-                href="/gym-portal/gym-signup"
-                className="text-sm font-medium bg-accent hover:bg-accent/90 text-white px-4 py-2 rounded-lg transition-colors"
-              >
-                Registruj teretanu
-              </Link>
-            </nav>
+
+              {/* Center Nav */}
+              <nav className="hidden lg:flex items-center">
+                <div className="flex items-center bg-white/5 rounded-xl p-1">
+                  {trainers.length > 0 && (
+                    <a
+                      href="#trainers"
+                      className="text-sm text-foreground-muted hover:text-foreground hover:bg-white/10 px-4 py-2 rounded-lg transition-all"
+                    >
+                      Treneri
+                    </a>
+                  )}
+                  <a
+                    href="#features"
+                    className="text-sm text-foreground-muted hover:text-foreground hover:bg-white/10 px-4 py-2 rounded-lg transition-all"
+                  >
+                    Sta nudimo
+                  </a>
+                  <a
+                    href="#gallery"
+                    className="text-sm text-foreground-muted hover:text-foreground hover:bg-white/10 px-4 py-2 rounded-lg transition-all"
+                  >
+                    Galerija
+                  </a>
+                  <a
+                    href="#contact"
+                    className="text-sm text-foreground-muted hover:text-foreground hover:bg-white/10 px-4 py-2 rounded-lg transition-all"
+                  >
+                    Kontakt
+                  </a>
+                </div>
+              </nav>
+
+              {/* Right Actions */}
+              <div className="flex items-center gap-2 sm:gap-3">
+                <Link
+                  href="/login"
+                  className="text-sm font-medium text-foreground-muted hover:text-foreground px-4 py-2 rounded-xl hover:bg-white/5 transition-all hidden sm:inline-flex"
+                >
+                  Prijava
+                </Link>
+                <a
+                  href="#contact"
+                  className="group relative text-sm font-semibold text-white px-5 py-2.5 rounded-xl transition-all overflow-hidden"
+                  style={{ backgroundColor: accentColor }}
+                >
+                  <span className="relative z-10 flex items-center gap-2">
+                    Postani clan
+                    <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                    </svg>
+                  </span>
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity"
+                    style={{ background: `linear-gradient(135deg, ${accentColor} 0%, ${accentColor}dd 100%)` }}
+                  />
+                </a>
+
+                {/* Mobile menu button */}
+                <button
+                  className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors text-foreground-muted hover:text-foreground"
+                  aria-label="Meni"
+                >
+                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
+                  </svg>
+                </button>
+              </div>
+            </div>
           </div>
         </div>
       </header>
 
-      <div className="relative overflow-hidden">
-      {/* Hero Section */}
-      <section className="relative min-h-[90vh] flex items-center">
-        {/* Animated background gradients */}
+      {/* Spacer for fixed header */}
+      <div className="h-24" />
+
+      {/* Hero Section - Full Width with Gradient */}
+      <section className="relative min-h-[85vh] flex items-center overflow-hidden">
+        {/* Animated Background */}
         <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/4 w-[600px] h-[600px] bg-accent/20 rounded-full blur-[128px] animate-pulse" />
-          <div className="absolute bottom-0 right-1/4 w-[500px] h-[500px] bg-emerald-500/10 rounded-full blur-[100px]" />
-          <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-violet-500/10 rounded-full blur-[80px]" />
+          <div
+            className="absolute top-0 left-1/4 w-[800px] h-[800px] rounded-full blur-[150px] opacity-20 animate-pulse"
+            style={{ backgroundColor: accentColor }}
+          />
+          <div
+            className="absolute bottom-0 right-1/4 w-[600px] h-[600px] rounded-full blur-[120px] opacity-10"
+            style={{ backgroundColor: accentColor }}
+          />
+          <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-emerald-500/10 rounded-full blur-[80px]" />
         </div>
 
-        {/* Grid pattern overlay */}
+        {/* Grid Pattern */}
         <div
           className="absolute inset-0 opacity-[0.02]"
           style={{
             backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
                               linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
-            backgroundSize: '60px 60px',
+            backgroundSize: "60px 60px",
           }}
         />
 
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20 lg:py-32">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left - Content */}
-            <div>
-              <div className="inline-flex items-center gap-2 px-4 py-2 bg-accent/10 border border-accent/20 rounded-full mb-8">
-                <span className="w-2 h-2 bg-accent rounded-full animate-pulse" />
-                <span className="text-sm font-medium text-accent">AI-Powered Gym Platform</span>
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-20">
+          <div className="grid lg:grid-cols-2 gap-12 lg:gap-20 items-center">
+            {/* Left Content */}
+            <div className="text-center lg:text-left">
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-8 border"
+                style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30` }}
+              >
+                <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
+                <span className="text-sm font-medium" style={{ color: accentColor }}>
+                  {gym._count.members}+ aktivnih clanova
+                </span>
               </div>
 
-              <h1 className="text-4xl sm:text-5xl lg:text-6xl font-bold text-foreground leading-[1.1] tracking-tight">
-                Unapredite iskustvo
+              <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-[1.1] tracking-tight">
+                Dobrodosli u
                 <br />
-                <span className="bg-gradient-to-r from-accent via-orange-400 to-emerald-400 bg-clip-text text-transparent">
-                  vaših članova
-                </span>
+                <span style={{ color: accentColor }}>{gym.name}</span>
               </h1>
 
-              <p className="mt-6 text-lg sm:text-xl text-foreground-muted leading-relaxed max-w-xl">
-                Classic Method kombinuje AI asistente, personalizovano praćenje i direktnu konekciju
-                trener-član u jednu moćnu platformu za moderne teretane.
-              </p>
+              {gym.about ? (
+                <p className="mt-6 text-lg sm:text-xl text-foreground-muted leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  {gym.about}
+                </p>
+              ) : (
+                <p className="mt-6 text-lg sm:text-xl text-foreground-muted leading-relaxed max-w-xl mx-auto lg:mx-0">
+                  Vasa destinacija za fitness i zdravlje. Pridruzi nam se i pocni svoje putovanje
+                  ka boljem zdravlju danas.
+                </p>
+              )}
 
-              <div className="mt-10 flex flex-col sm:flex-row gap-4">
-                <Link
-                  href="/gym-portal/gym-signup"
-                  className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold bg-accent hover:bg-accent/90 text-white rounded-xl transition-all hover:shadow-lg hover:shadow-accent/25"
+              <div className="mt-10 flex flex-col sm:flex-row gap-4 justify-center lg:justify-start">
+                <a
+                  href="#contact"
+                  className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold text-white rounded-xl transition-all hover:shadow-xl"
+                  style={{ backgroundColor: accentColor, boxShadow: `0 10px 40px -10px ${accentColor}80` }}
                 >
-                  Započnite danas
+                  Postani clan
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
-                </Link>
-                <a
-                  href="#ai-assistants"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium bg-white/5 hover:bg-white/10 text-foreground rounded-xl transition-colors border border-white/10"
-                >
-                  Pogledajte mogućnosti
                 </a>
-              </div>
-
-              {/* Stats */}
-              <div className="mt-16 grid grid-cols-4 gap-6">
-                {stats.map((stat, index) => (
-                  <div key={index} className="text-center">
-                    <div className="text-2xl sm:text-3xl font-bold text-foreground">{stat.value}</div>
-                    <div className="text-xs sm:text-sm text-foreground-muted mt-1">{stat.label}</div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right - AI Agents Preview */}
-            <div className="relative hidden lg:block">
-              <div className="relative">
-                {/* Main showcase card */}
-                <div className="bg-background/80 backdrop-blur-xl border border-white/10 rounded-3xl p-8 shadow-2xl">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-3 h-3 rounded-full bg-red-500" />
-                    <div className="w-3 h-3 rounded-full bg-yellow-500" />
-                    <div className="w-3 h-3 rounded-full bg-green-500" />
-                    <span className="ml-4 text-sm text-foreground-muted">Classic Method AI</span>
-                  </div>
-
-                  {/* Agent avatars in a row */}
-                  <div className="flex justify-center gap-8 mb-8">
-                    {aiAgents.map((agent) => (
-                      <div key={agent.type} className="text-center">
-                        <AgentAvatar agent={agent.type} size="lg" state="idle" />
-                        <p className={`mt-3 text-sm font-medium ${agentMeta[agent.type].textClass}`}>
-                          {agentMeta[agent.type].name}
-                        </p>
-                      </div>
-                    ))}
-                  </div>
-
-                  {/* Sample chat message */}
-                  <div className="bg-white/5 rounded-2xl p-4 border border-white/5">
-                    <div className="flex items-start gap-3">
-                      <AgentAvatar agent="nutrition" size="sm" state="active" />
-                      <div className="flex-1">
-                        <p className="text-sm text-foreground-muted mb-1">Nutricionista AI</p>
-                        <p className="text-foreground">
-                          Na osnovu tvog cilja od 2200 kcal, preporučujem da večera bude oko 550 kcal
-                          sa fokusom na protein...
-                        </p>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-
-                {/* Floating elements */}
-                <div className="absolute -top-4 -right-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl px-4 py-2 backdrop-blur">
-                  <span className="text-emerald-400 font-medium text-sm">+23% angažovanost</span>
-                </div>
-                <div className="absolute -bottom-4 -left-4 bg-violet-500/20 border border-violet-500/30 rounded-2xl px-4 py-2 backdrop-blur">
-                  <span className="text-violet-400 font-medium text-sm">AI odgovara 24/7</span>
-                </div>
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* AI Assistants Section */}
-      <section id="ai-assistants" className="py-24 bg-background-secondary relative">
-        <div className="absolute inset-0">
-          <div className="absolute top-1/2 left-0 w-[400px] h-[400px] bg-emerald-500/5 rounded-full blur-[100px]" />
-          <div className="absolute top-1/2 right-0 w-[400px] h-[400px] bg-violet-500/5 rounded-full blur-[100px]" />
-        </div>
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-block px-4 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-medium text-accent mb-6">
-              AI Asistenti
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-              Tri specijalizovana AI agenta
-            </h2>
-            <p className="mt-6 text-lg text-foreground-muted">
-              Svaki član ima pristup ekspertima za ishranu, suplementaciju i trening - dostupnim 24 sata dnevno,
-              7 dana u nedelji.
-            </p>
-          </div>
-
-          <div className="grid md:grid-cols-3 gap-8">
-            {aiAgents.map((agent) => {
-              const meta = agentMeta[agent.type];
-              return (
-                <div
-                  key={agent.type}
-                  className={`group relative bg-background border ${meta.borderClass} rounded-3xl p-8 transition-all hover:border-opacity-50 hover:shadow-xl`}
+                <Link
+                  href="/login"
+                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-foreground rounded-xl transition-colors border border-white/10 hover:bg-white/5"
                 >
-                  {/* Gradient glow on hover */}
-                  <div className={`absolute inset-0 ${meta.bgClass} opacity-0 group-hover:opacity-100 rounded-3xl transition-opacity blur-xl -z-10`} />
+                  Vec sam clan
+                </Link>
+              </div>
+            </div>
 
-                  <div className="flex flex-col items-center text-center">
-                    <AgentAvatar agent={agent.type} size="xl" state="idle" className="mb-6" />
+            {/* Right - Bento Grid Feature Showcase */}
+            <div className="hidden lg:block relative">
+              {/* Decorative ring */}
+              <div
+                className="absolute -top-8 -right-8 w-64 h-64 rounded-full border opacity-20"
+                style={{ borderColor: accentColor }}
+              />
+              <div
+                className="absolute -top-4 -right-4 w-48 h-48 rounded-full border opacity-10"
+                style={{ borderColor: accentColor }}
+              />
 
-                    <h3 className={`text-2xl font-bold ${meta.textClass} mb-2`}>
-                      {meta.name}
-                    </h3>
-                    <p className="text-foreground-muted text-sm mb-6">
-                      {meta.subtitle}
-                    </p>
-
-                    <ul className="space-y-3 text-left w-full">
-                      {agent.features.map((feature, idx) => (
-                        <li key={idx} className="flex items-center gap-3">
-                          <span className={`w-1.5 h-1.5 rounded-full ${meta.bgClass.replace('/10', '')}`} />
-                          <span className="text-foreground-muted text-sm">{feature}</span>
-                        </li>
-                      ))}
-                    </ul>
-                  </div>
-                </div>
-              );
-            })}
-          </div>
-        </div>
-      </section>
-
-      {/* Coach-Member Connection Section */}
-      <section className="py-24 relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left - Visual: Phone Mockup with Carousel */}
-            <PhoneCarousel />
-
-            {/* Right - Content */}
-            <div className="order-1 lg:order-2">
-              <span className="inline-block px-4 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-medium text-accent mb-6">
-                Trener-Član Konekcija
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-                Personalizovana podrška za svakog člana
-              </h2>
-              <p className="text-lg text-foreground-muted mb-10">
-                Članovi biraju svog trenera, a treneri programiraju AI za svakog člana,
-                prate napredak i šalju dnevne podsticaje.
-              </p>
-
-              <div className="grid sm:grid-cols-2 lg:grid-cols-3 gap-4">
-                {coachFeatures.map((feature, index) => (
+              <div className="grid grid-cols-3 gap-3">
+                {/* Large card - Members */}
+                <div className="col-span-2 row-span-2 bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all group relative overflow-hidden">
                   <div
-                    key={index}
-                    className="bg-background-secondary/50 border border-white/5 rounded-2xl p-4 hover:border-accent/20 transition-colors"
-                  >
-                    <div className="w-9 h-9 rounded-lg bg-accent/10 flex items-center justify-center text-accent mb-3">
-                      {feature.icon}
-                    </div>
-                    <h4 className="font-semibold text-foreground text-sm mb-1">{feature.title}</h4>
-                    <p className="text-xs text-foreground-muted">{feature.description}</p>
-                  </div>
-                ))}
-              </div>
-            </div>
-          </div>
-        </div>
-      </section>
-
-      {/* Recipes Section */}
-      <section className="py-24 bg-background-secondary relative">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="grid lg:grid-cols-2 gap-16 items-center">
-            {/* Left - Content */}
-            <div>
-              <span className="inline-block px-4 py-1.5 bg-emerald-500/10 border border-emerald-500/20 rounded-full text-sm font-medium text-emerald-400 mb-6">
-                Zajednički recepti
-              </span>
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-                Članovi dele, svi koriste
-              </h2>
-              <p className="text-lg text-foreground-muted mb-10">
-                Članovi dele svoje omiljene recepte sa celom teretanom. Zdrava ishrana postaje
-                zajednički poduhvat.
-              </p>
-
-              <div className="space-y-6">
-                {recipeFeatures.map((feature, index) => (
-                  <div key={index} className="flex items-start gap-4">
-                    <div className="w-12 h-12 rounded-xl bg-emerald-500/10 flex items-center justify-center text-2xl flex-shrink-0">
-                      {feature.icon}
-                    </div>
-                    <div>
-                      <h4 className="font-semibold text-foreground mb-1">{feature.title}</h4>
-                      <p className="text-foreground-muted">{feature.description}</p>
-                    </div>
-                  </div>
-                ))}
-              </div>
-            </div>
-
-            {/* Right - Visual */}
-            <div className="relative">
-              <div className="bg-background border border-white/5 rounded-3xl p-6 shadow-2xl">
-                {/* Header */}
-                <div className="flex items-center justify-between mb-6">
-                  <h3 className="font-semibold text-foreground">Recepti članova</h3>
-                  <span className="text-xs text-foreground-muted bg-white/5 px-3 py-1 rounded-full">12 podeljenih</span>
-                </div>
-
-                {/* Recipe cards */}
-                <div className="space-y-3">
-                  {[
-                    { name: "Proteinski smoothie", author: "Marko P.", kcal: 320, protein: 35 },
-                    { name: "Piletina sa povrćem", author: "Ana M.", kcal: 450, protein: 42 },
-                    { name: "Overnight oats", author: "Stefan K.", kcal: 380, protein: 18 },
-                  ].map((recipe, index) => (
+                    className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-30 group-hover:opacity-50 transition-opacity"
+                    style={{ backgroundColor: accentColor }}
+                  />
+                  <div className="relative">
                     <div
-                      key={index}
-                      className="flex items-center justify-between bg-white/5 rounded-xl p-4 border border-white/5 hover:border-emerald-500/20 transition-colors cursor-pointer"
+                      className="w-14 h-14 rounded-2xl flex items-center justify-center mb-6"
+                      style={{ backgroundColor: `${accentColor}20` }}
                     >
-                      <div className="flex items-center gap-3">
-                        <div className="w-10 h-10 rounded-lg bg-emerald-500/20 flex items-center justify-center">
-                          <span className="text-lg">🍽️</span>
-                        </div>
-                        <div>
-                          <p className="font-medium text-foreground text-sm">{recipe.name}</p>
-                          <p className="text-xs text-foreground-muted">od {recipe.author} · {recipe.kcal} kcal</p>
-                        </div>
-                      </div>
-                      <div className="text-right">
-                        <span className="text-emerald-400 font-medium text-sm">{recipe.protein}g</span>
-                        <p className="text-xs text-foreground-muted">protein</p>
-                      </div>
+                      <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                      </svg>
                     </div>
-                  ))}
+                    <div className="text-5xl font-bold text-foreground mb-2">{gym._count.members}+</div>
+                    <div className="text-lg text-foreground-muted">Aktivnih clanova</div>
+                    <p className="text-sm text-foreground-muted/60 mt-2">Zajednica koja raste svaki dan</p>
+                  </div>
                 </div>
 
-                {/* Share button */}
-                <button className="w-full mt-4 py-3 border border-dashed border-white/20 rounded-xl text-foreground-muted text-sm hover:border-emerald-500/50 hover:text-emerald-400 transition-colors">
-                  + Podeli svoj recept
-                </button>
-              </div>
+                {/* Trainers card */}
+                <div className="bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-5 hover:border-white/20 transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-[30px] opacity-30 bg-blue-500 group-hover:opacity-50 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-3">
+                      <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
+                      </svg>
+                    </div>
+                    <div className="text-2xl font-bold text-foreground">{trainers.length}</div>
+                    <div className="text-sm text-foreground-muted">Trenera</div>
+                  </div>
+                </div>
 
-              {/* Floating badge */}
-              <div className="absolute -bottom-4 -right-4 bg-emerald-500/20 border border-emerald-500/30 rounded-2xl px-4 py-2 backdrop-blur">
-                <span className="text-emerald-400 font-medium text-sm">Zajednica koja deli</span>
+                {/* AI card */}
+                <div className="bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-5 hover:border-white/20 transition-all group relative overflow-hidden">
+                  <div className="absolute top-0 right-0 w-16 h-16 rounded-full blur-[30px] opacity-30 bg-violet-500 group-hover:opacity-50 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center mb-3">
+                      <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
+                      </svg>
+                    </div>
+                    <div className="text-2xl font-bold text-foreground">AI</div>
+                    <div className="text-sm text-foreground-muted">Asistenti</div>
+                  </div>
+                </div>
+
+                {/* Wide card - Features */}
+                <div className="col-span-3 bg-gradient-to-r from-background-secondary/80 via-background-secondary/60 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-6 hover:border-white/20 transition-all">
+                  <div className="flex items-center justify-between">
+                    <div className="flex items-center gap-4">
+                      <div
+                        className="w-12 h-12 rounded-2xl flex items-center justify-center"
+                        style={{ backgroundColor: `${accentColor}20` }}
+                      >
+                        <svg className="w-6 h-6" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 13.5l10.5-11.25L12 10.5h8.25L9.75 21.75 12 13.5H3.75z" />
+                        </svg>
+                      </div>
+                      <div className="text-lg font-semibold text-foreground">Sve na jednom mestu</div>
+                    </div>
+                    <div className="hidden sm:flex items-center gap-2">
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        Ishrana
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        Treninzi
+                      </span>
+                      <span className="inline-flex items-center gap-1.5 text-xs font-medium text-emerald-400 bg-emerald-500/10 px-3 py-1.5 rounded-full">
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.5}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                        </svg>
+                        Napredak
+                      </span>
+                    </div>
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
+
+        {/* Scroll indicator - clickable */}
+        <a
+          href={trainers.length > 0 ? "#trainers" : "#features"}
+          className="absolute bottom-8 left-1/2 -translate-x-1/2 animate-bounce p-2 rounded-full hover:bg-white/5 transition-colors cursor-pointer"
+          aria-label="Skroluj dole"
+        >
+          <svg className="w-6 h-6 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor">
+            <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M19 14l-7 7m0 0l-7-7m7 7V3" />
+          </svg>
+        </a>
       </section>
 
-      {/* Pricing Section */}
-      <section className="py-24 relative">
-        <div className="absolute inset-0">
-          <div className="absolute top-0 left-1/2 -translate-x-1/2 w-[600px] h-[600px] bg-accent/10 rounded-full blur-[128px]" />
-        </div>
+      {/* Trainers Section */}
+      {trainers.length > 0 && (
+        <section id="trainers" className="py-24 bg-background-secondary relative overflow-hidden">
+          {/* Background decorations */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10" style={{ backgroundColor: accentColor }} />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 bg-blue-500" />
+
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Section Header */}
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+              <div className="max-w-2xl">
+                <span
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                  style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                  Nas Tim
+                </span>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                  Upoznajte nase
+                  <span className="block" style={{ color: accentColor }}>strucne trenere</span>
+                </h2>
+              </div>
+              <p className="text-lg text-foreground-muted max-w-md lg:text-right">
+                Posveceni profesionalci sa godinama iskustva spremni da vas vode ka uspehu
+              </p>
+            </div>
+
+            {/* Trainers Grid - Show first 4, with "View all" if more */}
+            <div className="grid md:grid-cols-2 gap-6">
+              {trainers.slice(0, 4).map((trainer, index) => (
+                <div
+                  key={trainer.id}
+                  className="group relative bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden hover:border-white/20 transition-all duration-500"
+                >
+                  <div className="flex flex-col sm:flex-row">
+                    {/* Image Section */}
+                    <div className="relative sm:w-48 lg:w-56 flex-shrink-0">
+                      <div className="aspect-square sm:aspect-auto sm:h-full">
+                        {trainer.avatarUrl ? (
+                          <img
+                            src={trainer.avatarUrl}
+                            alt={trainer.name}
+                            className="w-full h-full object-cover"
+                          />
+                        ) : (
+                          <div
+                            className="w-full h-full flex items-center justify-center min-h-[200px]"
+                            style={{ background: `linear-gradient(135deg, ${accentColor}30 0%, ${accentColor}10 100%)` }}
+                          >
+                            <span className="text-6xl font-bold" style={{ color: accentColor }}>
+                              {trainer.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
+                            </span>
+                          </div>
+                        )}
+                      </div>
+                      {/* Overlay gradient */}
+                      <div className="absolute inset-0 bg-gradient-to-t sm:bg-gradient-to-r from-background/80 via-transparent to-transparent sm:from-transparent sm:via-transparent sm:to-background/80" />
+
+                      {/* Index number */}
+                      <div
+                        className="absolute top-4 left-4 w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-white/90 backdrop-blur-sm"
+                        style={{ backgroundColor: `${accentColor}80` }}
+                      >
+                        {String(index + 1).padStart(2, '0')}
+                      </div>
+                    </div>
+
+                    {/* Content Section */}
+                    <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center">
+                      <div className="flex items-start justify-between gap-4 mb-3">
+                        <h3 className="text-xl lg:text-2xl font-bold text-foreground group-hover:text-white transition-colors">
+                          {trainer.name}
+                        </h3>
+                        <div
+                          className="flex-shrink-0 w-8 h-8 rounded-full flex items-center justify-center opacity-0 group-hover:opacity-100 transition-all -translate-x-2 group-hover:translate-x-0"
+                          style={{ backgroundColor: accentColor }}
+                        >
+                          <svg className="w-4 h-4 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                            <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                          </svg>
+                        </div>
+                      </div>
+
+                      <span
+                        className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium w-fit mb-4"
+                        style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
+                      >
+                        <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                        </svg>
+                        {trainer.specialty || "Licni trener"}
+                      </span>
+
+                      {trainer.bio ? (
+                        <p className="text-foreground-muted text-sm leading-relaxed line-clamp-3">
+                          {trainer.bio}
+                        </p>
+                      ) : (
+                        <p className="text-foreground-muted text-sm leading-relaxed">
+                          Posvecen pomoci clanovima da ostvare svoje fitness ciljeve kroz personalizovane treninge i strucno vodstvo.
+                        </p>
+                      )}
+                    </div>
+                  </div>
+
+                  {/* Hover glow effect */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                    style={{
+                      background: `radial-gradient(circle at 30% 50%, ${accentColor}10 0%, transparent 50%)`
+                    }}
+                  />
+                </div>
+              ))}
+
+              {/* "View all" card if more than 4 trainers */}
+              {trainers.length > 4 && (
+                <div className="group relative bg-gradient-to-br from-background/60 to-background/30 backdrop-blur-xl border border-dashed border-white/20 rounded-3xl overflow-hidden hover:border-white/40 transition-all duration-500 flex items-center justify-center min-h-[200px] cursor-pointer">
+                  <div className="text-center p-8">
+                    {/* Stacked avatars preview */}
+                    <div className="flex justify-center -space-x-3 mb-4">
+                      {trainers.slice(4, 8).map((trainer, i) => (
+                        <div
+                          key={trainer.id}
+                          className="w-12 h-12 rounded-full border-2 border-background overflow-hidden"
+                          style={{ zIndex: 10 - i }}
+                        >
+                          {trainer.avatarUrl ? (
+                            <img src={trainer.avatarUrl} alt="" className="w-full h-full object-cover" />
+                          ) : (
+                            <div
+                              className="w-full h-full flex items-center justify-center text-sm font-bold"
+                              style={{ background: `linear-gradient(135deg, ${accentColor}40 0%, ${accentColor}20 100%)`, color: accentColor }}
+                            >
+                              {trainer.name.charAt(0)}
+                            </div>
+                          )}
+                        </div>
+                      ))}
+                      {trainers.length > 8 && (
+                        <div
+                          className="w-12 h-12 rounded-full border-2 border-background flex items-center justify-center text-sm font-bold backdrop-blur-sm"
+                          style={{ backgroundColor: `${accentColor}30`, color: accentColor }}
+                        >
+                          +{trainers.length - 8}
+                        </div>
+                      )}
+                    </div>
+                    <p className="text-foreground-muted text-sm mb-3">
+                      Jos {trainers.length - 4} trenera
+                    </p>
+                    <span
+                      className="inline-flex items-center gap-2 px-5 py-2.5 rounded-xl text-white font-medium text-sm transition-all group-hover:shadow-lg"
+                      style={{ backgroundColor: accentColor }}
+                    >
+                      Pogledaj sve
+                      <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </span>
+                  </div>
+
+                  {/* Hover glow */}
+                  <div
+                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 pointer-events-none"
+                    style={{ background: `radial-gradient(circle at center, ${accentColor}10 0%, transparent 70%)` }}
+                  />
+                </div>
+              )}
+            </div>
+
+            {/* Bottom CTA */}
+            <div className="mt-12 text-center">
+              <p className="text-foreground-muted mb-4">
+                Zainteresovani za licni trening?
+              </p>
+              <a
+                href="#contact"
+                className="inline-flex items-center gap-2 px-6 py-3 rounded-xl text-white font-medium transition-all hover:shadow-lg"
+                style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}
+              >
+                Zakazi besplatne konsultacije
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
+                </svg>
+              </a>
+            </div>
+          </div>
+        </section>
+      )}
+
+      {/* Features Section */}
+      <section id="features" className="py-24 relative overflow-hidden">
+        {/* Background decoration */}
+        <div className="absolute top-1/2 left-0 w-[600px] h-[600px] rounded-full blur-[150px] opacity-10 -translate-y-1/2" style={{ backgroundColor: accentColor }} />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-3xl mx-auto mb-16">
-            <span className="inline-block px-4 py-1.5 bg-accent/10 border border-accent/20 rounded-full text-sm font-medium text-accent mb-6">
-              Paketi i cene
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground">
-              Izaberite paket za vašu teretanu
-            </h2>
-            <p className="mt-6 text-lg text-foreground-muted">
-              Tri paketa prilagođena različitim veličinama i potrebama teretana.
-              Bez dugoročnih ugovora.
+          {/* Section Header - Split layout */}
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+            <div className="max-w-2xl">
+              <span
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+                Benefiti
+              </span>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                Sve sto vam treba
+                <span className="block" style={{ color: accentColor }}>na jednom mestu</span>
+              </h2>
+            </div>
+            <p className="text-lg text-foreground-muted max-w-md lg:text-right">
+              Kompletna platforma za fitness sa AI podrskom, pracenjem napretka i strucnim vodjstvom
             </p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-8">
-            {pricingTiers.map((tier) => (
-              <div
-                key={tier.name}
-                className={`relative bg-background border rounded-3xl overflow-hidden transition-all ${
-                  tier.popular
-                    ? "border-accent shadow-xl shadow-accent/10 scale-105 z-10"
-                    : "border-white/10 hover:border-white/20"
-                }`}
-              >
-                {/* Popular badge */}
-                {tier.popular && (
-                  <div className="absolute top-0 left-0 right-0 bg-accent text-white text-center py-2 text-sm font-medium">
-                    Najpopularnije
+          {/* Bento Grid - 3 columns, properly filled */}
+          <div className="grid md:grid-cols-2 lg:grid-cols-3 gap-4">
+            {/* Row 1: AI Assistants (2 cols) + Personal Trainer (1 col) */}
+            {/* Feature 1 - AI Assistants (Large) */}
+            <div className="md:col-span-2 group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 lg:p-10 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-[80px] opacity-20 bg-violet-500 group-hover:opacity-30 transition-opacity" />
+              <div className="relative flex flex-col lg:flex-row lg:items-center gap-6">
+                <div className="flex-shrink-0">
+                  <div className="w-16 h-16 rounded-2xl bg-violet-500/20 flex items-center justify-center">
+                    <svg className="w-8 h-8 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09zM18.259 8.715L18 9.75l-.259-1.035a3.375 3.375 0 00-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 002.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 002.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 00-2.456 2.456z" />
+                    </svg>
                   </div>
-                )}
-
-                {/* Header */}
-                <div className={`p-8 text-center ${tier.popular ? "pt-14" : ""}`}>
-                  <h3 className={`text-2xl font-bold mb-2 ${
-                    tier.color === "accent" ? "text-accent" :
-                    tier.color === "amber" ? "text-amber-400" : "text-foreground"
-                  }`}>
-                    {tier.name}
-                  </h3>
-                  <p className="text-sm text-foreground-muted mb-6">{tier.description}</p>
-                  <div className="flex items-baseline justify-center gap-1">
-                    <span className="text-5xl font-bold text-foreground">{tier.price}</span>
-                    <span className="text-xl text-foreground-muted">€</span>
-                  </div>
-                  <p className="text-foreground-muted text-sm mt-1">mesečno</p>
                 </div>
-
-                {/* Features */}
-                <div className="p-8 pt-0">
-                  <ul className="space-y-3">
-                    {tier.features.map((feature, index) => (
-                      <li key={index} className="flex items-start gap-3">
-                        <div className="w-5 h-5 rounded-full bg-emerald-500/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg className="w-3 h-3 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={3}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M5 13l4 4L19 7" />
-                          </svg>
-                        </div>
-                        <span className="text-foreground text-sm">{feature}</span>
-                      </li>
-                    ))}
-                    {tier.notIncluded.map((feature, index) => (
-                      <li key={`not-${index}`} className="flex items-start gap-3 opacity-50">
-                        <div className="w-5 h-5 rounded-full bg-foreground-muted/20 flex items-center justify-center flex-shrink-0 mt-0.5">
-                          <svg className="w-3 h-3 text-foreground-muted" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M6 18L18 6M6 6l12 12" />
-                          </svg>
-                        </div>
-                        <span className="text-foreground-muted text-sm">{feature}</span>
-                      </li>
-                    ))}
-                  </ul>
-
-                  <Link
-                    href="/gym-portal/gym-signup"
-                    className={`mt-8 w-full inline-flex items-center justify-center gap-2 px-6 py-3 text-base font-semibold rounded-xl transition-all ${
-                      tier.popular
-                        ? "bg-accent hover:bg-accent/90 text-white hover:shadow-lg hover:shadow-accent/25"
-                        : "bg-white/5 hover:bg-white/10 text-foreground border border-white/10"
-                    }`}
-                  >
-                    Započni sa {tier.name}
-                  </Link>
+                <div className="flex-1">
+                  <div className="flex items-center gap-3 mb-2">
+                    <h3 className="text-xl lg:text-2xl font-bold text-foreground">AI Asistenti</h3>
+                    <span className="text-xs font-medium text-violet-400 bg-violet-500/20 px-2 py-1 rounded-md">24/7</span>
+                  </div>
+                  <p className="text-foreground-muted leading-relaxed mb-4">
+                    Tri specijalizovana AI asistenta za ishranu, suplemente i trening. Dobijte personalizovane savete bilo kada.
+                  </p>
+                  <div className="flex flex-wrap gap-2">
+                    <span className="text-xs text-foreground-muted bg-white/5 px-3 py-1.5 rounded-full">Nutricionista</span>
+                    <span className="text-xs text-foreground-muted bg-white/5 px-3 py-1.5 rounded-full">Trener</span>
+                    <span className="text-xs text-foreground-muted bg-white/5 px-3 py-1.5 rounded-full">Suplementi</span>
+                  </div>
                 </div>
               </div>
-            ))}
-          </div>
+            </div>
 
-          <p className="text-center text-foreground-muted text-sm mt-12">
-            Svi paketi uključuju besplatnu tehničku podršku i mogućnost prelaska na viši paket u bilo kom trenutku.
-          </p>
+            {/* Feature 2 - Personal Trainer */}
+            <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 bg-blue-500 group-hover:opacity-30 transition-opacity" />
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-5">
+                  <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">Licni Trener</h3>
+                <p className="text-foreground-muted text-sm leading-relaxed">
+                  Izaberite trenera koji ce pratiti vas napredak i kreirati personalizovane planove.
+                </p>
+              </div>
+            </div>
+
+            {/* Row 2: Progress + Nutrition + Challenges (3 x 1 col) */}
+            {/* Feature 3 - Progress Tracking */}
+            <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 bg-emerald-500 group-hover:opacity-30 transition-opacity" />
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-5">
+                  <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">Pracenje Napretka</h3>
+                <p className="text-foreground-muted text-sm leading-relaxed">
+                  Belezite obroke, treninge i pratite transformaciju sa detaljnom statistikom.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 4 - Nutrition */}
+            <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 bg-orange-500 group-hover:opacity-30 transition-opacity" />
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl bg-orange-500/20 flex items-center justify-center mb-5">
+                  <svg className="w-7 h-7 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.125-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.125 1.124H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">Planovi Ishrane</h3>
+                <p className="text-foreground-muted text-sm leading-relaxed">
+                  Personalizovani planovi prilagodeni vasim ciljevima i preferencijama.
+                </p>
+              </div>
+            </div>
+
+            {/* Feature 5 - Challenges */}
+            <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20" style={{ backgroundColor: accentColor }} />
+              <div className="relative">
+                <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5" style={{ backgroundColor: `${accentColor}20` }}>
+                  <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 18.75h-9m9 0a3 3 0 013 3h-15a3 3 0 013-3m9 0v-3.375c0-.621-.503-1.125-1.125-1.125h-.871M7.5 18.75v-3.375c0-.621.504-1.125 1.125-1.125h.872m5.007 0H9.497m5.007 0a7.454 7.454 0 01-.982-3.172M9.497 14.25a7.454 7.454 0 00.981-3.172M5.25 4.236c-.982.143-1.954.317-2.916.52A6.003 6.003 0 007.73 9.728M5.25 4.236V4.5c0 2.108.966 3.99 2.48 5.228M5.25 4.236V2.721C7.456 2.41 9.71 2.25 12 2.25c2.291 0 4.545.16 6.75.47v1.516M7.73 9.728a6.726 6.726 0 002.748 1.35m8.272-6.842V4.5c0 2.108-.966 3.99-2.48 5.228m2.48-5.492a46.32 46.32 0 012.916.52 6.003 6.003 0 01-5.395 4.972m0 0a6.726 6.726 0 01-2.749 1.35m0 0a6.772 6.772 0 01-3.044 0" />
+                  </svg>
+                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2">Mesecni Izazovi</h3>
+                <p className="text-foreground-muted text-sm leading-relaxed">
+                  Ucestvujte u izazovima, osvojite nagrade i podignite motivaciju.
+                </p>
+              </div>
+            </div>
+
+            {/* Row 3: Community (full width - 3 cols) */}
+            <div className="md:col-span-2 lg:col-span-3 group relative bg-gradient-to-r from-background-secondary/80 via-background-secondary/60 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden">
+              <div className="absolute bottom-0 left-1/4 w-64 h-64 rounded-full blur-[100px] opacity-10 bg-pink-500" />
+              <div className="relative flex flex-col sm:flex-row sm:items-center gap-6">
+                <div className="flex-shrink-0 w-16 h-16 rounded-2xl bg-pink-500/20 flex items-center justify-center">
+                  <svg className="w-8 h-8 text-pink-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                  </svg>
+                </div>
+                <div className="flex-1">
+                  <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-2">Aktivna Zajednica</h3>
+                  <p className="text-foreground-muted leading-relaxed">
+                    Delite recepte, motiviste se zajedno sa drugim clanovima i pratite njihov napredak. Zajednica koja vas podrzava na svakom koraku.
+                  </p>
+                </div>
+                <div className="flex -space-x-2 flex-shrink-0">
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-pink-400 to-pink-600 border-2 border-background flex items-center justify-center text-white text-xs font-bold">JM</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-violet-400 to-violet-600 border-2 border-background flex items-center justify-center text-white text-xs font-bold">AP</div>
+                  <div className="w-10 h-10 rounded-full bg-gradient-to-br from-blue-400 to-blue-600 border-2 border-background flex items-center justify-center text-white text-xs font-bold">NK</div>
+                  <div className="w-10 h-10 rounded-full bg-white/10 border-2 border-background flex items-center justify-center text-foreground-muted text-xs font-medium">+{gym._count.members > 99 ? "99" : gym._count.members}</div>
+                </div>
+              </div>
+            </div>
+          </div>
         </div>
       </section>
+
+      {/* Gallery Section */}
+      <section id="gallery" className="py-24 bg-background-secondary relative overflow-hidden">
+        {/* Background decorations */}
+        <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[150px] opacity-10" style={{ backgroundColor: accentColor }} />
+        <div className="absolute bottom-0 right-0 w-[300px] h-[300px] rounded-full blur-[100px] opacity-10 bg-blue-500" />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          {/* Section Header - Split layout */}
+          <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+            <div className="max-w-2xl">
+              <span
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 15.75l5.159-5.159a2.25 2.25 0 013.182 0l5.159 5.159m-1.5-1.5l1.409-1.409a2.25 2.25 0 013.182 0l2.909 2.909m-18 3.75h16.5a1.5 1.5 0 001.5-1.5V6a1.5 1.5 0 00-1.5-1.5H3.75A1.5 1.5 0 002.25 6v12a1.5 1.5 0 001.5 1.5zm10.5-11.25h.008v.008h-.008V8.25zm.375 0a.375.375 0 11-.75 0 .375.375 0 01.75 0z" />
+                </svg>
+                Galerija
+              </span>
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                Pogledajte nas
+                <span className="block" style={{ color: accentColor }}>moderni prostor</span>
+              </h2>
+            </div>
+            <p className="text-lg text-foreground-muted max-w-md lg:text-right">
+              Vrhunska oprema i ugodna atmosfera za vase najbolje treninge
+            </p>
+          </div>
+
+          {/* Bento Gallery Grid */}
+          <div className="grid grid-cols-2 md:grid-cols-4 gap-3 md:gap-4">
+            {/* Large featured tile */}
+            <div className="col-span-2 row-span-2 aspect-square group relative overflow-hidden rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all">
+              <div
+                className="absolute inset-0 opacity-20"
+                style={{ background: `linear-gradient(135deg, ${accentColor}30 0%, transparent 50%, ${accentColor}10 100%)` }}
+              />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center p-8">
+                  <div
+                    className="w-20 h-20 rounded-3xl flex items-center justify-center mx-auto mb-6 group-hover:scale-110 transition-transform"
+                    style={{ backgroundColor: `${accentColor}20` }}
+                  >
+                    <svg className="w-10 h-10" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M6.429 9.75L2.25 12l4.179 2.25m0-4.5l5.571 3 5.571-3m-11.142 0L2.25 7.5 12 2.25l9.75 5.25-4.179 2.25m0 0L21.75 12l-4.179 2.25m0 0l4.179 2.25L12 21.75 2.25 16.5l4.179-2.25m11.142 0l-5.571 3-5.571-3" />
+                    </svg>
+                  </div>
+                  <h3 className="text-2xl font-bold text-foreground mb-2">Trening Zona</h3>
+                  <p className="text-foreground-muted">Prostrana zona sa premium opremom</p>
+                </div>
+              </div>
+              {/* Decorative elements */}
+              <div className="absolute top-4 left-4 w-8 h-8 rounded-full border border-white/10" />
+              <div className="absolute bottom-4 right-4 w-6 h-6 rounded-full border border-white/10" />
+            </div>
+
+            {/* Cardio tile */}
+            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all aspect-square">
+              <div className="absolute inset-0 bg-gradient-to-br from-rose-500/10 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="w-14 h-14 rounded-2xl bg-rose-500/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <svg className="w-7 h-7 text-rose-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M21 8.25c0-2.485-2.099-4.5-4.688-4.5-1.935 0-3.597 1.126-4.312 2.733-.715-1.607-2.377-2.733-4.313-2.733C5.1 3.75 3 5.765 3 8.25c0 7.22 9 12 9 12s9-4.78 9-12z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm">Kardio</h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Free weights tile */}
+            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all aspect-square">
+              <div className="absolute inset-0 bg-gradient-to-br from-amber-500/10 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="w-14 h-14 rounded-2xl bg-amber-500/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <svg className="w-7 h-7 text-amber-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 6A2.25 2.25 0 016 3.75h2.25A2.25 2.25 0 0110.5 6v2.25a2.25 2.25 0 01-2.25 2.25H6a2.25 2.25 0 01-2.25-2.25V6zM3.75 15.75A2.25 2.25 0 016 13.5h2.25a2.25 2.25 0 012.25 2.25V18a2.25 2.25 0 01-2.25 2.25H6A2.25 2.25 0 013.75 18v-2.25zM13.5 6a2.25 2.25 0 012.25-2.25H18A2.25 2.25 0 0120.25 6v2.25A2.25 2.25 0 0118 10.5h-2.25a2.25 2.25 0 01-2.25-2.25V6zM13.5 15.75a2.25 2.25 0 012.25-2.25H18a2.25 2.25 0 012.25 2.25V18A2.25 2.25 0 0118 20.25h-2.25A2.25 2.25 0 0113.5 18v-2.25z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm">Slobodni Tegovi</h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Group classes tile */}
+            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all aspect-square">
+              <div className="absolute inset-0 bg-gradient-to-br from-violet-500/10 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <svg className="w-7 h-7 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M18 18.72a9.094 9.094 0 003.741-.479 3 3 0 00-4.682-2.72m.94 3.198l.001.031c0 .225-.012.447-.037.666A11.944 11.944 0 0112 21c-2.17 0-4.207-.576-5.963-1.584A6.062 6.062 0 016 18.719m12 0a5.971 5.971 0 00-.941-3.197m0 0A5.995 5.995 0 0012 12.75a5.995 5.995 0 00-5.058 2.772m0 0a3 3 0 00-4.681 2.72 8.986 8.986 0 003.74.477m.94-3.197a5.971 5.971 0 00-.94 3.197M15 6.75a3 3 0 11-6 0 3 3 0 016 0zm6 3a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0zm-13.5 0a2.25 2.25 0 11-4.5 0 2.25 2.25 0 014.5 0z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm">Grupni Treninzi</h3>
+                </div>
+              </div>
+            </div>
+
+            {/* Locker rooms tile */}
+            <div className="group relative overflow-hidden rounded-3xl bg-gradient-to-br from-background/80 to-background/40 backdrop-blur-xl border border-white/10 hover:border-white/20 transition-all aspect-square">
+              <div className="absolute inset-0 bg-gradient-to-br from-cyan-500/10 to-transparent" />
+              <div className="absolute inset-0 flex items-center justify-center">
+                <div className="text-center p-4">
+                  <div className="w-14 h-14 rounded-2xl bg-cyan-500/20 flex items-center justify-center mx-auto mb-3 group-hover:scale-110 transition-transform">
+                    <svg className="w-7 h-7 text-cyan-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
+                    </svg>
+                  </div>
+                  <h3 className="font-bold text-foreground text-sm">Svlacionice</h3>
+                </div>
+              </div>
+            </div>
+          </div>
+
+        </div>
+      </section>
+
+      {/* Contact/Info Section */}
+      {(gym.address || gym.phone || gym.openingHours) && (
+        <section id="contact" className="py-24 relative overflow-hidden">
+          {/* Background decorations */}
+          <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10" style={{ backgroundColor: accentColor }} />
+          <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 bg-emerald-500" />
+
+          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+            {/* Section Header - Split layout */}
+            <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
+              <div className="max-w-2xl">
+                <span
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                  style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
+                >
+                  <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                    <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                  </svg>
+                  Kontakt
+                </span>
+                <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight">
+                  Posetite nas
+                  <span className="block" style={{ color: accentColor }}>uzivo</span>
+                </h2>
+              </div>
+              <p className="text-lg text-foreground-muted max-w-md lg:text-right">
+                Spremni smo da vas docekamo i pomognemo da zapocnete svoje fitness putovanje
+              </p>
+            </div>
+
+            {/* Contact Cards */}
+            <div className="grid md:grid-cols-3 gap-4">
+              {gym.address && (
+                <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden text-center">
+                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 bg-emerald-500 group-hover:opacity-30 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-5 mx-auto">
+                      <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M15 10.5a3 3 0 11-6 0 3 3 0 016 0z" />
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M19.5 10.5c0 7.142-7.5 11.25-7.5 11.25S4.5 17.642 4.5 10.5a7.5 7.5 0 1115 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground mb-3">Adresa</h3>
+                    <p className="text-foreground-muted leading-relaxed">{gym.address}</p>
+                    <a
+                      href={`https://maps.google.com/?q=${encodeURIComponent(gym.address)}`}
+                      target="_blank"
+                      rel="noopener noreferrer"
+                      className="inline-flex items-center gap-2 text-sm font-medium text-emerald-400 mt-4 group-hover:gap-3 transition-all"
+                    >
+                      Pogledaj na mapi
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13.5 6H5.25A2.25 2.25 0 003 8.25v10.5A2.25 2.25 0 005.25 21h10.5A2.25 2.25 0 0018 18.75V10.5m-10.5 6L21 3m0 0h-5.25M21 3v5.25" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {gym.phone && (
+                <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden text-center">
+                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20 bg-blue-500 group-hover:opacity-30 transition-opacity" />
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl bg-blue-500/20 flex items-center justify-center mb-5 mx-auto">
+                      <svg className="w-7 h-7 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M2.25 6.75c0 8.284 6.716 15 15 15h2.25a2.25 2.25 0 002.25-2.25v-1.372c0-.516-.351-.966-.852-1.091l-4.423-1.106c-.44-.11-.902.055-1.173.417l-.97 1.293c-.282.376-.769.542-1.21.38a12.035 12.035 0 01-7.143-7.143c-.162-.441.004-.928.38-1.21l1.293-.97c.363-.271.527-.734.417-1.173L6.963 3.102a1.125 1.125 0 00-1.091-.852H4.5A2.25 2.25 0 002.25 4.5v2.25z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground mb-3">Telefon</h3>
+                    <p className="text-foreground-muted leading-relaxed">{gym.phone}</p>
+                    <a
+                      href={`tel:${gym.phone.replace(/\s/g, '')}`}
+                      className="inline-flex items-center gap-2 text-sm font-medium text-blue-400 mt-4 group-hover:gap-3 transition-all"
+                    >
+                      Pozovi odmah
+                      <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </a>
+                  </div>
+                </div>
+              )}
+
+              {gym.openingHours && (
+                <div className="group relative bg-gradient-to-br from-background-secondary/80 to-background-secondary/40 backdrop-blur-xl border border-white/10 rounded-3xl p-8 hover:border-white/20 transition-all overflow-hidden text-center">
+                  <div className="absolute top-0 right-0 w-32 h-32 rounded-full blur-[60px] opacity-20" style={{ backgroundColor: accentColor }} />
+                  <div className="relative">
+                    <div className="w-14 h-14 rounded-2xl flex items-center justify-center mb-5 mx-auto" style={{ backgroundColor: `${accentColor}20` }}>
+                      <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
+                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 6v6h4.5m4.5 0a9 9 0 11-18 0 9 9 0 0118 0z" />
+                      </svg>
+                    </div>
+                    <h3 className="text-xl font-bold text-foreground mb-3">Radno vreme</h3>
+                    <p className="text-foreground-muted leading-relaxed whitespace-pre-line">{gym.openingHours}</p>
+                  </div>
+                </div>
+              )}
+            </div>
+          </div>
+        </section>
+      )}
 
       {/* CTA Section */}
-      <section className="py-24 bg-background-secondary">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="relative bg-gradient-to-br from-accent/20 via-background to-emerald-500/10 border border-white/10 rounded-3xl p-12 sm:p-16 overflow-hidden">
-            {/* Background decoration */}
-            <div className="absolute top-0 right-0 w-64 h-64 bg-accent/20 rounded-full blur-[80px]" />
-            <div className="absolute bottom-0 left-0 w-48 h-48 bg-emerald-500/20 rounded-full blur-[60px]" />
+      <section className="py-24 bg-background-secondary relative overflow-hidden">
+        {/* Animated background elements */}
+        <div
+          className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[800px] h-[800px] rounded-full blur-[200px] opacity-20 animate-pulse"
+          style={{ backgroundColor: accentColor }}
+        />
+        <div className="absolute top-0 left-0 w-[400px] h-[400px] rounded-full blur-[150px] opacity-10 bg-blue-500" />
+        <div className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full blur-[150px] opacity-10 bg-violet-500" />
 
-            <div className="relative text-center max-w-2xl mx-auto">
-              <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground mb-6">
-                Spremni za digitalnu transformaciju?
+        {/* Decorative grid */}
+        <div
+          className="absolute inset-0 opacity-[0.02]"
+          style={{
+            backgroundImage: `linear-gradient(rgba(255,255,255,0.1) 1px, transparent 1px),
+                              linear-gradient(90deg, rgba(255,255,255,0.1) 1px, transparent 1px)`,
+            backgroundSize: "40px 40px",
+          }}
+        />
+
+        <div className="relative max-w-5xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="bg-gradient-to-br from-background/60 to-background/30 backdrop-blur-2xl border border-white/10 rounded-[2.5rem] p-8 md:p-12 lg:p-16 overflow-hidden relative">
+            {/* Inner glow */}
+            <div
+              className="absolute top-0 right-0 w-64 h-64 rounded-full blur-[100px] opacity-20"
+              style={{ backgroundColor: accentColor }}
+            />
+
+            <div className="relative text-center">
+              {/* Badge */}
+              <div
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-8 border"
+                style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
+              >
+                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
+                </svg>
+                Zapocni danas
+              </div>
+
+              <h2 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground mb-6 leading-tight">
+                Spremni ste da<br />
+                <span style={{ color: accentColor }}>transformisete sebe?</span>
               </h2>
-              <p className="text-lg text-foreground-muted mb-10">
-                Pridružite se teretanama koje već koriste Classic Method da pruže
-                bolju uslugu svojim članovima.
+
+              <p className="text-lg sm:text-xl text-foreground-muted mb-10 max-w-2xl mx-auto leading-relaxed">
+                Pridruzi se zajednici od <span className="font-semibold text-foreground">{gym._count.members}+ aktivnih clanova</span> i zapocni svoje fitness putovanje danas.
               </p>
 
-              <div className="flex flex-col sm:flex-row items-center justify-center gap-4">
-                <Link
-                  href="/gym-portal/gym-signup"
-                  className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold bg-accent hover:bg-accent/90 text-white rounded-xl transition-all hover:shadow-lg hover:shadow-accent/25"
+              {/* CTA Button */}
+              <div className="flex justify-center">
+                <a
+                  href="#contact"
+                  className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-lg font-semibold text-white rounded-2xl transition-all hover:shadow-2xl hover:scale-[1.02]"
+                  style={{ backgroundColor: accentColor, boxShadow: `0 20px 60px -15px ${accentColor}80` }}
                 >
-                  Započnite sada
+                  Postani clan danas
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
-                </Link>
-                <a
-                  href="mailto:podrska@classicmethod.rs"
-                  className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-foreground hover:text-accent transition-colors"
-                >
-                  Imate pitanja? Kontaktirajte nas
                 </a>
+              </div>
+
+              {/* Trust indicators */}
+              <div className="mt-12 pt-8 border-t border-white/5">
+                <div className="flex flex-wrap justify-center gap-6 sm:gap-10 text-sm text-foreground-muted">
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Bez ugovora
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Pristup AI asistentima
+                  </div>
+                  <div className="flex items-center gap-2">
+                    <svg className="w-5 h-5 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="m4.5 12.75 6 6 9-13.5" />
+                    </svg>
+                    Kompletna platforma
+                  </div>
+                </div>
               </div>
             </div>
           </div>
         </div>
       </section>
-      </div>
 
       {/* Footer */}
-      <footer className="border-t border-border mt-auto py-8">
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="flex flex-col md:flex-row items-center justify-between gap-4">
-            <div className="flex items-center gap-3">
-              <div className="w-8 h-8 rounded-lg bg-accent/20 flex items-center justify-center">
-                <span className="text-sm font-bold text-accent">C</span>
+      <footer className="relative bg-background border-t border-white/5">
+        {/* Top section */}
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
+          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
+            {/* Brand column */}
+            <div className="lg:col-span-2">
+              <div className="flex items-center gap-3 mb-6">
+                {gym.logo ? (
+                  <img
+                    src={gym.logo}
+                    alt={gym.name}
+                    className="w-12 h-12 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-12 h-12 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${accentColor}20` }}
+                  >
+                    <span className="text-xl font-bold" style={{ color: accentColor }}>
+                      {gym.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <span className="text-xl font-bold text-foreground">{gym.name}</span>
               </div>
-              <span className="text-sm text-foreground-muted">
-                Classic Method &copy; {new Date().getFullYear()}
-              </span>
+              <p className="text-foreground-muted leading-relaxed max-w-md mb-6">
+                {gym.about || "Vasa destinacija za fitness i zdravlje. Moderna oprema, strucni treneri i AI podrska za vase ciljeve."}
+              </p>
+              {/* Social links placeholder */}
+              <div className="flex items-center gap-3">
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="Instagram"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="Facebook"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  className="w-10 h-10 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="TikTok"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                  </svg>
+                </a>
+              </div>
             </div>
-            <div className="flex items-center gap-6 text-sm text-foreground-muted">
-              <Link href="/login" className="hover:text-foreground transition-colors">
-                Clan? Uloguj se
-              </Link>
-              <Link href="/staff-login" className="hover:text-foreground transition-colors">
-                Osoblje? Uloguj se
-              </Link>
+
+            {/* Quick links */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-6">Brzi linkovi</h3>
+              <ul className="space-y-4">
+                {trainers.length > 0 && (
+                  <li>
+                    <a href="#trainers" className="text-foreground-muted hover:text-foreground transition-colors">
+                      Nasi treneri
+                    </a>
+                  </li>
+                )}
+                <li>
+                  <a href="#features" className="text-foreground-muted hover:text-foreground transition-colors">
+                    Sta nudimo
+                  </a>
+                </li>
+                <li>
+                  <a href="#gallery" className="text-foreground-muted hover:text-foreground transition-colors">
+                    Galerija
+                  </a>
+                </li>
+                {(gym.address || gym.phone || gym.openingHours) && (
+                  <li>
+                    <a href="#contact" className="text-foreground-muted hover:text-foreground transition-colors">
+                      Kontakt
+                    </a>
+                  </li>
+                )}
+              </ul>
+            </div>
+
+            {/* Account links */}
+            <div>
+              <h3 className="text-sm font-semibold text-foreground uppercase tracking-wider mb-6">Nalog</h3>
+              <ul className="space-y-4">
+                <li>
+                  <Link href="/login" className="text-foreground-muted hover:text-foreground transition-colors">
+                    Prijava za clanove
+                  </Link>
+                </li>
+                <li>
+                  <Link href="/staff-login" className="text-foreground-muted hover:text-foreground transition-colors">
+                    Prijava za osoblje
+                  </Link>
+                </li>
+              </ul>
+            </div>
+          </div>
+        </div>
+
+        {/* Bottom bar */}
+        <div className="border-t border-white/5">
+          <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
+            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
+              <p className="text-sm text-foreground-muted">
+                &copy; {new Date().getFullYear()} {gym.name}. Sva prava zadrzana.
+              </p>
+              <div className="flex items-center gap-2 text-sm text-foreground-muted">
+                <span>Powered by</span>
+                <span className="font-semibold text-foreground">Classic AI</span>
+                <svg className="w-4 h-4" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
+                </svg>
+              </div>
             </div>
           </div>
         </div>

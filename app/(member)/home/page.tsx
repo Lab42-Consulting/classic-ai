@@ -10,6 +10,8 @@ import {
   Goal,
 } from "@/lib/calculations";
 import { getChallengeStatus, canJoinChallenge, getDaysUntilJoinDeadline, getDaysUntilStart } from "@/lib/challenges";
+import { canVote, getDaysUntilVotingEnds, getHoursUntilVotingEnds, calculateProgress, centsToEuros } from "@/lib/goals";
+import { closeExpiredVoting, getMemberVote } from "@/lib/goals/voting";
 
 interface DailyLogData {
   date: Date;
@@ -142,7 +144,7 @@ async function getMemberData(memberId: string) {
     },
   });
 
-  // Get active visible fundraising goals
+  // Get active visible fundraising goals (legacy)
   const fundraisingGoals = await prisma.fundraisingGoal.findMany({
     where: {
       gymId: member.gymId,
@@ -160,6 +162,74 @@ async function getMemberData(memberId: string) {
       imageUrl: true,
     },
   });
+
+  // Auto-close any expired voting goals
+  await closeExpiredVoting(member.gymId);
+
+  // Get active voting and fundraising goals (new unified system)
+  const goals = await prisma.goal.findMany({
+    where: {
+      gymId: member.gymId,
+      isVisible: true,
+      status: { in: ["voting", "fundraising"] },
+    },
+    include: {
+      options: {
+        orderBy: [{ voteCount: "desc" }, { displayOrder: "asc" }],
+      },
+    },
+    orderBy: { createdAt: "desc" },
+    take: 5, // Show max 5 goals on home page
+  });
+
+  // Process voting goals - get member's current vote for each
+  const votingGoals = [];
+  const goalFundraisingGoals = [];
+
+  for (const goal of goals) {
+    const totalVotes = goal.options.reduce((sum, opt) => sum + opt.voteCount, 0);
+
+    if (goal.status === "voting" && canVote(goal)) {
+      const memberVoteOptionId = await getMemberVote(goal.id, memberId);
+
+      votingGoals.push({
+        id: goal.id,
+        name: goal.name,
+        description: goal.description,
+        votingEndsAt: goal.votingEndsAt?.toISOString() || null,
+        daysUntilDeadline: getDaysUntilVotingEnds(goal),
+        hoursUntilDeadline: getHoursUntilVotingEnds(goal),
+        totalVotes,
+        myVoteOptionId: memberVoteOptionId,
+        options: goal.options.map((opt) => ({
+          id: opt.id,
+          name: opt.name,
+          description: opt.description,
+          imageUrl: opt.imageUrl,
+          targetAmount: centsToEuros(opt.targetAmount),
+          voteCount: opt.voteCount,
+          percentage: totalVotes > 0 ? Math.round((opt.voteCount / totalVotes) * 100) : 0,
+        })),
+      });
+    } else if (goal.status === "fundraising") {
+      const winningOption = goal.options.find((o) => o.id === goal.winningOptionId);
+      if (winningOption) {
+        goalFundraisingGoals.push({
+          id: goal.id,
+          name: goal.name,
+          description: goal.description,
+          winningOption: {
+            id: winningOption.id,
+            name: winningOption.name,
+            imageUrl: winningOption.imageUrl,
+          },
+          targetAmountEuros: centsToEuros(winningOption.targetAmount),
+          currentAmountEuros: centsToEuros(goal.currentAmount),
+          progressPercentage: calculateProgress(goal.currentAmount, winningOption.targetAmount),
+        });
+      }
+    }
+  }
 
   // Check if member is participating and get their stats
   let isParticipating = false;
@@ -210,6 +280,8 @@ async function getMemberData(memberId: string) {
     isParticipating,
     participationData,
     fundraisingGoals,
+    votingGoals,
+    goalFundraisingGoals,
   };
 }
 
@@ -320,7 +392,7 @@ export default async function HomePage() {
     redirect("/login");
   }
 
-  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData, fundraisingGoals } = data;
+  const { member, todayLogs, last7DaysLogs, unseenNudges, pendingCoachRequest, pendingSessionRequests, upcomingSessions, activeChallenge, isParticipating, participationData, fundraisingGoals, votingGoals, goalFundraisingGoals } = data;
 
   // Redirect new users to simplified onboarding
   if (!member.hasSeenOnboarding) {
@@ -491,7 +563,7 @@ export default async function HomePage() {
       duration: session.duration,
       location: session.location,
     })),
-    // Fundraising goals for transparency
+    // Fundraising goals for transparency (legacy)
     fundraisingGoals: fundraisingGoals.map((goal) => ({
       id: goal.id,
       name: goal.name,
@@ -501,6 +573,10 @@ export default async function HomePage() {
       progressPercentage: Math.min(100, Math.round((goal.currentAmount / goal.targetAmount) * 100)),
       imageUrl: goal.imageUrl,
     })),
+    // New goal voting system - voting goals
+    votingGoals,
+    // New goal voting system - fundraising goals
+    goalFundraisingGoals,
   };
 
   return <HomeClient data={homeData} />;

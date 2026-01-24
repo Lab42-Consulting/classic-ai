@@ -17,6 +17,7 @@ import { AgentType } from "@/components/ui/agent-avatar";
 import { StatusType } from "@/components/ui/status-indicator";
 import { getGreeting, getTranslations } from "@/lib/i18n";
 import { useMember } from "@/lib/member-context";
+import { VotingGoalCard } from "@/components/goals/VotingGoalCard";
 
 interface NudgeData {
   id: string;
@@ -85,6 +86,43 @@ interface FundraisingGoalData {
   imageUrl: string | null;
 }
 
+// New goal voting system types
+interface GoalOptionData {
+  id: string;
+  name: string;
+  description: string | null;
+  imageUrl: string | null;
+  targetAmount: number;
+  voteCount: number;
+  percentage: number;
+}
+
+interface VotingGoalData {
+  id: string;
+  name: string;
+  description: string | null;
+  votingEndsAt: string | null;
+  daysUntilDeadline: number;
+  hoursUntilDeadline: number;
+  totalVotes: number;
+  myVoteOptionId: string | null;
+  options: GoalOptionData[];
+}
+
+interface GoalFundraisingData {
+  id: string;
+  name: string;
+  description: string | null;
+  winningOption: {
+    id: string;
+    name: string;
+    imageUrl: string | null;
+  };
+  targetAmountEuros: number;
+  currentAmountEuros: number;
+  progressPercentage: number;
+}
+
 interface HomeData {
   memberName: string;
   memberAvatarUrl: string | null;
@@ -121,8 +159,11 @@ interface HomeData {
   // Session scheduling
   pendingSessionRequests: SessionRequestData[];
   upcomingSessions: UpcomingSessionData[];
-  // Fundraising goals
+  // Fundraising goals (legacy)
   fundraisingGoals: FundraisingGoalData[];
+  // New goal voting system
+  votingGoals: VotingGoalData[];
+  goalFundraisingGoals: GoalFundraisingData[];
 }
 
 interface HomeClientProps {
@@ -172,6 +213,7 @@ export function HomeClient({ data }: HomeClientProps) {
   const [ringView, setRingView] = useState<"calories" | "macros">("calories");
   const [touchStart, setTouchStart] = useState<number | null>(null);
   const [animatedMacros, setAnimatedMacros] = useState({ protein: 0, carbs: 0, fats: 0 });
+  const [votingGoals, setVotingGoals] = useState<VotingGoalData[]>(data.votingGoals);
   const statusInfo = statusConfig[data.status];
   const greeting = getGreeting("sr");
 
@@ -252,6 +294,56 @@ export function HomeClient({ data }: HomeClientProps) {
       });
     } catch {
       // Silently fail - nudge is already dismissed locally
+    }
+  };
+
+  // Handle voting on a goal option
+  const handleVote = async (goalId: string, optionId: string) => {
+    try {
+      const response = await fetch(`/api/member/goals/${goalId}/vote`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ optionId }),
+      });
+
+      if (!response.ok) {
+        const errorData = await response.json();
+        showToast(errorData.error || "Greška pri glasanju", "error");
+        return;
+      }
+
+      const result = await response.json();
+
+      // Update local state with new vote counts
+      if (result.options) {
+        setVotingGoals((prev) =>
+          prev.map((goal) => {
+            if (goal.id !== goalId) return goal;
+            return {
+              ...goal,
+              myVoteOptionId: result.newOptionId,
+              totalVotes: result.totalVotes,
+              options: goal.options.map((opt) => {
+                const updatedOpt = result.options.find((o: { id: string }) => o.id === opt.id);
+                if (updatedOpt) {
+                  return {
+                    ...opt,
+                    voteCount: updatedOpt.voteCount,
+                    percentage: updatedOpt.percentage,
+                  };
+                }
+                return opt;
+              }),
+            };
+          })
+        );
+      }
+
+      if (result.changed) {
+        showToast("Glas je zabeležen!", "success");
+      }
+    } catch {
+      showToast("Greška pri glasanju", "error");
     }
   };
 
@@ -941,7 +1033,89 @@ export function HomeClient({ data }: HomeClientProps) {
         </div>
       )}
 
-      {/* Fundraising Goals - Transparency Card */}
+      {/* Voting Goals - New Goal Voting System */}
+      {votingGoals.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={42}>
+            <div className="space-y-4">
+              {votingGoals.map((goal) => (
+                <VotingGoalCard key={goal.id} goal={goal} onVote={handleVote} />
+              ))}
+            </div>
+          </SlideUp>
+        </div>
+      )}
+
+      {/* Goal Fundraising - New Goal System (after voting phase) */}
+      {data.goalFundraisingGoals.length > 0 && (
+        <div className="px-6 mb-4">
+          <SlideUp delay={43}>
+            <div className="bg-gradient-to-br from-amber-500/10 via-amber-500/5 to-transparent border border-amber-500/20 rounded-2xl p-5">
+              <div className="flex items-center gap-3 mb-4">
+                <div className="w-10 h-10 rounded-full bg-amber-500/20 flex items-center justify-center flex-shrink-0">
+                  <span className="text-xl">🎯</span>
+                </div>
+                <div>
+                  <h3 className="text-base font-semibold text-foreground">Izabrani ciljevi</h3>
+                  <p className="text-xs text-foreground-muted">Tvoja članarina pomaže!</p>
+                </div>
+              </div>
+
+              <div className="space-y-4">
+                {data.goalFundraisingGoals.map((goal) => (
+                  <div key={goal.id} className="bg-white/5 rounded-xl p-4">
+                    <div className="flex items-start gap-3 mb-3">
+                      {goal.winningOption.imageUrl ? (
+                        <div className="w-14 h-14 rounded-lg overflow-hidden flex-shrink-0">
+                          <img
+                            src={goal.winningOption.imageUrl}
+                            alt={goal.winningOption.name}
+                            className="w-full h-full object-cover"
+                          />
+                        </div>
+                      ) : (
+                        <div className="w-14 h-14 rounded-lg bg-amber-500/10 flex items-center justify-center flex-shrink-0">
+                          <span className="text-2xl">🏋️</span>
+                        </div>
+                      )}
+
+                      <div className="flex-1 min-w-0">
+                        <div className="flex items-start justify-between">
+                          <div>
+                            <h4 className="text-sm font-medium text-foreground truncate">{goal.winningOption.name}</h4>
+                            <p className="text-xs text-foreground-muted">{goal.name}</p>
+                          </div>
+                          <span className="text-sm font-bold text-amber-400 ml-2 flex-shrink-0">
+                            {goal.progressPercentage}%
+                          </span>
+                        </div>
+                      </div>
+                    </div>
+
+                    <div className="h-2 bg-background-tertiary rounded-full overflow-hidden mb-2">
+                      <div
+                        className="h-full bg-gradient-to-r from-amber-500 to-amber-400 rounded-full transition-all duration-500"
+                        style={{ width: `${goal.progressPercentage}%` }}
+                      />
+                    </div>
+
+                    <div className="flex items-center justify-between text-xs">
+                      <span className="text-foreground-muted">
+                        Prikupljeno: <span className="text-amber-400 font-medium">{goal.currentAmountEuros.toLocaleString()}€</span>
+                      </span>
+                      <span className="text-foreground-muted">
+                        Cilj: <span className="text-foreground">{goal.targetAmountEuros.toLocaleString()}€</span>
+                      </span>
+                    </div>
+                  </div>
+                ))}
+              </div>
+            </div>
+          </SlideUp>
+        </div>
+      )}
+
+      {/* Fundraising Goals - Legacy Transparency Card */}
       {data.fundraisingGoals.length > 0 && (
         <div className="px-6 mb-4">
           <SlideUp delay={45}>

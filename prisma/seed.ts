@@ -3,7 +3,34 @@ import bcrypt from "bcryptjs";
 import { seedCacheIfEmpty } from "../lib/ai/cache";
 import { generateGenericResponse } from "../lib/ai";
 
-const prisma = new PrismaClient();
+// Database selection logic (mirrors lib/db/index.ts)
+// - NODE_ENV=development (local): DEV_DATABASE_URL or DATABASE_URL
+// - NODE_ENV=production/other: DATABASE_URL
+function getDatabaseUrl(): string {
+  const isLocalDev = process.env.NODE_ENV === "development";
+
+  const connectionString = isLocalDev
+    ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
+    : process.env.DATABASE_URL;
+
+  if (!connectionString) {
+    const envVar = isLocalDev ? "DEV_DATABASE_URL (or DATABASE_URL)" : "DATABASE_URL";
+    throw new Error(`Database URL not configured. Set ${envVar} in your environment.`);
+  }
+
+  return connectionString;
+}
+
+const databaseUrl = getDatabaseUrl();
+console.log(`🔗 Using database: ${process.env.NODE_ENV === "development" ? "DEV" : "PROD"} (NODE_ENV=${process.env.NODE_ENV})`);
+
+const prisma = new PrismaClient({
+  datasources: {
+    db: {
+      url: databaseUrl,
+    },
+  },
+});
 
 async function hashPin(pin: string): Promise<string> {
   return bcrypt.hash(pin, 10);
@@ -86,6 +113,9 @@ async function main() {
       subscriptionStatus: "active",
       subscribedAt: gymSubscribedAt,
       subscribedUntil: gymSubscribedUntil,
+      address: "Bulevar oslobođenja 83, Novi Sad 21000",
+      phone: "060 0136913",
+      openingHours: "Ponedeljak - Petak: 07:00–23:00\nSubota: 08:00–22:00\nNedelja: 09:00–21:00",
     },
     create: {
       id: "gym-classic-001",
@@ -96,6 +126,9 @@ async function main() {
       subscriptionStatus: "active",
       subscribedAt: gymSubscribedAt,
       subscribedUntil: gymSubscribedUntil,
+      address: "Bulevar oslobođenja 83, Novi Sad 21000",
+      phone: "060 0136913",
+      openingHours: "Ponedeljak - Petak: 07:00–23:00\nSubota: 08:00–22:00\nNedelja: 09:00–21:00",
       settings: {
         primaryMetric: "calories",
         branding: {
@@ -402,8 +435,12 @@ async function main() {
   }
 
   // Seed AI response cache
+  // Note: seedCacheIfEmpty uses lib/db which has Neon adapter - doesn't work with local PostgreSQL
   console.log("\n🤖 Seeding AI response cache...");
-  if (process.env.ANTHROPIC_API_KEY) {
+  const isLocalDatabase = databaseUrl.includes("localhost") || databaseUrl.includes("127.0.0.1");
+  if (isLocalDatabase) {
+    console.log(`⏭️  Skipped AI cache seeding (local database - Neon adapter not compatible)`);
+  } else if (process.env.ANTHROPIC_API_KEY) {
     const seededCount = await seedCacheIfEmpty(generateGenericResponse);
     if (seededCount > 0) {
       console.log(`✅ Seeded ${seededCount} AI responses`);
@@ -628,6 +665,10 @@ async function main() {
   // Seed custom metrics
   console.log("\n📊 Seeding custom metrics...");
   await seedMetrics(createdMembers, coaches, today);
+
+  // Seed goals (voting system)
+  console.log("\n🎯 Seeding goals (voting system)...");
+  await seedGoals(gym.id, createdMembers, today);
 
   // Print summary
   printSummary(coachConfigs, members);
@@ -1063,6 +1104,270 @@ async function seedMetrics(
   console.log(`  ✅ Added ${entryCount} metric entries`);
 }
 
+// Simple SVG placeholder images for goal options (as data URLs)
+// These are small, inline SVGs with gym equipment icons
+const goalOptionImages = {
+  // Squat Rack - barbell with rack frame
+  squatRack: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='40' width='15' height='120' rx='3' fill='%234a90d9'/%3E%3Crect x='155' y='40' width='15' height='120' rx='3' fill='%234a90d9'/%3E%3Crect x='20' y='60' width='35' height='8' rx='2' fill='%236bb3f0'/%3E%3Crect x='145' y='60' width='35' height='8' rx='2' fill='%236bb3f0'/%3E%3Crect x='20' y='80' width='35' height='8' rx='2' fill='%236bb3f0'/%3E%3Crect x='145' y='80' width='35' height='8' rx='2' fill='%236bb3f0'/%3E%3Crect x='15' y='100' width='170' height='6' rx='3' fill='%23e0e0e0'/%3E%3Ccircle cx='30' cy='103' r='12' fill='%23404040'/%3E%3Ccircle cx='170' cy='103' r='12' fill='%23404040'/%3E%3C/svg%3E",
+
+  // Yoga/Exercise Mats - stacked mats
+  mats: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='130' width='140' height='12' rx='2' fill='%2367b26f'/%3E%3Crect x='35' y='115' width='130' height='12' rx='2' fill='%235da364'/%3E%3Crect x='40' y='100' width='120' height='12' rx='2' fill='%234f9456'/%3E%3Crect x='45' y='85' width='110' height='12' rx='2' fill='%23408548'/%3E%3Crect x='50' y='70' width='100' height='12' rx='2' fill='%2332763a'/%3E%3Ctext x='100' y='55' font-family='Arial' font-size='14' fill='%23888' text-anchor='middle'%3Ex20%3C/text%3E%3C/svg%3E",
+
+  // Bench Press - bench with barbell
+  benchPress: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='40' y='110' width='120' height='20' rx='3' fill='%23404040'/%3E%3Crect x='50' y='130' width='15' height='30' rx='2' fill='%23505050'/%3E%3Crect x='135' y='130' width='15' height='30' rx='2' fill='%23505050'/%3E%3Crect x='25' y='65' width='10' height='80' rx='2' fill='%234a90d9'/%3E%3Crect x='165' y='65' width='10' height='80' rx='2' fill='%234a90d9'/%3E%3Crect x='10' y='70' width='180' height='5' rx='2' fill='%23e0e0e0'/%3E%3Ccircle cx='25' cy='72' r='10' fill='%23404040'/%3E%3Ccircle cx='175' cy='72' r='10' fill='%23404040'/%3E%3C/svg%3E",
+
+  // Treadmill - running machine
+  treadmill: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='120' width='140' height='40' rx='5' fill='%23404040'/%3E%3Crect x='40' y='130' width='120' height='20' rx='3' fill='%23303030'/%3E%3Cline x1='50' y1='140' x2='150' y2='140' stroke='%23555' stroke-width='2' stroke-dasharray='10,5'/%3E%3Crect x='140' y='50' width='25' height='70' rx='3' fill='%23505050'/%3E%3Crect x='145' y='55' width='15' height='25' rx='2' fill='%234a90d9'/%3E%3Ccircle cx='45' cy='160' r='8' fill='%23303030'/%3E%3Ccircle cx='155' cy='160' r='8' fill='%23303030'/%3E%3C/svg%3E",
+
+  // Dumbbells - hex dumbbells
+  dumbbells: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='60' y='85' width='80' height='10' rx='2' fill='%23808080'/%3E%3Cpolygon points='30,75 50,65 50,115 30,105' fill='%23404040'/%3E%3Cpolygon points='50,65 70,75 70,105 50,115' fill='%23505050'/%3E%3Cpolygon points='150,75 170,65 170,115 150,105' fill='%23404040'/%3E%3Cpolygon points='130,75 150,65 150,115 130,105' fill='%23505050'/%3E%3Crect x='60' y='115' width='80' height='10' rx='2' fill='%23808080'/%3E%3Cpolygon points='30,105 50,95 50,145 30,135' fill='%23353535'/%3E%3Cpolygon points='50,95 70,105 70,135 50,145' fill='%23454545'/%3E%3Cpolygon points='150,105 170,95 170,145 150,135' fill='%23353535'/%3E%3Cpolygon points='130,105 150,95 150,145 130,135' fill='%23454545'/%3E%3C/svg%3E",
+
+  // Outdoor Gym - outdoor exercise station
+  outdoorGym: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a4a1a' width='200' height='200'/%3E%3Crect x='30' y='70' width='10' height='90' rx='2' fill='%238B4513'/%3E%3Crect x='160' y='70' width='10' height='90' rx='2' fill='%238B4513'/%3E%3Crect x='25' y='65' width='150' height='8' rx='2' fill='%23A0522D'/%3E%3Crect x='60' y='100' width='80' height='5' rx='1' fill='%23606060'/%3E%3Crect x='60' y='130' width='80' height='5' rx='1' fill='%23606060'/%3E%3Ccircle cx='50' cy='30' r='20' fill='%2387CEEB'/%3E%3Ccircle cx='50' cy='30' r='15' fill='%23FFD700'/%3E%3Cellipse cx='100' cy='165' rx='60' ry='10' fill='%23228B22'/%3E%3C/svg%3E",
+
+  // Sauna - wooden sauna room
+  sauna: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='50' width='140' height='110' rx='5' fill='%238B4513'/%3E%3Crect x='40' y='60' width='120' height='90' rx='3' fill='%23A0522D'/%3E%3Crect x='50' y='100' width='100' height='10' rx='2' fill='%23CD853F'/%3E%3Crect x='50' y='115' width='100' height='10' rx='2' fill='%23CD853F'/%3E%3Crect x='50' y='130' width='100' height='10' rx='2' fill='%23CD853F'/%3E%3Crect x='140' y='70' width='15' height='20' rx='2' fill='%23404040'/%3E%3Cellipse cx='147' cy='80' r='4' fill='%23FF6347'/%3E%3Cpath d='M80,70 Q85,55 90,70' stroke='%23ddd' stroke-width='2' fill='none'/%3E%3Cpath d='M95,70 Q100,50 105,70' stroke='%23ddd' stroke-width='2' fill='none'/%3E%3Cpath d='M110,70 Q115,55 120,70' stroke='%23ddd' stroke-width='2' fill='none'/%3E%3C/svg%3E",
+};
+
+async function seedGoals(
+  gymId: string,
+  createdMembers: { id: string; memberId: string; coachIndex: number | null; activityLevel: ActivityLevel }[],
+  today: Date
+) {
+  // ========== Goal 1: Active Voting Goal (3 options) ==========
+  const votingDeadline = new Date(today);
+  votingDeadline.setDate(votingDeadline.getDate() + 14); // Voting ends in 14 days
+
+  const votingGoal = await prisma.goal.upsert({
+    where: { id: "goal-voting-001" },
+    update: {},
+    create: {
+      id: "goal-voting-001",
+      gymId,
+      name: "Q1 2026 Oprema",
+      description: "Glasajte za opremu koju želite da nabavimo! Vaš glas odlučuje šta kupujemo sledeće.",
+      status: "voting",
+      votingEndsAt: votingDeadline,
+      winningOptionId: null,
+      currentAmount: 0,
+      isVisible: true,
+    },
+  });
+
+  // Create options for voting goal
+  const votingOptions = [
+    { name: "Squat Rack", description: "Profesionalni squat rack sa safety barovima", targetAmount: 200000, imageUrl: goalOptionImages.squatRack },
+    { name: "Nove Strunjače", description: "Set od 20 visokokvalitetnih strunjača za pod", targetAmount: 50000, imageUrl: goalOptionImages.mats },
+    { name: "Bench Press Klupa", description: "Olimpijska bench press stanica sa stalcima", targetAmount: 150000, imageUrl: goalOptionImages.benchPress },
+  ];
+
+  const createdVotingOptions: { id: string; voteCount: number }[] = [];
+  for (let i = 0; i < votingOptions.length; i++) {
+    const opt = votingOptions[i];
+    const option = await prisma.goalOption.upsert({
+      where: { id: `goal-voting-001-option-${i + 1}` },
+      update: {},
+      create: {
+        id: `goal-voting-001-option-${i + 1}`,
+        goalId: votingGoal.id,
+        name: opt.name,
+        description: opt.description,
+        targetAmount: opt.targetAmount,
+        imageUrl: opt.imageUrl,
+        displayOrder: i,
+        voteCount: 0,
+      },
+    });
+    createdVotingOptions.push(option);
+  }
+
+  // Add votes from some members
+  const voterMembers = createdMembers.filter(m =>
+    ["MJ01", "AN02", "SD03", "MP06", "II07", "SM11", "STRUJA", "TEST"].includes(m.memberId)
+  );
+
+  // Vote distribution: Option 1 (5 votes), Option 2 (2 votes), Option 3 (1 vote)
+  const voteDistribution = [0, 0, 0, 0, 0, 1, 1, 2]; // Indices into options
+  let voteCounts = [0, 0, 0];
+
+  for (let i = 0; i < voterMembers.length; i++) {
+    const member = voterMembers[i];
+    const optionIndex = voteDistribution[i] ?? 0;
+    const option = createdVotingOptions[optionIndex];
+
+    await prisma.goalVote.upsert({
+      where: {
+        goalId_memberId: { goalId: votingGoal.id, memberId: member.id },
+      },
+      update: {},
+      create: {
+        goalId: votingGoal.id,
+        optionId: option.id,
+        memberId: member.id,
+      },
+    });
+    voteCounts[optionIndex]++;
+  }
+
+  // Update vote counts on options
+  for (let i = 0; i < createdVotingOptions.length; i++) {
+    await prisma.goalOption.update({
+      where: { id: createdVotingOptions[i].id },
+      data: { voteCount: voteCounts[i] },
+    });
+  }
+
+  console.log(`  ✅ Created voting goal "${votingGoal.name}" with 3 options and 8 votes`);
+
+  // ========== Goal 2: Fundraising Goal (voting ended, winner selected) ==========
+  const fundraisingGoal = await prisma.goal.upsert({
+    where: { id: "goal-fundraising-001" },
+    update: {},
+    create: {
+      id: "goal-fundraising-001",
+      gymId,
+      name: "Kardio Oprema",
+      description: "Prikupljamo sredstva za novu traku za trčanje!",
+      status: "fundraising",
+      votingEndsAt: new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000), // Voting ended 14 days ago
+      votingEndedAt: new Date(today.getTime() - 14 * 24 * 60 * 60 * 1000),
+      winningOptionId: "goal-fundraising-001-option-1",
+      currentAmount: 45000, // 450€ raised so far
+      isVisible: true,
+    },
+  });
+
+  // Create the winning option
+  await prisma.goalOption.upsert({
+    where: { id: "goal-fundraising-001-option-1" },
+    update: {},
+    create: {
+      id: "goal-fundraising-001-option-1",
+      goalId: fundraisingGoal.id,
+      name: "Traka za Trčanje",
+      description: "Profesionalna traka za trčanje sa nagibom do 15%",
+      targetAmount: 100000, // 1000€ target
+      imageUrl: goalOptionImages.treadmill,
+      displayOrder: 0,
+      voteCount: 12, // Won with 12 votes
+    },
+  });
+
+  // Add some contributions
+  const contributorMembers = createdMembers.filter(m =>
+    ["MJ01", "AN02", "MP06", "STRUJA"].includes(m.memberId)
+  );
+
+  for (const member of contributorMembers) {
+    const memberData = { MJ01: "Marko Jovanović", AN02: "Ana Nikolić", MP06: "Milan Petrović", STRUJA: "Miloš Mladenović" };
+    await prisma.goalContribution.create({
+      data: {
+        goalId: fundraisingGoal.id,
+        amount: 500, // 5€ from each subscription
+        source: "subscription",
+        memberId: member.id,
+        memberName: memberData[member.memberId as keyof typeof memberData] || member.memberId,
+        note: "1-mesečna članarina",
+        createdAt: new Date(today.getTime() - Math.floor(Math.random() * 10) * 24 * 60 * 60 * 1000),
+      },
+    });
+  }
+
+  // Add a manual contribution
+  await prisma.goalContribution.create({
+    data: {
+      goalId: fundraisingGoal.id,
+      amount: 25000, // 250€ manual donation
+      source: "manual",
+      memberId: null,
+      memberName: null,
+      note: "Donacija od sponzora - FitShop",
+      createdAt: new Date(today.getTime() - 5 * 24 * 60 * 60 * 1000),
+    },
+  });
+
+  console.log(`  ✅ Created fundraising goal "${fundraisingGoal.name}" with 450€/1000€ raised`);
+
+  // ========== Goal 3: Completed Goal ==========
+  const completedGoal = await prisma.goal.upsert({
+    where: { id: "goal-completed-001" },
+    update: {},
+    create: {
+      id: "goal-completed-001",
+      gymId,
+      name: "Nove Bučice",
+      description: "Set gumiranih hex bučica od 5-30kg",
+      status: "completed",
+      votingEndsAt: null, // Single option, no voting
+      votingEndedAt: null,
+      winningOptionId: "goal-completed-001-option-1",
+      currentAmount: 80000, // Target reached
+      isVisible: true,
+      completedAt: new Date(today.getTime() - 30 * 24 * 60 * 60 * 1000), // Completed 30 days ago
+    },
+  });
+
+  await prisma.goalOption.upsert({
+    where: { id: "goal-completed-001-option-1" },
+    update: {},
+    create: {
+      id: "goal-completed-001-option-1",
+      goalId: completedGoal.id,
+      name: "Gumirane Hex Bučice",
+      description: "Kompletan set od 5kg do 30kg",
+      targetAmount: 80000, // 800€ target
+      imageUrl: goalOptionImages.dumbbells,
+      displayOrder: 0,
+      voteCount: 0, // Single option, no voting
+    },
+  });
+
+  console.log(`  ✅ Created completed goal "${completedGoal.name}" (target reached)`);
+
+  // ========== Goal 4: Draft Goal (not yet published) ==========
+  const draftGoal = await prisma.goal.upsert({
+    where: { id: "goal-draft-001" },
+    update: {},
+    create: {
+      id: "goal-draft-001",
+      gymId,
+      name: "Ljetnja Oprema 2026",
+      description: "U pripremi - glasanje uskoro!",
+      status: "draft",
+      votingEndsAt: null,
+      winningOptionId: null,
+      currentAmount: 0,
+      isVisible: false,
+    },
+  });
+
+  // Add draft options
+  const draftOptions = [
+    { name: "Vanjski Gym Set", description: "Oprema za trening na otvorenom", targetAmount: 300000, imageUrl: goalOptionImages.outdoorGym },
+    { name: "Sauna", description: "Finska sauna za oporavak", targetAmount: 500000, imageUrl: goalOptionImages.sauna },
+  ];
+
+  for (let i = 0; i < draftOptions.length; i++) {
+    const opt = draftOptions[i];
+    await prisma.goalOption.upsert({
+      where: { id: `goal-draft-001-option-${i + 1}` },
+      update: {},
+      create: {
+        id: `goal-draft-001-option-${i + 1}`,
+        goalId: draftGoal.id,
+        name: opt.name,
+        description: opt.description,
+        targetAmount: opt.targetAmount,
+        imageUrl: opt.imageUrl,
+        displayOrder: i,
+        voteCount: 0,
+      },
+    });
+  }
+
+  console.log(`  ✅ Created draft goal "${draftGoal.name}" (not published yet)`);
+}
+
 function printSummary(coachConfigs: { staffId: string; pin: string; name: string }[], members: MemberConfig[]) {
   console.log("\n\n✨ Seed completed!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -1129,8 +1434,25 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  │ Members WITHOUT metrics: CEPA, NEW1, NEW2, NS05, AZ14, etc.      │");
   console.log("  └──────────────────────────────────────────────────────────────────┘");
 
+  console.log("\n  🎯 GOALS (VOTING SYSTEM):");
+  console.log("  ┌──────────────────────────────────────────────────────────────────┐");
+  console.log("  │ Voting Goal:      Q1 2026 Oprema (3 options, 8 votes, 14 days)   │");
+  console.log("  │                   - Squat Rack (5 votes) ← leading               │");
+  console.log("  │                   - Nove Strunjače (2 votes)                     │");
+  console.log("  │                   - Bench Press Klupa (1 vote)                   │");
+  console.log("  │                                                                  │");
+  console.log("  │ Fundraising Goal: Kardio Oprema (450€/1000€ raised)              │");
+  console.log("  │                   - Traka za Trčanje (winner)                    │");
+  console.log("  │                                                                  │");
+  console.log("  │ Completed Goal:   Nove Bučice (800€ - target reached)            │");
+  console.log("  │                                                                  │");
+  console.log("  │ Draft Goal:       Ljetnja Oprema 2026 (not published)            │");
+  console.log("  └──────────────────────────────────────────────────────────────────┘");
+
   console.log("\n  📋 TEST SCENARIOS:");
   console.log("  • Admin coach performance: Login as S-ADMIN, check /api/admin/coach-performance");
+  console.log("  • Admin goals: Login as S-ADMIN, manage goals at /gym-portal/manage/goals");
+  console.log("  • Member voting: Login as any active member, vote on home page");
   console.log("  • Coach dashboard: Login as any coach to see assigned member stats");
   console.log("  • New member onboarding: Login as CEPA, NEW01, or NEW02");
   console.log("  • Coach request flow: Login as STRUJA or TEST (no coach assigned)");

@@ -210,6 +210,45 @@ vi.mock('@/lib/db', () => {
     delete: vi.fn(),
   }
 
+  const goalMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const goalOptionMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  }
+
+  const goalVoteMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  }
+
+  const goalContributionMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+    deleteMany: vi.fn(),
+  }
+
   // Build the prisma mock object
   const prismaMock = {
     member: memberMock,
@@ -237,6 +276,10 @@ vi.mock('@/lib/db', () => {
     scheduledSession: scheduledSessionMock,
     customMetric: customMetricMock,
     metricEntry: metricEntryMock,
+    goal: goalMock,
+    goalOption: goalOptionMock,
+    goalVote: goalVoteMock,
+    goalContribution: goalContributionMock,
     // $transaction passes the same mocks as tx argument
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {
@@ -287,6 +330,16 @@ vi.mock('@/lib/ai/cache', () => ({
   setCache: vi.fn().mockResolvedValue(undefined),
   cleanupOldCache: vi.fn().mockResolvedValue(undefined),
   checkGymBudget: vi.fn().mockResolvedValue({ allowed: true, remaining: 100, budgetUsd: 50 }),
+}))
+
+// Mock goals voting module
+vi.mock('@/lib/goals/voting', () => ({
+  castVote: vi.fn(),
+  selectWinner: vi.fn(),
+  closeExpiredVoting: vi.fn().mockResolvedValue(0),
+  getMemberVote: vi.fn(),
+  getVoteBreakdown: vi.fn(),
+  addContribution: vi.fn(),
 }))
 
 // Mock subscription guards module (feature gating)
@@ -347,9 +400,4 @@ vi.mock('@vercel/blob', () => {
 // Reset all mocks before each test
 beforeEach(() => {
   vi.clearAllMocks()
-})
-
-// Clean up after tests
-afterEach(() => {
-  vi.resetAllMocks()
 })

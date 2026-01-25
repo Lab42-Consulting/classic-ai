@@ -35,7 +35,7 @@ export async function GET() {
       return NextResponse.json({ error: "Gym not found" }, { status: 404 });
     }
 
-    const images = (gym.galleryImages as GalleryImage[]) || [];
+    const images = (gym.galleryImages as unknown as GalleryImage[]) || [];
     return NextResponse.json({ images });
   } catch (error) {
     console.error("Failed to fetch gallery:", error);

@@ -18,6 +18,7 @@
     "db:seed:dev": "TARGET_DB=dev tsx prisma/seed.ts",
     "db:seed:staging": "TARGET_DB=staging tsx prisma/seed.ts",
     "db:seed-gym": "tsx prisma/seed-gym.ts",
+    "db:seed:prod": "tsx prisma/seed-prod.ts",
     "db:studio": "prisma studio",
     "db:reset": "prisma migrate reset",
     "prepare": "husky"

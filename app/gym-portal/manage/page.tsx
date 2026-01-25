@@ -25,19 +25,16 @@ interface GymStats {
 const TIER_INFO = {
   starter: {
     name: "Starter",
-    price: "€99",
     color: "text-gray-400 bg-gray-500/20",
     memberLimit: 50,
   },
   pro: {
     name: "Pro",
-    price: "€199",
     color: "text-violet-400 bg-violet-500/20",
     memberLimit: 150,
   },
   elite: {
     name: "Elite",
-    price: "€299",
     color: "text-amber-400 bg-amber-500/20",
     memberLimit: null,
   },
@@ -150,73 +147,15 @@ export default function ManagePage() {
           </p>
         </div>
 
-        {/* Current Tier */}
+        {/* Active Coaches */}
         <div className="bg-background-secondary border border-border rounded-2xl p-6">
-          <p className="text-sm text-foreground-muted mb-2">Paket</p>
-          <div className="flex items-center gap-2">
-            <span className={`px-3 py-1 rounded-full text-sm font-medium ${
-              TIER_INFO[gym.subscriptionTier as keyof typeof TIER_INFO]?.color || TIER_INFO.starter.color
-            }`}>
-              {TIER_INFO[gym.subscriptionTier as keyof typeof TIER_INFO]?.name || "Starter"}
-            </span>
-          </div>
+          <p className="text-sm text-foreground-muted mb-2">Treneri</p>
+          <p className="text-3xl font-bold text-foreground">{stats.coaches}</p>
           <p className="text-xs text-foreground-muted mt-2">
-            {TIER_INFO[gym.subscriptionTier as keyof typeof TIER_INFO]?.price || "€99"}/mesec
+            aktivnih trenera
           </p>
         </div>
       </div>
-
-      {/* Tier Usage */}
-      {(() => {
-        const tierKey = (gym.subscriptionTier || "starter") as keyof typeof TIER_INFO;
-        const tier = TIER_INFO[tierKey];
-        const memberLimit = tier.memberLimit;
-        const usagePercent = memberLimit ? Math.min(100, (stats.activeMembers / memberLimit) * 100) : 0;
-        const isNearLimit = memberLimit && stats.activeMembers >= memberLimit * 0.8;
-
-        return (
-          <div className="bg-background-secondary border border-border rounded-2xl p-6 mb-8">
-            <div className="flex items-center justify-between mb-4">
-              <h2 className="text-lg font-semibold text-foreground">Kapacitet članova</h2>
-              {tierKey !== "elite" && (
-                <Link
-                  href="/gym-portal/manage/subscription"
-                  className="text-sm text-accent hover:text-accent/80 transition-colors"
-                >
-                  Nadogradi paket
-                </Link>
-              )}
-            </div>
-
-            <div className="flex items-end gap-2 mb-2">
-              <span className="text-3xl font-bold text-foreground">{stats.activeMembers}</span>
-              <span className="text-foreground-muted mb-1">
-                / {memberLimit ? memberLimit : "∞"} aktivnih članova
-              </span>
-            </div>
-
-            {memberLimit && (
-              <div className="relative h-3 bg-background rounded-full overflow-hidden">
-                <div
-                  className={`absolute inset-y-0 left-0 rounded-full transition-all ${
-                    isNearLimit ? "bg-amber-500" : "bg-accent"
-                  }`}
-                  style={{ width: `${usagePercent}%` }}
-                />
-              </div>
-            )}
-
-            {isNearLimit && (
-              <p className="text-sm text-amber-400 mt-3 flex items-center gap-2">
-                <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                  <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
-                </svg>
-                Približavate se limitu. Razmislite o nadogradnji paketa.
-              </p>
-            )}
-          </div>
-        );
-      })()}
 
       {/* Quick Actions */}
       <div className="mb-8">

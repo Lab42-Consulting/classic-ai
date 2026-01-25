@@ -64,7 +64,7 @@ async function main() {
   });
   console.log(`✅ Gym created: ${gym.name} (${gym.subscriptionTier} tier, ${gym.subscriptionStatus})`);
 
-  // Create Admin: STRUJA
+  // Create Owner: STRUJA (primary owner with cross-gym access)
   const strujaPin = await hashPin("1234");
   const struja = await prisma.staff.upsert({
     where: {
@@ -74,14 +74,14 @@ async function main() {
     create: {
       staffId: "STRUJA",
       pin: strujaPin,
-      name: "Struja Admin",
-      role: "admin",
+      name: "Struja Owner",
+      role: "owner",
       gymId: gym.id,
     },
   });
-  console.log(`✅ Admin created: ${struja.staffId} (PIN: 1234)`);
+  console.log(`✅ Owner created: ${struja.staffId} (PIN: 1234)`);
 
-  // Create Admin: KOLEKTIV
+  // Create Admin: KOLEKTIV (gym-specific admin)
   const kolektivPin = await hashPin("1234");
   const kolektiv = await prisma.staff.upsert({
     where: {
@@ -112,7 +112,7 @@ async function main() {
   console.log("  ┌─────────────┬────────┬──────────────────┐");
   console.log("  │ Staff ID    │ PIN    │ Role             │");
   console.log("  ├─────────────┼────────┼──────────────────┤");
-  console.log("  │ STRUJA      │ 1234   │ Admin            │");
+  console.log("  │ STRUJA      │ 1234   │ Owner            │");
   console.log("  │ KOLEKTIV    │ 1234   │ Admin            │");
   console.log("  └─────────────┴────────┴──────────────────┘");
   console.log("");

@@ -200,9 +200,14 @@ export default function CoachDashboard() {
         if (response.ok) {
           const result = await response.json();
 
-          // Redirect admins to gym portal - dashboard is for coaches only
+          // Redirect admins/owners to gym portal - dashboard is for coaches only
           if (!result.isCoach) {
-            router.push("/gym-portal/manage");
+            // Owners go to locations page, admins go to main manage page
+            if (result.role === "owner") {
+              router.push("/gym-portal/manage/locations");
+            } else {
+              router.push("/gym-portal/manage");
+            }
             return;
           }
 

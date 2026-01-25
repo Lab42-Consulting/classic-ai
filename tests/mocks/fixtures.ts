@@ -29,6 +29,33 @@ export const mockGymWithBranding = {
   secondaryColor: '#10b981',
 }
 
+// Multi-location owner fixtures
+export const mockGymWithOwner = {
+  ...mockGym,
+  id: 'gym-owner-001',
+  name: 'Classic Gym - Main',
+  ownerEmail: 'owner@classic.com',
+  ownerName: 'Owner User',
+  address: 'Main Street 1',
+}
+
+export const mockGymWithOwner2 = {
+  ...mockGym,
+  id: 'gym-owner-002',
+  name: 'Classic Gym - Branch',
+  ownerEmail: 'owner@classic.com',
+  ownerName: 'Owner User',
+  address: 'Branch Street 2',
+}
+
+export const mockGymDifferentOwner = {
+  ...mockGym,
+  id: 'gym-different-001',
+  name: 'Different Gym',
+  ownerEmail: 'different@gym.com',
+  ownerName: 'Different Owner',
+}
+
 // =============================================================================
 // MEMBER FIXTURES
 // =============================================================================
@@ -128,6 +155,21 @@ export const mockStaffAdmin = {
   updatedAt: new Date('2024-01-01'),
 }
 
+export const mockStaffOwner = {
+  id: 'staff-test-004',
+  staffId: 'S-OWNER',
+  pin: '$2a$10$hashedPinValue',
+  name: 'Owner User',
+  role: 'owner',
+  locale: 'sr',
+  avatarUrl: null,
+  bio: null,
+  linkedMemberId: null,
+  gymId: 'gym-test-001',
+  createdAt: new Date('2024-01-01'),
+  updatedAt: new Date('2024-01-01'),
+}
+
 export const mockStaffCoachWithLinkedMember = {
   ...mockStaffCoach,
   id: 'staff-test-003',
@@ -159,6 +201,28 @@ export const mockAdminSession = {
   userType: 'staff' as const,
   gymId: mockGym.id,
   exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+}
+
+export const mockOwnerSession = {
+  userId: mockStaffOwner.id,
+  userType: 'staff' as const,
+  gymId: mockGymWithOwner.id,
+  exp: Math.floor(Date.now() / 1000) + 30 * 24 * 60 * 60,
+}
+
+// Owner with gym relation for location management
+export const mockStaffOwnerWithGym = {
+  ...mockStaffOwner,
+  gymId: mockGymWithOwner.id,
+  gym: mockGymWithOwner,
+}
+
+export const mockStaffOwnerWithGym2 = {
+  ...mockStaffOwner,
+  id: 'staff-test-005',
+  staffId: 'S-OWNER2',
+  gymId: mockGymWithOwner2.id,
+  gym: mockGymWithOwner2,
 }
 
 // =============================================================================

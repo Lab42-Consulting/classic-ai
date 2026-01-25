@@ -481,6 +481,7 @@ export async function GET() {
     return NextResponse.json({
       coachName: staff.name,
       isCoach,
+      role: staff.role.toLowerCase(),
       stats,
       members: membersWithStats,
       ...(expiringSubscriptions && { expiringSubscriptions }),

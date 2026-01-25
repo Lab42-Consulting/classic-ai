@@ -22,7 +22,8 @@ export async function GET() {
       return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
 
-    if (staff.role.toLowerCase() !== "admin") {
+    const role = staff.role.toLowerCase();
+    if (role !== "admin" && role !== "owner") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
@@ -35,6 +36,7 @@ export async function GET() {
         logo: true,
         primaryColor: true,
         secondaryColor: true,
+        slug: true,
         settings: true,
       },
     });
@@ -72,12 +74,13 @@ export async function PUT(request: NextRequest) {
       return NextResponse.json({ error: "Staff not found" }, { status: 404 });
     }
 
-    if (staff.role.toLowerCase() !== "admin") {
+    const role = staff.role.toLowerCase();
+    if (role !== "admin" && role !== "owner") {
       return NextResponse.json({ error: "Admin access required" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { logo, primaryColor, secondaryColor } = body;
+    const { logo, primaryColor, secondaryColor, slug } = body;
 
     // Validate colors if provided
     const colorRegex = /^#[0-9A-Fa-f]{6}$/;
@@ -92,6 +95,43 @@ export async function PUT(request: NextRequest) {
         { error: "Invalid secondary color format" },
         { status: 400 }
       );
+    }
+
+    // Validate slug if provided
+    if (slug !== undefined && slug !== null && slug !== "") {
+      // Reserved words that cannot be used as slugs
+      const reservedWords = ["manage", "login", "api", "admin", "staff", "member", "gym-signup"];
+
+      // Slug validation: lowercase letters, numbers, hyphens; 3-50 chars; no leading/trailing hyphens
+      const slugRegex = /^[a-z0-9][a-z0-9-]{1,48}[a-z0-9]$/;
+      if (!slugRegex.test(slug)) {
+        return NextResponse.json(
+          { error: "Slug mora sadržati 3-50 karaktera (mala slova, brojevi i crtice), bez crtica na početku/kraju" },
+          { status: 400 }
+        );
+      }
+
+      if (reservedWords.includes(slug.toLowerCase())) {
+        return NextResponse.json(
+          { error: "Ovaj slug je rezervisan i ne može se koristiti" },
+          { status: 400 }
+        );
+      }
+
+      // Check slug uniqueness (excluding current gym)
+      const existingGym = await prisma.gym.findFirst({
+        where: {
+          slug: slug,
+          NOT: { id: staff.gymId },
+        },
+      });
+
+      if (existingGym) {
+        return NextResponse.json(
+          { error: "Ovaj slug je već zauzet" },
+          { status: 400 }
+        );
+      }
     }
 
     // Validate logo if provided
@@ -130,6 +170,8 @@ export async function PUT(request: NextRequest) {
         logo: processedLogo ?? undefined,
         primaryColor: primaryColor ?? undefined,
         secondaryColor: secondaryColor ?? undefined,
+        // Set slug to null if empty string, otherwise use provided value
+        slug: slug === "" ? null : (slug ?? undefined),
       },
       select: {
         id: true,
@@ -137,6 +179,7 @@ export async function PUT(request: NextRequest) {
         logo: true,
         primaryColor: true,
         secondaryColor: true,
+        slug: true,
       },
     });
 

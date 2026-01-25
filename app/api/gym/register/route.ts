@@ -69,13 +69,13 @@ export async function POST(request: NextRequest) {
         },
       });
 
-      // Create first admin staff member
+      // Create first owner staff member (owner = super admin with cross-gym access)
       const staff = await tx.staff.create({
         data: {
           staffId,
           pin: hashedPin,
           name: ownerName,
-          role: "ADMIN",
+          role: "owner",
           gymId: gym.id,
         },
       });

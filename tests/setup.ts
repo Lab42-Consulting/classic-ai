@@ -249,6 +249,14 @@ vi.mock('@/lib/db', () => {
     deleteMany: vi.fn(),
   }
 
+  const subscriptionLogMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    delete: vi.fn(),
+  }
+
   // Build the prisma mock object
   const prismaMock = {
     member: memberMock,
@@ -280,6 +288,7 @@ vi.mock('@/lib/db', () => {
     goalOption: goalOptionMock,
     goalVote: goalVoteMock,
     goalContribution: goalContributionMock,
+    subscriptionLog: subscriptionLogMock,
     // $transaction passes the same mocks as tx argument
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {
@@ -287,7 +296,7 @@ vi.mock('@/lib/db', () => {
     }),
   }
 
-  return { default: prismaMock }
+  return { default: prismaMock, prisma: prismaMock }
 })
 
 // Mock auth module

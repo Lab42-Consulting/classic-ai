@@ -35,9 +35,13 @@ model Gym {
   phone           String?           // Contact phone
   address         String?           // Gym address
 
+  // URL slug for marketing page (e.g., "bulevar", "detelinara")
+  slug            String?           @unique
+
   // Public website content (customizable by admin)
   about           String?           @db.Text // About section for public website
   openingHours    String?           @db.Text // Opening hours (e.g., "Mon-Fri: 6:00-22:00, Sat-Sun: 8:00-20:00")
+  galleryImages   Json              @default("[]") // Array of {id, imageUrl, caption} for public gallery
 
   members         Member[]
   staff           Staff[]
@@ -130,7 +134,7 @@ model Staff {
   staffId           String
   pin               String
   name              String
-  role              String            // "ADMIN" | "COACH"
+  role              String            // "owner" | "admin" | "coach"
   locale            String            @default("sr") // sr | en
   avatarUrl         String?           @db.Text // Base64 encoded avatar image
   bio               String?           @db.Text // Short bio/description for coach profile

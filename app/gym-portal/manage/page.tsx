@@ -260,7 +260,7 @@ export default function ManagePage() {
           <h2 className="text-lg font-semibold text-foreground">Javni sajt teretane</h2>
           <div className="flex items-center gap-4">
             <Link
-              href="/gym-portal"
+              href="/gym-portal?preview=true"
               target="_blank"
               className="text-sm text-foreground-muted hover:text-foreground transition-colors flex items-center gap-1"
             >

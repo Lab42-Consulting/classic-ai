@@ -1,6 +1,63 @@
 # Database Management Guide
 
-This document covers database migrations, schema changes, and backup strategies for the Classic AI application using Prisma with Neon PostgreSQL.
+This document covers database migrations, schema changes, backup strategies, and key data models for the Classic AI application using Prisma with Neon PostgreSQL.
+
+---
+
+## Staff Roles and Multi-Gym Ownership
+
+### Role Hierarchy
+
+The application supports three staff roles with different access levels:
+
+| Role | Description | Access Level |
+|------|-------------|--------------|
+| **Owner** | Gym owner who can manage multiple locations | Can view/manage all gyms linked by `ownerEmail`, add staff to any owned gym |
+| **Admin** | Location administrator | Full access to single gym, cannot manage other locations |
+| **Coach** | Training coach | Dashboard access, member management, training features only |
+
+### Multi-Gym Ownership
+
+Owners can manage multiple gym locations through the `ownerEmail` field:
+
+```prisma
+model Gym {
+  // Ownership linking
+  ownerEmail    String?  // Links multiple gyms to same owner
+  ownerName     String?
+
+  // Other fields...
+}
+```
+
+**How it works:**
+1. When an owner creates a new location via `/api/admin/locations`, both gyms share the same `ownerEmail`
+2. The owner gets separate staff accounts (with unique credentials) for each gym
+3. Role checks use case-insensitive comparison: `role.toLowerCase() === "owner"`
+
+**Access Control:**
+- Owners can only view/manage gyms where `targetGym.ownerEmail === currentStaff.gym.ownerEmail`
+- If `ownerEmail` is null, owner can only access their own single gym
+- Admins and coaches cannot access the locations management features
+
+### API Endpoints
+
+| Endpoint | Method | Role Required | Description |
+|----------|--------|---------------|-------------|
+| `/api/admin/locations` | GET | Owner | List all owner's gym locations |
+| `/api/admin/locations` | POST | Owner | Create new gym location |
+| `/api/admin/locations/[gymId]/staff` | GET | Owner | List staff at a location |
+| `/api/admin/locations/[gymId]/staff` | POST | Owner | Add admin/coach to location |
+
+### Login Redirects by Role
+
+After staff login, users are redirected based on their role:
+
+| Role | Redirect Path |
+|------|---------------|
+| Owner | `/gym-portal/manage/locations` |
+| Admin | `/gym-portal/manage` |
+| Coach | `/dashboard` |
 
 ---
 

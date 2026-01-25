@@ -400,6 +400,7 @@ describe('Gym Branding API', () => {
             logo: mockBlobUrl,
             primaryColor: '#8b5cf6',
             secondaryColor: '#f59e0b',
+            slug: undefined,
           },
           select: {
             id: true,
@@ -407,6 +408,7 @@ describe('Gym Branding API', () => {
             logo: true,
             primaryColor: true,
             secondaryColor: true,
+            slug: true,
           },
         })
       })

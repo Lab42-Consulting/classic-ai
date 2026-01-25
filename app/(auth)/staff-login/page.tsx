@@ -74,12 +74,16 @@ function StaffLoginContent() {
         return;
       }
 
-      // Redirect based on role: admins go to gym portal, coaches go to dashboard
-      const isAdmin = data.user?.role?.toLowerCase() === "admin";
-      if (isAdmin) {
+      // Redirect based on role
+      const role = data.user?.role?.toLowerCase();
+      if (role === "owner") {
+        // Owners go directly to locations management
+        router.push("/gym-portal/manage/locations");
+      } else if (role === "admin") {
+        // Admins go to gym portal
         router.push("/gym-portal/manage");
       } else {
-        // Validate redirect URL to prevent open redirect
+        // Coaches go to dashboard (or custom redirect)
         const safeRedirect = redirectUrl.startsWith("/") ? redirectUrl : "/dashboard";
         router.push(safeRedirect);
       }

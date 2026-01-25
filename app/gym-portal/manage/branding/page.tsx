@@ -9,6 +9,7 @@ interface GymBranding {
   logo?: string | null;
   primaryColor?: string | null;
   secondaryColor?: string | null;
+  slug?: string | null;
 }
 
 const presetColors = [
@@ -36,6 +37,8 @@ export default function BrandingPage() {
   const [logo, setLogo] = useState<string | null>(null);
   const [primaryColor, setPrimaryColor] = useState("#ef4444");
   const [secondaryColor, setSecondaryColor] = useState("#1e1e1e");
+  const [slug, setSlug] = useState("");
+  const [slugError, setSlugError] = useState<string | null>(null);
 
   useEffect(() => {
     const fetchBranding = async () => {
@@ -51,6 +54,7 @@ export default function BrandingPage() {
         setLogo(data.logo || null);
         setPrimaryColor(data.primaryColor || "#ef4444");
         setSecondaryColor(data.secondaryColor || "#1e1e1e");
+        setSlug(data.slug || "");
       } catch {
         router.push("/staff-login");
       } finally {
@@ -94,8 +98,51 @@ export default function BrandingPage() {
     }
   };
 
+  // Validate slug format
+  const validateSlug = (value: string): string | null => {
+    if (!value) return null; // Empty is valid (optional)
+
+    const reservedWords = ["manage", "login", "api", "admin", "staff", "member", "gym-signup"];
+    if (reservedWords.includes(value.toLowerCase())) {
+      return "Ovaj slug je rezervisan";
+    }
+
+    if (value.length < 3) {
+      return "Slug mora imati najmanje 3 karaktera";
+    }
+
+    if (value.length > 50) {
+      return "Slug može imati najviše 50 karaktera";
+    }
+
+    if (!/^[a-z0-9-]+$/.test(value)) {
+      return "Samo mala slova, brojevi i crtice";
+    }
+
+    if (value.startsWith("-") || value.endsWith("-")) {
+      return "Slug ne može početi ili završiti crticom";
+    }
+
+    return null;
+  };
+
+  const handleSlugChange = (value: string) => {
+    // Auto-format: lowercase and replace spaces with hyphens
+    const formatted = value.toLowerCase().replace(/\s+/g, "-").replace(/[^a-z0-9-]/g, "");
+    setSlug(formatted);
+    setSlugError(validateSlug(formatted));
+  };
+
   const handleSave = async () => {
     if (!gym) return;
+
+    // Validate slug before saving
+    const slugValidationError = validateSlug(slug);
+    if (slugValidationError) {
+      setSlugError(slugValidationError);
+      setMessage({ type: "error", text: slugValidationError });
+      return;
+    }
 
     setIsSaving(true);
     setMessage(null);
@@ -108,6 +155,7 @@ export default function BrandingPage() {
           logo,
           primaryColor,
           secondaryColor,
+          slug: slug || null,
         }),
       });
 
@@ -121,6 +169,7 @@ export default function BrandingPage() {
       // Refresh the page data
       const updated = await response.json();
       setGym(updated);
+      setSlug(updated.slug || "");
     } catch (error) {
       setMessage({
         type: "error",
@@ -318,6 +367,85 @@ export default function BrandingPage() {
                 className="flex-1 px-4 py-3 bg-background border border-border rounded-xl text-foreground font-mono focus:outline-none focus:border-accent"
                 placeholder="#1E1E1E"
               />
+            </div>
+          </div>
+
+          {/* URL Slug */}
+          <div className="bg-background-secondary border border-border rounded-2xl p-6">
+            <div className="flex items-start gap-3 mb-4">
+              <div className="w-10 h-10 rounded-xl bg-blue-500/10 flex items-center justify-center flex-shrink-0">
+                <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13.828 10.172a4 4 0 00-5.656 0l-4 4a4 4 0 105.656 5.656l1.102-1.101m-.758-4.899a4 4 0 005.656 0l4-4a4 4 0 00-5.656-5.656l-1.1 1.1" />
+                </svg>
+              </div>
+              <div>
+                <h2 className="text-lg font-semibold text-foreground">URL slug</h2>
+                <p className="text-sm text-foreground-muted mt-1">
+                  Jedinstveni URL za vašu marketing stranicu
+                </p>
+              </div>
+            </div>
+
+            {/* Info box */}
+            <div className="bg-blue-500/10 border border-blue-500/20 rounded-xl p-4 mb-6">
+              <div className="flex items-start gap-3">
+                <svg className="w-5 h-5 text-blue-400 mt-0.5 flex-shrink-0" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                  <path strokeLinecap="round" strokeLinejoin="round" d="M13 16h-1v-4h-1m1-4h.01M21 12a9 9 0 11-18 0 9 9 0 0118 0z" />
+                </svg>
+                <div className="text-sm text-blue-300">
+                  <p className="font-medium mb-1">Čemu služi slug?</p>
+                  <p className="text-blue-300/80">
+                    Slug vam omogućava da imate jedinstvenu marketing stranicu na adresi poput{" "}
+                    <span className="font-mono text-blue-400">classicgym.com/gym-portal/vasa-lokacija</span>
+                  </p>
+                </div>
+              </div>
+            </div>
+
+            <div className="space-y-4">
+              <div>
+                <label className="text-sm text-foreground-muted mb-2 block">
+                  Slug (opciono)
+                </label>
+                <div className="relative">
+                  <div className="absolute left-4 top-1/2 -translate-y-1/2 text-foreground-muted text-sm">
+                    /gym-portal/
+                  </div>
+                  <input
+                    type="text"
+                    value={slug}
+                    onChange={(e) => handleSlugChange(e.target.value)}
+                    className={`w-full pl-28 pr-4 py-3 bg-background border rounded-xl text-foreground focus:outline-none transition-colors ${
+                      slugError
+                        ? "border-red-500/50 focus:border-red-500"
+                        : "border-border focus:border-accent"
+                    }`}
+                    placeholder="vasa-lokacija"
+                  />
+                </div>
+                {slugError && (
+                  <p className="text-sm text-red-400 mt-2 flex items-center gap-1">
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M12 9v2m0 4h.01m-6.938 4h13.856c1.54 0 2.502-1.667 1.732-3L13.732 4c-.77-1.333-2.694-1.333-3.464 0L3.34 16c-.77 1.333.192 3 1.732 3z" />
+                    </svg>
+                    {slugError}
+                  </p>
+                )}
+              </div>
+
+              {/* URL Preview */}
+              {slug && !slugError && (
+                <div className="bg-emerald-500/10 border border-emerald-500/20 rounded-xl p-4">
+                  <p className="text-sm text-emerald-300 mb-2">Vaša marketing stranica:</p>
+                  <p className="font-mono text-sm text-emerald-400 break-all">
+                    {typeof window !== "undefined" ? window.location.origin : ""}/gym-portal/{slug}
+                  </p>
+                </div>
+              )}
+
+              <p className="text-xs text-foreground-muted">
+                Slug može sadržati samo mala slova, brojeve i crtice. Npr: &quot;classic-bulevar&quot;, &quot;gym-centar&quot;
+              </p>
             </div>
           </div>
         </div>

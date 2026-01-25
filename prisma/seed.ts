@@ -160,6 +160,23 @@ async function main() {
   });
   console.log(`✅ Gym created: ${gym.name} (${gym.subscriptionTier} tier, ${gym.subscriptionStatus})`);
 
+  // Create Owner (STRUJA)
+  const ownerPin = await hashPin("1234");
+  const owner = await prisma.staff.upsert({
+    where: {
+      staffId_gymId: { staffId: "STRUJA", gymId: gym.id }
+    },
+    update: {},
+    create: {
+      staffId: "STRUJA",
+      pin: ownerPin,
+      name: "Struja Owner",
+      role: "owner",
+      gymId: gym.id,
+    },
+  });
+  console.log(`✅ Owner created: ${owner.staffId} (PIN: 1234)`);
+
   // Create Admin
   const adminPin = await hashPin("1234");
   const admin = await prisma.staff.upsert({
@@ -229,7 +246,7 @@ async function main() {
     { memberId: "MO15", pin: "1015", name: "Maja Obradović", height: 160, startWeight: 55, gender: "female", goal: "recomposition", coachIndex: 2, activityLevel: "low", freshStart: false, subscriptionStatus: "active" },
 
     // ========== No Coach, With Activity - 2 members ==========
-    { memberId: "STRUJA", pin: "1111", name: "Miloš Mladenović", height: 180, startWeight: 95, gender: "male", goal: "fat_loss", coachIndex: null, activityLevel: "medium", freshStart: false, subscriptionStatus: "active" },
+    { memberId: "MILOS", pin: "1111", name: "Miloš Mladenović", height: 180, startWeight: 95, gender: "male", goal: "fat_loss", coachIndex: null, activityLevel: "medium", freshStart: false, subscriptionStatus: "active" },
     { memberId: "TEST", pin: "3333", name: "Marko Petrović", height: 175, startWeight: 78, gender: "male", goal: "recomposition", coachIndex: null, activityLevel: "low", freshStart: false, subscriptionStatus: "active" },
 
     // ========== Completely New Members (Fresh Start, No Coach) - 3 members ==========
@@ -449,9 +466,9 @@ async function main() {
 
   // Seed common ingredients
   console.log("\n🥗 Seeding common ingredients library...");
-  const strujaId = createdMembers.find(m => m.memberId === "STRUJA")?.id;
-  if (strujaId) {
-    await seedIngredients(strujaId, gym.id);
+  const milosId = createdMembers.find(m => m.memberId === "MILOS")?.id;
+  if (milosId) {
+    await seedIngredients(milosId, gym.id);
     console.log(`✅ Seeded common ingredients`);
   }
 
@@ -991,9 +1008,9 @@ async function seedMetrics(
   // ========== Member-created metrics ==========
   // Some members create their own metrics (with or without coach)
 
-  // STRUJA (no coach) tracks "Trčanje 5K" and "Plank izdržaj"
-  const struja = createdMembers.find(m => m.memberId === "STRUJA");
-  if (struja) {
+  // MILOS (no coach) tracks "Trčanje 5K" and "Plank izdržaj"
+  const milos = createdMembers.find(m => m.memberId === "MILOS");
+  if (milos) {
     // 5K run time
     const runTemplate = metricTemplates[5];
     const startRun = runTemplate.baseValue + (Math.random() - 0.5) * runTemplate.variance;
@@ -1001,7 +1018,7 @@ async function seedMetrics(
 
     const runMetric = await prisma.customMetric.create({
       data: {
-        memberId: struja.id,
+        memberId: milos.id,
         createdByCoachId: null, // Member created
         name: runTemplate.name,
         unit: runTemplate.unit,
@@ -1012,7 +1029,7 @@ async function seedMetrics(
     });
     memberMetricCount++;
 
-    const runEntries = generateEntries(runMetric.id, struja.id, startRun, false, 8, 40);
+    const runEntries = generateEntries(runMetric.id, milos.id, startRun, false, 8, 40);
     for (const entry of runEntries) {
       await prisma.metricEntry.create({ data: entry });
       entryCount++;
@@ -1024,7 +1041,7 @@ async function seedMetrics(
 
     const plankMetric = await prisma.customMetric.create({
       data: {
-        memberId: struja.id,
+        memberId: milos.id,
         createdByCoachId: null,
         name: plankTemplate.name,
         unit: plankTemplate.unit,
@@ -1035,7 +1052,7 @@ async function seedMetrics(
     });
     memberMetricCount++;
 
-    const plankEntries = generateEntries(plankMetric.id, struja.id, startPlank, true, 6, 30);
+    const plankEntries = generateEntries(plankMetric.id, milos.id, startPlank, true, 6, 30);
     for (const entry of plankEntries) {
       await prisma.metricEntry.create({ data: entry });
       entryCount++;
@@ -1204,7 +1221,7 @@ async function seedGoals(
 
   // Add votes from some members
   const voterMembers = createdMembers.filter(m =>
-    ["MJ01", "AN02", "SD03", "MP06", "II07", "SM11", "STRUJA", "TEST"].includes(m.memberId)
+    ["MJ01", "AN02", "SD03", "MP06", "II07", "SM11", "MILOS", "TEST"].includes(m.memberId)
   );
 
   // Vote distribution: Option 1 (5 votes), Option 2 (2 votes), Option 3 (1 vote)
@@ -1276,11 +1293,11 @@ async function seedGoals(
 
   // Add some contributions
   const contributorMembers = createdMembers.filter(m =>
-    ["MJ01", "AN02", "MP06", "STRUJA"].includes(m.memberId)
+    ["MJ01", "AN02", "MP06", "MILOS"].includes(m.memberId)
   );
 
   for (const member of contributorMembers) {
-    const memberData = { MJ01: "Marko Jovanović", AN02: "Ana Nikolić", MP06: "Milan Petrović", STRUJA: "Miloš Mladenović" };
+    const memberData = { MJ01: "Marko Jovanović", AN02: "Ana Nikolić", MP06: "Milan Petrović", MILOS: "Miloš Mladenović" };
     await prisma.goalContribution.create({
       data: {
         goalId: fundraisingGoal.id,
@@ -1401,7 +1418,7 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  │ ├─ Assigned to Coach MANJA: 5 (mixed activity levels)            │");
   console.log("  │ ├─ Assigned to Coach GATI:  5 (mixed activity levels)            │");
   console.log("  │ ├─ Assigned to Coach NINA:  5 (mixed activity levels)            │");
-  console.log("  │ ├─ No Coach (with history): 2 (STRUJA, TEST)                     │");
+  console.log("  │ ├─ No Coach (with history): 2 (MILOS, TEST)                      │");
   console.log("  │ └─ Completely New (fresh):  3 (CEPA, NEW1, NEW2)                 │");
   console.log("  └──────────────────────────────────────────────────────────────────┘");
 
@@ -1447,7 +1464,7 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  │ └─ NINA:  Vertikalni skok for SM11, PP12                         │");
   console.log("  │                                                                  │");
   console.log("  │ Member-Created Metrics:                                          │");
-  console.log("  │ ├─ STRUJA: Trčanje 5K + Plank izdržaj (no coach)                 │");
+  console.log("  │ ├─ MILOS: Trčanje 5K + Plank izdržaj (no coach)                  │");
   console.log("  │ ├─ TEST:   Pokretljivost kukova (no target - neutral)            │");
   console.log("  │ ├─ SD03:   Plank izdržaj (own metric + coach metrics)            │");
   console.log("  │ └─ II07:   Procenat masti (own metric, has coach)                │");
@@ -1476,11 +1493,11 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  • Member voting: Login as any active member, vote on home page");
   console.log("  • Coach dashboard: Login as any coach to see assigned member stats");
   console.log("  • New member onboarding: Login as CEPA, NEW01, or NEW02");
-  console.log("  • Coach request flow: Login as STRUJA or TEST (no coach assigned)");
+  console.log("  • Coach request flow: Login as MILOS or TEST (no coach assigned)");
   console.log("  • Expired subscription: M14 has expired status");
   console.log("  • Trial members: M09, NEW01, NEW02 are on trial");
   console.log("  • Metrics (coach view): Login as MANJA, view MJ01's metrics");
-  console.log("  • Metrics (member view): Login as STRUJA to see own metrics");
+  console.log("  • Metrics (member view): Login as MILOS to see own metrics");
   console.log("  • Metrics (no target): Login as TEST to see neutral semaphore");
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");

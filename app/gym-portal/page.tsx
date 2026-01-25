@@ -2,6 +2,10 @@ import Link from "next/link";
 import prisma from "@/lib/db";
 import { getSession } from "@/lib/auth";
 import { redirect } from "next/navigation";
+import { MobileMenu, BackToTop } from "./mobile-menu";
+
+// Force dynamic rendering to prevent caching issues with back button navigation
+export const dynamic = "force-dynamic";
 
 async function getGymData() {
   // Get the first gym (single-gym deployment)
@@ -26,7 +30,7 @@ async function getGymData() {
   if (!gym) return null;
 
   // Get trainers who should appear on website (lowercase "coach")
-  const trainers = await prisma.staff.findMany({
+  const trainersRaw = await prisma.staff.findMany({
     where: {
       gymId: gym.id,
       role: { in: ["coach", "COACH"] }, // Support both cases
@@ -38,9 +42,24 @@ async function getGymData() {
       avatarUrl: true,
       bio: true,
       specialty: true,
+      // Include linked member for avatar fallback (same person, different mode)
+      linkedMember: {
+        select: {
+          avatarUrl: true,
+        },
+      },
     },
     orderBy: { name: "asc" },
   });
+
+  // Use linked member's avatar if staff avatar is not set
+  const trainers = trainersRaw.map((t) => ({
+    id: t.id,
+    name: t.name,
+    avatarUrl: t.avatarUrl || t.linkedMember?.avatarUrl || null,
+    bio: t.bio,
+    specialty: t.specialty,
+  }));
 
   return { gym, trainers };
 }
@@ -50,7 +69,7 @@ const galleryImages = [
   { id: 1, placeholder: "Trening zona", icon: "dumbbell" },
   { id: 2, placeholder: "Kardio oprema", icon: "heart" },
   { id: 3, placeholder: "Grupni treninzi", icon: "users" },
-  { id: 4, placeholder: "Svlacionice", icon: "locker" },
+  { id: 4, placeholder: "Svlačionice", icon: "locker" },
 ];
 
 export default async function GymPortalPage() {
@@ -133,7 +152,7 @@ export default async function GymPortalPage() {
                     href="#features"
                     className="text-sm text-foreground-muted hover:text-foreground hover:bg-white/10 px-4 py-2 rounded-lg transition-all"
                   >
-                    Sta nudimo
+                    Šta nudimo
                   </a>
                   <a
                     href="#gallery"
@@ -164,7 +183,7 @@ export default async function GymPortalPage() {
                   style={{ backgroundColor: accentColor }}
                 >
                   <span className="relative z-10 flex items-center gap-2">
-                    Postani clan
+                    Postani član
                     <svg className="w-4 h-4 transition-transform group-hover:translate-x-0.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                       <path strokeLinecap="round" strokeLinejoin="round" d="M13 7l5 5m0 0l-5 5m5-5H6" />
                     </svg>
@@ -175,15 +194,14 @@ export default async function GymPortalPage() {
                   />
                 </a>
 
-                {/* Mobile menu button */}
-                <button
-                  className="lg:hidden p-2 rounded-xl hover:bg-white/10 transition-colors text-foreground-muted hover:text-foreground"
-                  aria-label="Meni"
-                >
-                  <svg className="w-6 h-6" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M3.75 9h16.5m-16.5 6.75h16.5" />
-                  </svg>
-                </button>
+                {/* Mobile menu */}
+                <MobileMenu
+                  accentColor={accentColor}
+                  hasTrainers={trainers.length > 0}
+                  hasContact={!!(gym.address || gym.phone || gym.openingHours)}
+                  gymName={gym.name}
+                  gymLogo={gym.logo}
+                />
               </div>
             </div>
           </div>
@@ -228,12 +246,12 @@ export default async function GymPortalPage() {
               >
                 <span className="w-2 h-2 rounded-full animate-pulse" style={{ backgroundColor: accentColor }} />
                 <span className="text-sm font-medium" style={{ color: accentColor }}>
-                  {gym._count.members}+ aktivnih clanova
+                  {gym._count.members}+ aktivnih članova
                 </span>
               </div>
 
               <h1 className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-[1.1] tracking-tight">
-                Dobrodosli u
+                Dobrodošli u
                 <br />
                 <span style={{ color: accentColor }}>{gym.name}</span>
               </h1>
@@ -244,7 +262,7 @@ export default async function GymPortalPage() {
                 </p>
               ) : (
                 <p className="mt-6 text-lg sm:text-xl text-foreground-muted leading-relaxed max-w-xl mx-auto lg:mx-0">
-                  Vasa destinacija za fitness i zdravlje. Pridruzi nam se i pocni svoje putovanje
+                  Vaša destinacija za fitness i zdravlje. Pridruži nam se i počni svoje putovanje
                   ka boljem zdravlju danas.
                 </p>
               )}
@@ -255,7 +273,7 @@ export default async function GymPortalPage() {
                   className="group inline-flex items-center justify-center gap-2 px-8 py-4 text-lg font-semibold text-white rounded-xl transition-all hover:shadow-xl"
                   style={{ backgroundColor: accentColor, boxShadow: `0 10px 40px -10px ${accentColor}80` }}
                 >
-                  Postani clan
+                  Postani član
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -264,7 +282,7 @@ export default async function GymPortalPage() {
                   href="/login"
                   className="inline-flex items-center justify-center px-8 py-4 text-lg font-medium text-foreground rounded-xl transition-colors border border-white/10 hover:bg-white/5"
                 >
-                  Vec sam clan
+                  Već sam član
                 </Link>
               </div>
             </div>
@@ -298,7 +316,7 @@ export default async function GymPortalPage() {
                       </svg>
                     </div>
                     <div className="text-5xl font-bold text-foreground mb-2">{gym._count.members}+</div>
-                    <div className="text-lg text-foreground-muted">Aktivnih clanova</div>
+                    <div className="text-lg text-foreground-muted">Aktivnih članova</div>
                     <p className="text-sm text-foreground-muted/60 mt-2">Zajednica koja raste svaki dan</p>
                   </div>
                 </div>
@@ -410,7 +428,7 @@ export default async function GymPortalPage() {
                 </h2>
               </div>
               <p className="text-lg text-foreground-muted max-w-md lg:text-right">
-                Posveceni profesionalci sa godinama iskustva spremni da vas vode ka uspehu
+                Posvećeni profesionalci sa godinama iskustva spremni da vas vode ka uspehu
               </p>
             </div>
 
@@ -486,7 +504,7 @@ export default async function GymPortalPage() {
                         </p>
                       ) : (
                         <p className="text-foreground-muted text-sm leading-relaxed">
-                          Posvecen pomoci clanovima da ostvare svoje fitness ciljeve kroz personalizovane treninge i strucno vodstvo.
+                          Posvećen pomoći članovima da ostvare svoje fitness ciljeve kroz personalizovane treninge i stručno vođstvo.
                         </p>
                       )}
                     </div>
@@ -602,7 +620,7 @@ export default async function GymPortalPage() {
               </h2>
             </div>
             <p className="text-lg text-foreground-muted max-w-md lg:text-right">
-              Kompletna platforma za fitness sa AI podrskom, pracenjem napretka i strucnim vodjstvom
+              Kompletna platforma za fitness sa AI podrškom, praćenjem napretka i stručnim vođstvom
             </p>
           </div>
 
@@ -714,7 +732,7 @@ export default async function GymPortalPage() {
                 <div className="flex-1">
                   <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-2">Aktivna Zajednica</h3>
                   <p className="text-foreground-muted leading-relaxed">
-                    Delite recepte, motiviste se zajedno sa drugim clanovima i pratite njihov napredak. Zajednica koja vas podrzava na svakom koraku.
+                    Delite recepte, motivišite se zajedno sa drugim članovima i pratite njihov napredak. Zajednica koja vas podržava na svakom koraku.
                   </p>
                 </div>
                 <div className="flex -space-x-2 flex-shrink-0">
@@ -754,7 +772,7 @@ export default async function GymPortalPage() {
               </h2>
             </div>
             <p className="text-lg text-foreground-muted max-w-md lg:text-right">
-              Vrhunska oprema i ugodna atmosfera za vase najbolje treninge
+              Vrhunska oprema i ugodna atmosfera za vaše najbolje treninge
             </p>
           </div>
 
@@ -840,7 +858,7 @@ export default async function GymPortalPage() {
                       <path strokeLinecap="round" strokeLinejoin="round" d="M16.5 10.5V6.75a4.5 4.5 0 10-9 0v3.75m-.75 11.25h10.5a2.25 2.25 0 002.25-2.25v-6.75a2.25 2.25 0 00-2.25-2.25H6.75a2.25 2.25 0 00-2.25 2.25v6.75a2.25 2.25 0 002.25 2.25z" />
                     </svg>
                   </div>
-                  <h3 className="font-bold text-foreground text-sm">Svlacionice</h3>
+                  <h3 className="font-bold text-foreground text-sm">Svlačionice</h3>
                 </div>
               </div>
             </div>
@@ -989,7 +1007,7 @@ export default async function GymPortalPage() {
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                   <path strokeLinecap="round" strokeLinejoin="round" d="M15.59 14.37a6 6 0 01-5.84 7.38v-4.8m5.84-2.58a14.98 14.98 0 006.16-12.12A14.98 14.98 0 009.631 8.41m5.96 5.96a14.926 14.926 0 01-5.841 2.58m-.119-8.54a6 6 0 00-7.381 5.84h4.8m2.581-5.84a14.927 14.927 0 00-2.58 5.84m2.699 2.7c-.103.021-.207.041-.311.06a15.09 15.09 0 01-2.448-2.448 14.9 14.9 0 01.06-.312m-2.24 2.39a4.493 4.493 0 00-1.757 4.306 4.493 4.493 0 004.306-1.758M16.5 9a1.5 1.5 0 11-3 0 1.5 1.5 0 013 0z" />
                 </svg>
-                Zapocni danas
+                Započni danas
               </div>
 
               <h2 className="text-3xl sm:text-4xl lg:text-5xl xl:text-6xl font-bold text-foreground mb-6 leading-tight">
@@ -998,7 +1016,7 @@ export default async function GymPortalPage() {
               </h2>
 
               <p className="text-lg sm:text-xl text-foreground-muted mb-10 max-w-2xl mx-auto leading-relaxed">
-                Pridruzi se zajednici od <span className="font-semibold text-foreground">{gym._count.members}+ aktivnih clanova</span> i zapocni svoje fitness putovanje danas.
+                Pridruži se zajednici od <span className="font-semibold text-foreground">{gym._count.members}+ aktivnih članova</span> i započni svoje fitness putovanje danas.
               </p>
 
               {/* CTA Button */}
@@ -1008,7 +1026,7 @@ export default async function GymPortalPage() {
                   className="group inline-flex items-center justify-center gap-3 px-10 py-5 text-lg font-semibold text-white rounded-2xl transition-all hover:shadow-2xl hover:scale-[1.02]"
                   style={{ backgroundColor: accentColor, boxShadow: `0 20px 60px -15px ${accentColor}80` }}
                 >
-                  Postani clan danas
+                  Postani član danas
                   <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor">
                     <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M17 8l4 4m0 0l-4 4m4-4H3" />
                   </svg>
@@ -1046,8 +1064,101 @@ export default async function GymPortalPage() {
       {/* Footer */}
       <footer className="relative bg-background border-t border-white/5">
         {/* Top section */}
-        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-16">
-          <div className="grid md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
+        <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-12 sm:py-16">
+          {/* Mobile: Stacked centered layout */}
+          <div className="flex flex-col items-center text-center md:hidden space-y-10">
+            {/* Brand */}
+            <div className="flex flex-col items-center">
+              <div className="flex items-center gap-3 mb-4">
+                {gym.logo ? (
+                  <img
+                    src={gym.logo}
+                    alt={gym.name}
+                    className="w-14 h-14 rounded-xl object-cover"
+                  />
+                ) : (
+                  <div
+                    className="w-14 h-14 rounded-xl flex items-center justify-center"
+                    style={{ backgroundColor: `${accentColor}20` }}
+                  >
+                    <span className="text-2xl font-bold" style={{ color: accentColor }}>
+                      {gym.name.charAt(0).toUpperCase()}
+                    </span>
+                  </div>
+                )}
+                <span className="text-xl font-bold text-foreground">{gym.name}</span>
+              </div>
+              {/* Social links */}
+              <div className="flex items-center gap-3 mt-2">
+                <a
+                  href="#"
+                  className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="Instagram"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12 2.163c3.204 0 3.584.012 4.85.07 3.252.148 4.771 1.691 4.919 4.919.058 1.265.069 1.645.069 4.849 0 3.205-.012 3.584-.069 4.849-.149 3.225-1.664 4.771-4.919 4.919-1.266.058-1.644.07-4.85.07-3.204 0-3.584-.012-4.849-.07-3.26-.149-4.771-1.699-4.919-4.92-.058-1.265-.07-1.644-.07-4.849 0-3.204.013-3.583.07-4.849.149-3.227 1.664-4.771 4.919-4.919 1.266-.057 1.645-.069 4.849-.069zm0-2.163c-3.259 0-3.667.014-4.947.072-4.358.2-6.78 2.618-6.98 6.98-.059 1.281-.073 1.689-.073 4.948 0 3.259.014 3.668.072 4.948.2 4.358 2.618 6.78 6.98 6.98 1.281.058 1.689.072 4.948.072 3.259 0 3.668-.014 4.948-.072 4.354-.2 6.782-2.618 6.979-6.98.059-1.28.073-1.689.073-4.948 0-3.259-.014-3.667-.072-4.947-.196-4.354-2.617-6.78-6.979-6.98-1.281-.059-1.69-.073-4.949-.073zm0 5.838c-3.403 0-6.162 2.759-6.162 6.162s2.759 6.163 6.162 6.163 6.162-2.759 6.162-6.163c0-3.403-2.759-6.162-6.162-6.162zm0 10.162c-2.209 0-4-1.79-4-4 0-2.209 1.791-4 4-4s4 1.791 4 4c0 2.21-1.791 4-4 4zm6.406-11.845c-.796 0-1.441.645-1.441 1.44s.645 1.44 1.441 1.44c.795 0 1.439-.645 1.439-1.44s-.644-1.44-1.439-1.44z"/>
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="Facebook"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M24 12.073c0-6.627-5.373-12-12-12s-12 5.373-12 12c0 5.99 4.388 10.954 10.125 11.854v-8.385H7.078v-3.47h3.047V9.43c0-3.007 1.792-4.669 4.533-4.669 1.312 0 2.686.235 2.686.235v2.953H15.83c-1.491 0-1.956.925-1.956 1.874v2.25h3.328l-.532 3.47h-2.796v8.385C19.612 23.027 24 18.062 24 12.073z"/>
+                  </svg>
+                </a>
+                <a
+                  href="#"
+                  className="w-11 h-11 rounded-xl bg-white/5 flex items-center justify-center text-foreground-muted hover:bg-white/10 hover:text-foreground transition-all"
+                  aria-label="TikTok"
+                >
+                  <svg className="w-5 h-5" fill="currentColor" viewBox="0 0 24 24">
+                    <path d="M12.525.02c1.31-.02 2.61-.01 3.91-.02.08 1.53.63 3.09 1.75 4.17 1.12 1.11 2.7 1.62 4.24 1.79v4.03c-1.44-.05-2.89-.35-4.2-.97-.57-.26-1.1-.59-1.62-.93-.01 2.92.01 5.84-.02 8.75-.08 1.4-.54 2.79-1.35 3.94-1.31 1.92-3.58 3.17-5.91 3.21-1.43.08-2.86-.31-4.08-1.03-2.02-1.19-3.44-3.37-3.65-5.71-.02-.5-.03-1-.01-1.49.18-1.9 1.12-3.72 2.58-4.96 1.66-1.44 3.98-2.13 6.15-1.72.02 1.48-.04 2.96-.04 4.44-.99-.32-2.15-.23-3.02.37-.63.41-1.11 1.04-1.36 1.75-.21.51-.15 1.07-.14 1.61.24 1.64 1.82 3.02 3.5 2.87 1.12-.01 2.19-.66 2.77-1.61.19-.33.4-.67.41-1.06.1-1.79.06-3.57.07-5.36.01-4.03-.01-8.05.02-12.07z"/>
+                  </svg>
+                </a>
+              </div>
+            </div>
+
+            {/* Links in horizontal row on mobile */}
+            <div className="flex flex-wrap justify-center gap-x-6 gap-y-3 text-sm">
+              {trainers.length > 0 && (
+                <a href="#trainers" className="text-foreground-muted hover:text-foreground transition-colors">
+                  Treneri
+                </a>
+              )}
+              <a href="#features" className="text-foreground-muted hover:text-foreground transition-colors">
+                Usluge
+              </a>
+              <a href="#gallery" className="text-foreground-muted hover:text-foreground transition-colors">
+                Galerija
+              </a>
+              {(gym.address || gym.phone || gym.openingHours) && (
+                <a href="#contact" className="text-foreground-muted hover:text-foreground transition-colors">
+                  Kontakt
+                </a>
+              )}
+            </div>
+
+            {/* Login buttons */}
+            <div className="flex flex-col sm:flex-row gap-3 w-full max-w-xs">
+              <Link
+                href="/login"
+                className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-foreground text-sm font-medium text-center hover:bg-white/10 transition-colors"
+              >
+                Prijava članova
+              </Link>
+              <Link
+                href="/staff-login"
+                className="flex-1 py-3 px-4 rounded-xl bg-white/5 text-foreground-muted text-sm font-medium text-center hover:bg-white/10 hover:text-foreground transition-colors"
+              >
+                Staff prijava
+              </Link>
+            </div>
+          </div>
+
+          {/* Desktop: Grid layout */}
+          <div className="hidden md:grid md:grid-cols-2 lg:grid-cols-4 gap-12 lg:gap-8">
             {/* Brand column */}
             <div className="lg:col-span-2">
               <div className="flex items-center gap-3 mb-6">
@@ -1070,9 +1181,9 @@ export default async function GymPortalPage() {
                 <span className="text-xl font-bold text-foreground">{gym.name}</span>
               </div>
               <p className="text-foreground-muted leading-relaxed max-w-md mb-6">
-                {gym.about || "Vasa destinacija za fitness i zdravlje. Moderna oprema, strucni treneri i AI podrska za vase ciljeve."}
+                {gym.about || "Vaša destinacija za fitness i zdravlje. Moderna oprema, stručni treneri i AI podrška za vaše ciljeve."}
               </p>
-              {/* Social links placeholder */}
+              {/* Social links */}
               <div className="flex items-center gap-3">
                 <a
                   href="#"
@@ -1111,13 +1222,13 @@ export default async function GymPortalPage() {
                 {trainers.length > 0 && (
                   <li>
                     <a href="#trainers" className="text-foreground-muted hover:text-foreground transition-colors">
-                      Nasi treneri
+                      Naši treneri
                     </a>
                   </li>
                 )}
                 <li>
                   <a href="#features" className="text-foreground-muted hover:text-foreground transition-colors">
-                    Sta nudimo
+                    Šta nudimo
                   </a>
                 </li>
                 <li>
@@ -1141,7 +1252,7 @@ export default async function GymPortalPage() {
               <ul className="space-y-4">
                 <li>
                   <Link href="/login" className="text-foreground-muted hover:text-foreground transition-colors">
-                    Prijava za clanove
+                    Prijava za članove
                   </Link>
                 </li>
                 <li>
@@ -1157,11 +1268,11 @@ export default async function GymPortalPage() {
         {/* Bottom bar */}
         <div className="border-t border-white/5">
           <div className="max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 py-6">
-            <div className="flex flex-col sm:flex-row items-center justify-between gap-4">
-              <p className="text-sm text-foreground-muted">
-                &copy; {new Date().getFullYear()} {gym.name}. Sva prava zadrzana.
+            <div className="flex flex-col items-center gap-4 text-center sm:flex-row sm:justify-between sm:text-left">
+              <p className="text-sm text-foreground-muted order-2 sm:order-1">
+                &copy; {new Date().getFullYear()} {gym.name}
               </p>
-              <div className="flex items-center gap-2 text-sm text-foreground-muted">
+              <div className="flex items-center gap-2 text-sm text-foreground-muted order-1 sm:order-2">
                 <span>Powered by</span>
                 <span className="font-semibold text-foreground">Classic AI</span>
                 <svg className="w-4 h-4" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -1172,6 +1283,9 @@ export default async function GymPortalPage() {
           </div>
         </div>
       </footer>
+
+      {/* Back to top button */}
+      <BackToTop accentColor={accentColor} />
     </div>
   );
 }

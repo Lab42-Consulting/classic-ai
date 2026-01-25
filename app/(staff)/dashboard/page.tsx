@@ -588,105 +588,78 @@ export default function CoachDashboard() {
               </p>
             </Card>
           ) : (
-            <div className="space-y-3">
+            <div className="space-y-2">
               {filteredMembers.map((member, index) => (
-                <SlideUp key={member.id} delay={350 + index * 50}>
-                  <GlassCard
-                    hover
-                    className={`cursor-pointer ${member.alerts.length > 0 ? "border-warning/30" : ""}`}
+                <SlideUp key={member.id} delay={350 + index * 30}>
+                  <div
                     onClick={() => router.push(`/members/${member.id}`)}
+                    className={`
+                      relative flex items-center gap-4 p-4 rounded-2xl cursor-pointer
+                      bg-background-secondary/50 hover:bg-background-secondary
+                      transition-all duration-200 active:scale-[0.98]
+                      ${member.alerts.length > 0
+                        ? "border border-warning/30 bg-warning/5"
+                        : "border border-transparent hover:border-border/50"}
+                    `}
                   >
-                    <div className="flex items-start gap-3">
-                      {/* Avatar with status indicator */}
-                      <div className="relative flex-shrink-0">
+                    {/* Avatar with status ring */}
+                    <div className="relative flex-shrink-0">
+                      <div className={`
+                        w-14 h-14 rounded-full p-[2px]
+                        ${member.activityStatus === "on_track" ? "bg-gradient-to-br from-success/60 to-success/20" :
+                          member.activityStatus === "slipping" ? "bg-gradient-to-br from-warning/60 to-warning/20" :
+                          "bg-gradient-to-br from-error/60 to-error/20"}
+                      `}>
                         {member.avatarUrl ? (
                           <img
                             src={member.avatarUrl}
                             alt={member.name}
-                            className="w-12 h-12 rounded-full object-cover"
+                            className="w-full h-full rounded-full object-cover border-2 border-background"
                           />
                         ) : (
-                          <div className="w-12 h-12 rounded-full bg-accent/20 flex items-center justify-center">
-                            <span className="text-sm font-medium text-accent">
+                          <div className="w-full h-full rounded-full bg-background border-2 border-background flex items-center justify-center">
+                            <span className="text-base font-semibold text-foreground-muted">
                               {getInitials(member.name)}
                             </span>
                           </div>
                         )}
-                        {/* Status indicator overlay */}
-                        <div className={`absolute -bottom-0.5 -right-0.5 w-4 h-4 rounded-full border-2 border-background ${activityColors[member.activityStatus]}`} />
                       </div>
+                    </div>
 
-                      {/* Main info */}
-                      <div className="flex-1 min-w-0">
-                        <div className="flex items-center gap-2">
-                          <h3 className="font-medium text-foreground truncate">
-                            {member.name}
-                          </h3>
-                          {member.streak > 0 && (
-                            <span className="text-xs bg-accent/20 text-accent px-1.5 py-0.5 rounded">
-                              🔥 {member.streak}
-                            </span>
-                          )}
-                        </div>
-                        <p className="text-sm text-foreground-muted">
-                          {member.memberId} • {goalLabels[member.goal]}
-                        </p>
-
-                        {/* Quick stats row */}
-                        <div className="flex gap-4 mt-2 text-xs text-foreground-muted">
-                          <span title="Konzistentnost">
-                            📊 {member.consistencyScore}%
+                    {/* Main content */}
+                    <div className="flex-1 min-w-0">
+                      <div className="flex items-center gap-2">
+                        <h3 className="font-semibold text-foreground truncate">
+                          {member.name}
+                        </h3>
+                        {member.streak >= 3 && (
+                          <span className="text-sm" title={`${member.streak} dana u nizu`}>
+                            🔥
                           </span>
-                          <span title="Treninzi ove nedelje">
-                            🏋️ {member.weeklyTrainingSessions}x
-                          </span>
-                          {member.currentWeight && (
-                            <span title="Težina">
-                              ⚖️ {member.currentWeight}kg
-                              <span className={
-                                member.weightTrend === "down" && member.goal === "fat_loss" ? "text-success" :
-                                member.weightTrend === "up" && member.goal === "muscle_gain" ? "text-success" :
-                                member.weightTrend !== "stable" ? "text-warning" : ""
-                              }>
-                                {" "}{trendIcons[member.weightTrend]}
-                              </span>
-                            </span>
-                          )}
-                          {member.daysSinceActivity < 999 && (
-                            <span title="Poslednja aktivnost">
-                              📅 {member.daysSinceActivity === 0 ? "Danas" :
-                                  member.daysSinceActivity === 1 ? "Juče" :
-                                  `Pre ${member.daysSinceActivity}d`}
-                            </span>
-                          )}
-                        </div>
-
-                        {/* Alerts */}
-                        {member.alerts.length > 0 && (
-                          <div className="flex flex-wrap gap-1 mt-2">
-                            {member.alerts.slice(0, 2).map((alert, i) => (
-                              <span
-                                key={i}
-                                className="text-xs bg-warning/10 text-warning px-2 py-0.5 rounded"
-                              >
-                                {alert}
-                              </span>
-                            ))}
-                            {member.alerts.length > 2 && (
-                              <span className="text-xs text-foreground-muted">
-                                +{member.alerts.length - 2}
-                              </span>
-                            )}
-                          </div>
                         )}
                       </div>
-
-                      {/* Arrow */}
-                      <svg className="w-5 h-5 text-foreground-muted flex-shrink-0 mt-2" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M9 5l7 7-7 7" />
-                      </svg>
+                      <p className="text-sm text-foreground-muted mt-0.5">
+                        {goalLabels[member.goal]}
+                        {member.currentWeight && (
+                          <span className="text-foreground-muted/70"> · {member.currentWeight}kg</span>
+                        )}
+                      </p>
                     </div>
-                  </GlassCard>
+
+                    {/* Right side - key metric */}
+                    <div className="flex flex-col items-end flex-shrink-0">
+                      <span className={`
+                        text-2xl font-bold leading-none
+                        ${member.consistencyScore >= 70 ? "text-success" :
+                          member.consistencyScore >= 40 ? "text-warning" : "text-error"}
+                      `}>
+                        {member.consistencyScore}%
+                      </span>
+                      <span className="text-[10px] text-foreground-muted/60 uppercase tracking-wide mt-1">
+                        konzistentnost
+                      </span>
+                    </div>
+                  </div>
                 </SlideUp>
               ))}
             </div>

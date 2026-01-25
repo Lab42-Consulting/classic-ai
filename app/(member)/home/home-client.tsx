@@ -730,16 +730,28 @@ export function HomeClient({ data }: HomeClientProps) {
                     </div>
                   )}
 
-                  {/* CTA Button */}
-                  <button
-                    onClick={() => router.push("/challenge")}
-                    className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-semibold text-lg transition-colors flex items-center justify-center gap-2 glow-accent"
-                  >
-                    <span>Pridruži se izazovu</span>
-                    <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
-                      <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
-                    </svg>
-                  </button>
+                  {/* CTA Button - Hide for staff members (they can't join challenges) */}
+                  {data.isStaffMember ? (
+                    <button
+                      onClick={() => router.push("/challenge")}
+                      className="w-full py-4 px-6 bg-white/10 hover:bg-white/20 rounded-xl text-foreground font-semibold text-lg transition-colors flex items-center justify-center gap-2"
+                    >
+                      <span>Pogledaj izazov</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  ) : (
+                    <button
+                      onClick={() => router.push("/challenge")}
+                      className="w-full py-4 px-6 bg-emerald-500 hover:bg-emerald-600 rounded-xl text-white font-semibold text-lg transition-colors flex items-center justify-center gap-2 glow-accent"
+                    >
+                      <span>Pridruži se izazovu</span>
+                      <svg className="w-5 h-5" fill="none" stroke="currentColor" viewBox="0 0 24 24">
+                        <path strokeLinecap="round" strokeLinejoin="round" strokeWidth={2} d="M13 7l5 5m0 0l-5 5m5-5H6" />
+                      </svg>
+                    </button>
+                  )}
                 </div>
               </div>
             )}
@@ -1884,8 +1896,8 @@ export function HomeClient({ data }: HomeClientProps) {
       {/* Primary Action Button - Fixed at bottom (Dynamic based on challenge status) */}
       <div className="fixed bottom-0 left-0 right-0 p-6 bg-gradient-to-t from-background via-background/95 to-transparent">
         <FadeIn delay={600}>
-          {/* Show "Join Challenge" CTA when there's an open challenge user hasn't joined */}
-          {data.activeChallenge && !data.activeChallenge.isParticipating && !data.activeChallenge.isUpcoming ? (
+          {/* Show "Join Challenge" CTA when there's an open challenge user hasn't joined (hide for staff) */}
+          {data.activeChallenge && !data.activeChallenge.isParticipating && !data.activeChallenge.isUpcoming && !data.isStaffMember ? (
             <Button
               className="w-full btn-press"
               size="lg"

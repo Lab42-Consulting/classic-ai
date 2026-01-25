@@ -3,26 +3,47 @@ import bcrypt from "bcryptjs";
 import { seedCacheIfEmpty } from "../lib/ai/cache";
 import { generateGenericResponse } from "../lib/ai";
 
-// Database selection logic (mirrors lib/db/index.ts)
-// - NODE_ENV=development (local): DEV_DATABASE_URL or DATABASE_URL
-// - NODE_ENV=production/other: DATABASE_URL
-function getDatabaseUrl(): string {
-  const isLocalDev = process.env.NODE_ENV === "development";
+// Database selection logic
+// Use TARGET_DB env var to explicitly select: dev | staging | prod
+// Falls back to NODE_ENV-based selection if TARGET_DB not set
+function getDatabaseUrl(): { url: string; label: string } {
+  const targetDb = process.env.TARGET_DB?.toLowerCase();
 
-  const connectionString = isLocalDev
+  // Explicit database selection via TARGET_DB
+  if (targetDb === "staging") {
+    const url = process.env.STAGING_DATABASE_URL;
+    if (!url) throw new Error("STAGING_DATABASE_URL not configured");
+    return { url, label: "STAGING" };
+  }
+
+  if (targetDb === "prod" || targetDb === "production") {
+    const url = process.env.DATABASE_URL;
+    if (!url) throw new Error("DATABASE_URL not configured");
+    return { url, label: "PRODUCTION" };
+  }
+
+  if (targetDb === "dev" || targetDb === "development") {
+    const url = process.env.DEV_DATABASE_URL || process.env.DATABASE_URL;
+    if (!url) throw new Error("DEV_DATABASE_URL (or DATABASE_URL) not configured");
+    return { url, label: "DEVELOPMENT" };
+  }
+
+  // Fallback: NODE_ENV-based selection
+  const isLocalDev = process.env.NODE_ENV === "development";
+  const url = isLocalDev
     ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
     : process.env.DATABASE_URL;
 
-  if (!connectionString) {
+  if (!url) {
     const envVar = isLocalDev ? "DEV_DATABASE_URL (or DATABASE_URL)" : "DATABASE_URL";
     throw new Error(`Database URL not configured. Set ${envVar} in your environment.`);
   }
 
-  return connectionString;
+  return { url, label: isLocalDev ? "DEVELOPMENT" : "PRODUCTION" };
 }
 
-const databaseUrl = getDatabaseUrl();
-console.log(`🔗 Using database: ${process.env.NODE_ENV === "development" ? "DEV" : "PROD"} (NODE_ENV=${process.env.NODE_ENV})`);
+const { url: databaseUrl, label: dbLabel } = getDatabaseUrl();
+console.log(`🔗 Using database: ${dbLabel} (TARGET_DB=${process.env.TARGET_DB || "not set"}, NODE_ENV=${process.env.NODE_ENV})`);
 
 const prisma = new PrismaClient({
   datasources: {

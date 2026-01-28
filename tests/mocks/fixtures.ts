@@ -1234,3 +1234,132 @@ export const mockExpiredVotingGoal = {
   name: 'Expired Voting Goal',
   votingEndsAt: new Date(Date.now() - 24 * 60 * 60 * 1000), // Expired yesterday
 }
+
+// =============================================================================
+// SHOP/INVENTORY MANAGEMENT FIXTURES
+// =============================================================================
+
+export const mockProduct = {
+  id: 'product-test-001',
+  gymId: mockGym.id,
+  name: 'Whey Protein 2kg',
+  description: 'Premium whey protein isolate',
+  sku: 'WP-001',
+  imageUrl: 'data:image/svg+xml;base64,mockImage',
+  category: 'protein',
+  price: 5990, // 5990 RSD
+  costPrice: 4500,
+  currentStock: 15,
+  lowStockAlert: 5,
+  isActive: true,
+  createdAt: new Date('2024-12-01'),
+  updatedAt: new Date('2024-12-01'),
+}
+
+export const mockProductLowStock = {
+  ...mockProduct,
+  id: 'product-test-002',
+  name: 'Creatine 500g',
+  sku: 'CR-001',
+  category: 'creatine',
+  price: 2490,
+  currentStock: 3,
+  lowStockAlert: 5,
+}
+
+export const mockProductOutOfStock = {
+  ...mockProduct,
+  id: 'product-test-003',
+  name: 'BCAA Powder',
+  sku: 'BC-001',
+  category: 'bcaa',
+  price: 1990,
+  currentStock: 0,
+  lowStockAlert: 3,
+}
+
+export const mockProductInactive = {
+  ...mockProduct,
+  id: 'product-test-004',
+  name: 'Discontinued Supplement',
+  sku: 'DS-001',
+  category: 'other',
+  price: 990,
+  isActive: false,
+}
+
+export const mockProductWithSales = {
+  ...mockProduct,
+  _count: { sales: 5 },
+  stockLogs: [],
+}
+
+export const mockStockLog = {
+  id: 'stocklog-test-001',
+  productId: mockProduct.id,
+  type: 'purchase',
+  quantity: 10,
+  note: 'Supplier delivery',
+  staffId: mockStaffAdmin.id,
+  staffName: mockStaffAdmin.name,
+  previousStock: 5,
+  newStock: 15,
+  createdAt: new Date('2024-12-10'),
+}
+
+export const mockStockLogSale = {
+  ...mockStockLog,
+  id: 'stocklog-test-002',
+  type: 'sale',
+  quantity: -2,
+  note: 'Prodaja #abc123',
+  previousStock: 17,
+  newStock: 15,
+}
+
+export const mockStockLogAdjustment = {
+  ...mockStockLog,
+  id: 'stocklog-test-003',
+  type: 'adjustment',
+  quantity: -1,
+  note: 'Inventory correction',
+  previousStock: 16,
+  newStock: 15,
+}
+
+export const mockSale = {
+  id: 'sale-test-001',
+  productId: mockProduct.id,
+  gymId: mockGym.id,
+  quantity: 2,
+  unitPrice: 5990,
+  totalAmount: 11980,
+  memberId: mockMember.id,
+  memberName: mockMember.name,
+  staffId: mockStaffAdmin.id,
+  staffName: mockStaffAdmin.name,
+  paymentMethod: 'cash',
+  createdAt: new Date('2024-12-15'),
+}
+
+export const mockSaleWithProduct = {
+  ...mockSale,
+  product: {
+    id: mockProduct.id,
+    name: mockProduct.name,
+    category: mockProduct.category,
+  },
+}
+
+export const mockSaleNoMember = {
+  ...mockSale,
+  id: 'sale-test-002',
+  memberId: null,
+  memberName: null,
+}
+
+export const mockSaleCard = {
+  ...mockSale,
+  id: 'sale-test-003',
+  paymentMethod: 'card',
+}

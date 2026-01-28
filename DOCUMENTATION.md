@@ -19,6 +19,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Challenge Management](#challenge-management)
    - [Gym Branding](#gym-branding)
    - [Goal Voting System](#goal-voting-system)
+   - [Shop/Inventory Management](#shopinventory-management)
 6. [Coach Guide](#coach-guide)
    - [Logging In as Coach](#logging-in-as-coach)
    - [Coach Dashboard](#coach-dashboard)
@@ -612,6 +613,131 @@ Members see goals on their home page based on status:
 - **Draft goals** with no votes can be deleted
 - Goals with votes or contributions cannot be deleted
 - Use "Cancel" instead to archive unwanted goals
+
+---
+
+### Shop/Inventory Management
+
+Manage your gym's product inventory and track sales at `/gym-portal/manage/shop`.
+
+#### Accessing the Shop
+
+1. Log in as Admin at `/staff-login`
+2. Navigate to the Gym Portal
+3. Click **"Prodavnica"** (Shop) in the sidebar
+
+#### Products Tab
+
+The Products tab displays all items in your inventory:
+
+**Product Card Information:**
+- Product image (or category placeholder)
+- Name and SKU
+- Category badge
+- Current stock level (with low stock warning)
+- Price in RSD
+
+**Actions:**
+- **Novi proizvod**: Add a new product
+- **Edit**: Click on any product to edit details
+- **Delete**: Remove products (soft delete if has sales history)
+
+#### Adding a New Product
+
+1. Click **"Novi proizvod"** button
+2. Fill in the product details:
+
+| Field | Required | Description |
+|-------|----------|-------------|
+| Naziv | Yes | Product name |
+| Kategorija | Yes | Select from supplements, food & drinks, or other |
+| Cena (RSD) | Yes | Selling price in Serbian Dinars |
+| Nabavna cena | No | Cost price for profit tracking |
+| SKU | No | Stock keeping unit or barcode |
+| Opis | No | Product description |
+| Početno stanje | No | Initial stock quantity |
+| Upozorenje za nisku zalihu | No | Alert threshold |
+
+3. Click **"Sačuvaj proizvod"** to create
+
+**Product Categories:**
+
+| Group | Categories (Serbian) |
+|-------|---------------------|
+| **Suplementi** | Proteini, Pre-workout, Kreatin, BCAA/Amino, Mass Gainer, Vitamini, Fat Burner |
+| **Hrana i Pića** | Protein Bar, Energetske pločice, Protein Shake, Energetska pića, Voda, Grickalice |
+| **Ostalo** | Merchandising, Oprema, Ostalo |
+
+#### Managing Stock
+
+**Adjust Stock:**
+1. Click on a product to open edit panel
+2. Click **"Promeni stanje"** (Adjust Stock)
+3. Select adjustment type:
+   - **Nabavka** (Purchase): Add stock from supplier
+   - **Korekcija** (Adjustment): Manual correction
+   - **Povraćaj** (Return): Returned stock
+4. Enter quantity (positive to add, negative to remove)
+5. Add optional note for audit trail
+6. Click **"Primeni"** to save
+
+**Stock Audit Log:**
+- Every stock change is recorded
+- View history: Previous stock → New stock
+- Shows who made the change and when
+
+#### Sales Tab
+
+The Sales tab allows recording and viewing product sales.
+
+**Recording a Sale:**
+1. Click **"Nova prodaja"** button
+2. Select product from dropdown
+3. Enter quantity
+4. Optionally select member (for tracking)
+5. Select payment method: Gotovina (Cash), Kartica (Card), or Drugo (Other)
+6. Click **"Evidentiraj"** to record sale
+
+**Sale Recording Flow:**
+1. System validates stock availability
+2. Creates sale record
+3. Automatically decrements stock
+4. Creates stock log entry for audit
+
+**Sales List:**
+- Shows recent sales with product, quantity, amount
+- Member name (if linked)
+- Staff who recorded the sale
+- Timestamp
+
+**Filtering Sales:**
+- Filter by date range
+- Filter by product
+
+#### Stock Alerts
+
+When a product's stock falls to or below its `lowStockAlert` threshold:
+- Orange warning badge appears on product card
+- Text shows "Niska zaliha" (Low stock)
+
+#### Currency Display
+
+All prices are displayed in Serbian Dinars (RSD) with thousands separator:
+- Example: `2.500 RSD`
+- Stored as whole numbers (not cents)
+
+#### API Endpoints
+
+| Endpoint | Method | Description |
+|----------|--------|-------------|
+| `/api/admin/products` | GET | List all products |
+| `/api/admin/products` | POST | Create new product |
+| `/api/admin/products/[id]` | GET | Get product with stock history |
+| `/api/admin/products/[id]` | PUT | Update product |
+| `/api/admin/products/[id]` | DELETE | Delete/deactivate product |
+| `/api/admin/products/[id]/stock` | POST | Adjust stock |
+| `/api/admin/sales` | GET | List sales (with filters) |
+| `/api/admin/sales` | POST | Record a sale |
 
 ---
 

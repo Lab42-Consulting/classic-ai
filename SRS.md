@@ -2,8 +2,22 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.16
+**Version:** 1.17
 **Last Updated:** January 2026
+
+**Changelog v1.17:**
+- **Shop/Inventory Management System**: Added comprehensive product and inventory management for gym shops
+  - Product catalog with categories: supplements (7 types), food & drinks (6 types), merchandise & accessories (3 types)
+  - Stock tracking with purchase, adjustment, and return operations
+  - Sales recording with member association and payment method tracking
+  - Low stock alerts for inventory management
+  - Product images with SVG placeholders by category
+  - Stock audit log for all inventory changes
+  - RSD currency support for Serbian market
+  - Admin-only access (shop page in gym portal)
+- **New Models**: Product, StockLog, Sale
+- **New API Endpoints**: `/api/admin/products`, `/api/admin/products/[id]`, `/api/admin/products/[id]/stock`, `/api/admin/sales`
+- **Seed Data**: 55 pre-configured products (25 supplements, 18 food & drinks, 12 merchandise/accessories)
 
 **Changelog v1.16:**
 - **Goal Voting System**: Replaced Fundraising Goals with unified Goal Voting System
@@ -1305,6 +1319,93 @@ The fundraising goals system provides transparency for gym members by showing ho
 - **Currency:** Stored in cents internally, displayed in euros
 - **Conversion:** `displayAmount = storedAmount / 100`
 
+### 3.20 Shop/Inventory Management System
+
+The shop management system enables gyms to manage and sell products (supplements, snacks, merchandise) with full inventory tracking.
+
+#### FR-SHOP-001: Product Management (Admin)
+- **Purpose:** Admin creates and manages products available for sale
+- **Location:** `/gym-portal/manage/shop`
+- **Required Fields:**
+  - Name (product name)
+  - Price (in RSD - Serbian dinars)
+  - Category (supplements, food & drinks, other)
+- **Optional Fields:**
+  - Description
+  - SKU/Barcode
+  - Image (base64, auto-generated SVG placeholders by category)
+  - Cost Price (for profit tracking)
+  - Initial Stock quantity
+  - Low Stock Alert threshold
+
+#### FR-SHOP-002: Product Categories
+- **Category Groups:**
+
+| Group | Serbian | Categories |
+|-------|---------|------------|
+| Suplementi | Supplements | Proteini, Pre-workout, Kreatin, BCAA/Amino, Mass Gainer, Vitamini, Fat Burner |
+| Hrana i Pića | Food & Drinks | Protein Bar, Energy Bar, Protein Shake, Energy Drink, Voda, Grickalice |
+| Ostalo | Other | Merchandising, Oprema, Ostalo |
+
+#### FR-SHOP-003: Inventory Tracking
+- **Purpose:** Track stock levels with full audit trail
+- **Stock Adjustment Types:**
+  - `purchase`: Stock received from supplier (+)
+  - `sale`: Stock sold to member (-)
+  - `adjustment`: Manual correction (+/-)
+  - `return`: Stock returned (+)
+  - `initial`: Initial stock setup (+)
+- **Audit Log:** Every change records:
+  - Previous stock level
+  - New stock level
+  - Staff who made the change
+  - Timestamp
+  - Optional note
+
+#### FR-SHOP-004: Stock Alerts
+- **Purpose:** Notify admins when products are running low
+- **Configuration:** Per-product `lowStockAlert` threshold
+- **Display:** Visual indicator when `currentStock <= lowStockAlert`
+
+#### FR-SHOP-005: Sales Recording
+- **Purpose:** Record product sales with payment tracking
+- **Required Fields:**
+  - Product selection
+  - Quantity
+- **Optional Fields:**
+  - Member (link sale to gym member)
+  - Payment method (cash, card, other)
+- **Process:**
+  1. Select product from active products
+  2. Enter quantity (validated against stock)
+  3. Optionally select member
+  4. Select payment method
+  5. Submit creates Sale record and StockLog entry
+  6. Stock automatically decremented
+
+#### FR-SHOP-006: Sales History
+- **Location:** Sales tab in shop page
+- **Display:** List of sales with:
+  - Product name
+  - Quantity
+  - Total amount
+  - Member name (if linked)
+  - Staff who recorded sale
+  - Timestamp
+- **Filtering:** By date range, by product
+
+#### FR-SHOP-007: Product Soft Delete
+- **Purpose:** Deactivate products without losing sales history
+- **Behavior:**
+  - If product has sales history: Set `isActive: false` (soft delete)
+  - If product has no sales: Hard delete (remove from database)
+- **Effect:** Deactivated products don't appear in sales dropdown
+
+#### FR-SHOP-008: Currency Display
+- **Storage:** Prices stored in whole currency units (e.g., 2500 = 2500 RSD)
+- **Display:** Serbian Dinar (RSD) format with Intl.NumberFormat
+- **Example:** `2.500 RSD` (with thousands separator)
+
 ---
 
 ## 4. Non-Functional Requirements
@@ -1840,6 +1941,124 @@ model MetricEntry {
   @@map("metric_entries")
 }
 ```
+
+### 5.18 Product Model
+
+```prisma
+model Product {
+  id            String    @id @default(cuid())
+  gymId         String
+  gym           Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Product info
+  name          String    // "Protein Powder", "Energy Bar"
+  description   String?   @db.Text
+  sku           String?   // Optional SKU/barcode
+  imageUrl      String?   @db.Text  // Base64 encoded image
+  category      String?   // supplements, food & drinks, other categories
+
+  // Pricing
+  price         Int       // Selling price in RSD (whole units)
+  costPrice     Int?      // Cost price for profit tracking
+
+  // Inventory
+  currentStock  Int       @default(0)
+  lowStockAlert Int?      // Alert when stock falls below this level
+
+  // Status
+  isActive      Boolean   @default(true)  // Available for sale
+
+  // Relations
+  stockLogs     StockLog[]
+  sales         Sale[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([gymId])
+  @@index([gymId, isActive])
+  @@index([gymId, category])
+  @@map("products")
+}
+```
+
+**Category Values:**
+- Supplements: `protein`, `preworkout`, `creatine`, `bcaa`, `mass-gainer`, `vitamins`, `fat-burner`
+- Food & Drinks: `protein-bar`, `energy-bar`, `protein-shake`, `energy-drink`, `water`, `snacks`
+- Other: `merchandise`, `accessories`, `other`
+
+### 5.19 StockLog Model
+
+```prisma
+model StockLog {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Adjustment details
+  type        String    // "purchase" | "sale" | "adjustment" | "initial" | "return"
+  quantity    Int       // Positive for additions, negative for deductions
+  note        String?   // Reason for adjustment
+
+  // Who made the adjustment
+  staffId     String?
+  staffName   String?   // Cached for display
+
+  // Previous and new stock levels (for audit trail)
+  previousStock Int?
+  newStock      Int?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([productId])
+  @@index([productId, createdAt])
+  @@map("stock_logs")
+}
+```
+
+**Purpose:** Full audit trail of all inventory changes, enabling stock reconciliation and tracking of discrepancies.
+
+### 5.20 Sale Model
+
+```prisma
+model Sale {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Sale details
+  quantity    Int       @default(1)
+  unitPrice   Int       // Price at time of sale (RSD)
+  totalAmount Int       // Total in RSD (quantity * unitPrice)
+
+  // Optional member link (for tracking member purchases)
+  memberId    String?
+  memberName  String?   // Cached for display
+
+  // Staff who made the sale
+  staffId     String?
+  staffName   String?
+
+  // Payment
+  paymentMethod String? // "cash" | "card" | "other"
+
+  createdAt   DateTime  @default(now())
+
+  @@index([productId])
+  @@index([gymId])
+  @@index([gymId, createdAt])
+  @@index([memberId])
+  @@map("sales")
+}
+```
+
+**Key Features:**
+- Links sale to specific product with price at time of sale
+- Optional member association for purchase tracking
+- Payment method tracking for reconciliation
+- Staff attribution for accountability
 
 ---
 
@@ -2807,6 +3026,198 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
 
 // Response (403) - Can only delete own metrics
 { "error": "Možete obrisati samo metrike koje ste vi kreirali" }
+```
+
+### 7.12 Shop/Inventory Management (Admin Only)
+
+#### GET /api/admin/products
+```json
+// Response (200) - List all products
+{
+  "products": [
+    {
+      "id": "product-cuid",
+      "name": "Whey Protein 2kg",
+      "description": "Premium whey protein isolate",
+      "sku": "WP-001",
+      "imageUrl": "data:image/svg+xml;base64,...",
+      "category": "protein",
+      "price": 5990,  // 5990 RSD
+      "costPrice": 4500,
+      "currentStock": 15,
+      "lowStockAlert": 5,
+      "isActive": true,
+      "createdAt": "2026-01-15T10:00:00Z"
+    }
+  ]
+}
+```
+
+#### POST /api/admin/products
+```json
+// Request - Create new product
+{
+  "name": "Whey Protein 2kg",
+  "description": "Premium whey protein isolate",
+  "sku": "WP-001",
+  "imageUrl": "data:image/svg+xml;base64,...",
+  "category": "protein",
+  "price": 5990,
+  "costPrice": 4500,
+  "initialStock": 20,
+  "lowStockAlert": 5
+}
+
+// Response (200)
+{
+  "success": true,
+  "product": { ... }
+}
+
+// Response (400)
+{ "error": "Name and price are required" }
+```
+
+#### GET /api/admin/products/[id]
+```json
+// Response (200) - Get product with stock history
+{
+  "product": {
+    "id": "product-cuid",
+    "name": "Whey Protein 2kg",
+    "currentStock": 15,
+    "stockLogs": [
+      {
+        "id": "log-cuid",
+        "type": "sale",
+        "quantity": -2,
+        "previousStock": 17,
+        "newStock": 15,
+        "staffName": "Marko Admin",
+        "note": "Prodaja #abc123",
+        "createdAt": "2026-01-20T14:30:00Z"
+      }
+    ],
+    "_count": { "sales": 5 }
+  }
+}
+```
+
+#### PUT /api/admin/products/[id]
+```json
+// Request - Update product
+{
+  "name": "Whey Protein 2.5kg",
+  "price": 6990,
+  "lowStockAlert": 3,
+  "isActive": true
+}
+
+// Response (200)
+{ "success": true, "product": { ... } }
+
+// Response (400)
+{ "error": "Name cannot be empty" }
+```
+
+#### DELETE /api/admin/products/[id]
+```json
+// Response (200) - Soft delete (has sales history)
+{ "success": true, "softDeleted": true }
+
+// Response (200) - Hard delete (no sales)
+{ "success": true }
+
+// Response (404)
+{ "error": "Product not found" }
+```
+
+#### POST /api/admin/products/[id]/stock
+```json
+// Request - Adjust stock
+{
+  "type": "purchase",  // "purchase" | "adjustment" | "return"
+  "quantity": 10,      // Positive for additions, negative for reductions
+  "note": "Supplier delivery"
+}
+
+// Response (200)
+{
+  "success": true,
+  "product": { "currentStock": 25 },
+  "adjustment": {
+    "type": "purchase",
+    "quantity": 10,
+    "previousStock": 15,
+    "newStock": 25
+  }
+}
+
+// Response (400) - Invalid type
+{ "error": "Invalid adjustment type. Must be: purchase, adjustment, or return" }
+
+// Response (400) - Insufficient stock
+{ "error": "Insufficient stock. Current: 5, Requested: -10" }
+```
+
+#### GET /api/admin/sales
+```json
+// Query params: startDate, endDate, productId, limit
+
+// Response (200) - List sales
+{
+  "sales": [
+    {
+      "id": "sale-cuid",
+      "productId": "product-cuid",
+      "quantity": 2,
+      "unitPrice": 5990,
+      "totalAmount": 11980,
+      "memberName": "Marko M.",
+      "staffName": "Admin",
+      "paymentMethod": "cash",
+      "product": {
+        "id": "product-cuid",
+        "name": "Whey Protein 2kg",
+        "category": "protein"
+      },
+      "createdAt": "2026-01-20T14:30:00Z"
+    }
+  ],
+  "summary": {
+    "totalSales": 15,
+    "totalRevenue": 89700,
+    "totalUnits": 23
+  }
+}
+```
+
+#### POST /api/admin/sales
+```json
+// Request - Record a sale
+{
+  "productId": "product-cuid",
+  "quantity": 2,
+  "memberId": "member-cuid",  // Optional
+  "paymentMethod": "cash"     // Optional: "cash" | "card" | "other"
+}
+
+// Response (200)
+{
+  "success": true,
+  "sale": {
+    "id": "sale-cuid",
+    "quantity": 2,
+    "totalAmount": 11980,
+    "product": { "id": "...", "name": "Whey Protein 2kg" }
+  }
+}
+
+// Response (400) - Insufficient stock
+{ "error": "Insufficient stock. Available: 5" }
+
+// Response (404)
+{ "error": "Product not found" }
 ```
 
 ---

@@ -708,6 +708,10 @@ async function main() {
   console.log("\n🎯 Seeding goals (voting system)...");
   await seedGoals(gym.id, createdMembers, today);
 
+  // Seed products (shop inventory)
+  console.log("\n🛒 Seeding products (shop inventory)...");
+  await seedProducts(gym.id, admin.id, admin.name);
+
   // Print summary
   printSummary(coachConfigs, members);
 }
@@ -1406,6 +1410,211 @@ async function seedGoals(
   console.log(`  ✅ Created draft goal "${draftGoal.name}" (not published yet)`);
 }
 
+// Product image placeholders (SVG data URLs for different categories)
+const productImages = {
+  // Protein - shaker/powder icon
+  protein: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='60' y='30' width='80' height='140' rx='10' fill='%234a90d9'/%3E%3Crect x='70' y='40' width='60' height='30' rx='5' fill='%236bb3f0'/%3E%3Ctext x='100' y='110' font-family='Arial' font-size='12' fill='white' text-anchor='middle'%3EWHEY%3C/text%3E%3Ctext x='100' y='130' font-family='Arial' font-size='10' fill='%23aaa' text-anchor='middle'%3EPROTEIN%3C/text%3E%3C/svg%3E",
+  // Pre-workout - energy/lightning icon
+  preworkout: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='60' y='40' width='80' height='120' rx='8' fill='%23e74c3c'/%3E%3Cpath d='M110 60 L90 100 L105 100 L95 140 L115 95 L100 95 Z' fill='%23f1c40f'/%3E%3C/svg%3E",
+  // Creatine - powder container
+  creatine: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='55' y='50' width='90' height='110' rx='5' fill='%23333'/%3E%3Crect x='65' y='60' width='70' height='40' rx='3' fill='%23fff'/%3E%3Ctext x='100' y='85' font-family='Arial' font-size='11' fill='%23333' text-anchor='middle'%3ECREATINE%3C/text%3E%3Ctext x='100' y='130' font-family='Arial' font-size='24' fill='%23fff' text-anchor='middle'%3ECr%3C/text%3E%3C/svg%3E",
+  // BCAA - capsules
+  bcaa: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Cellipse cx='80' cy='90' rx='20' ry='35' fill='%232ecc71'/%3E%3Cellipse cx='120' cy='90' rx='20' ry='35' fill='%233498db'/%3E%3Cellipse cx='100' cy='120' rx='20' ry='35' fill='%23e74c3c'/%3E%3Ctext x='100' y='170' font-family='Arial' font-size='14' fill='%23888' text-anchor='middle'%3EBCAA%3C/text%3E%3C/svg%3E",
+  // Mass gainer - large container
+  massGainer: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='45' y='25' width='110' height='150' rx='10' fill='%238e44ad'/%3E%3Crect x='55' y='35' width='90' height='40' rx='5' fill='%239b59b6'/%3E%3Ctext x='100' y='100' font-family='Arial' font-size='11' fill='white' text-anchor='middle'%3EMASS%3C/text%3E%3Ctext x='100' y='120' font-family='Arial' font-size='11' fill='white' text-anchor='middle'%3EGAINER%3C/text%3E%3Ctext x='100' y='150' font-family='Arial' font-size='10' fill='%23ddd' text-anchor='middle'%3E5kg%3C/text%3E%3C/svg%3E",
+  // Vitamins - pill bottle
+  vitamins: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='65' y='50' width='70' height='110' rx='8' fill='%23f39c12'/%3E%3Crect x='70' y='35' width='60' height='20' rx='3' fill='%23e67e22'/%3E%3Ctext x='100' y='95' font-family='Arial' font-size='20' fill='white' text-anchor='middle'%3EVit%3C/text%3E%3Ctext x='100' y='120' font-family='Arial' font-size='12' fill='white' text-anchor='middle'%3ED3+K2%3C/text%3E%3C/svg%3E",
+  // Fat burner - flame icon
+  fatBurner: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='60' y='50' width='80' height='120' rx='8' fill='%23c0392b'/%3E%3Cpath d='M100 70 Q80 100 90 120 Q85 140 100 150 Q115 140 110 120 Q120 100 100 70' fill='%23f39c12'/%3E%3Cpath d='M100 85 Q90 105 95 115 Q92 125 100 130 Q108 125 105 115 Q110 105 100 85' fill='%23e74c3c'/%3E%3C/svg%3E",
+  // Protein bar
+  proteinBar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='70' width='140' height='60' rx='8' fill='%238B4513'/%3E%3Crect x='35' y='75' width='130' height='50' rx='6' fill='%23D2691E'/%3E%3Crect x='40' y='85' width='50' height='30' rx='3' fill='%23fff'/%3E%3Ctext x='65' y='105' font-family='Arial' font-size='8' fill='%23333' text-anchor='middle'%3EPROTEIN%3C/text%3E%3Crect x='100' y='90' width='60' height='20' rx='2' fill='%234a2c2a'/%3E%3C/svg%3E",
+  // Energy bar
+  energyBar: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='30' y='70' width='140' height='60' rx='8' fill='%232ecc71'/%3E%3Crect x='35' y='75' width='130' height='50' rx='6' fill='%2327ae60'/%3E%3Ctext x='100' y='105' font-family='Arial' font-size='12' fill='white' text-anchor='middle'%3EENERGY BAR%3C/text%3E%3C/svg%3E",
+  // Protein shake (RTD)
+  proteinShake: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='70' y='30' width='60' height='140' rx='10' fill='%23ecf0f1'/%3E%3Crect x='75' y='35' width='50' height='20' rx='5' fill='%233498db'/%3E%3Crect x='80' y='70' width='40' height='60' rx='3' fill='%23fff'/%3E%3Ctext x='100' y='95' font-family='Arial' font-size='8' fill='%23333' text-anchor='middle'%3ESHAKE%3C/text%3E%3Ctext x='100' y='110' font-family='Arial' font-size='8' fill='%23333' text-anchor='middle'%3E25g%3C/text%3E%3C/svg%3E",
+  // Energy drink
+  energyDrink: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='75' y='40' width='50' height='120' rx='5' fill='%23333'/%3E%3Crect x='80' y='50' width='40' height='80' rx='3' fill='%2300ff00'/%3E%3Cpath d='M100 60 L90 85 L97 85 L93 110 L110 80 L103 80 Z' fill='%23333'/%3E%3C/svg%3E",
+  // Water bottle
+  water: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='75' y='50' width='50' height='110' rx='8' fill='%2387CEEB'/%3E%3Crect x='85' y='35' width='30' height='20' rx='3' fill='%2387CEEB'/%3E%3Crect x='90' y='30' width='20' height='10' rx='2' fill='%234a90d9'/%3E%3Cellipse cx='100' cy='100' rx='15' ry='30' fill='%23add8e6' opacity='0.5'/%3E%3C/svg%3E",
+  // Snacks
+  snacks: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Cellipse cx='70' cy='100' rx='30' ry='20' fill='%23daa520'/%3E%3Cellipse cx='100' cy='90' rx='30' ry='20' fill='%23cd853f'/%3E%3Cellipse cx='130' cy='100' rx='30' ry='20' fill='%23d2691e'/%3E%3Cellipse cx='85' cy='115' rx='25' ry='18' fill='%23daa520'/%3E%3Cellipse cx='115' cy='115' rx='25' ry='18' fill='%23cd853f'/%3E%3C/svg%3E",
+  // Merchandise (t-shirt)
+  merchandise: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Cpath d='M60 50 L80 50 L100 70 L120 50 L140 50 L160 80 L140 90 L140 150 L60 150 L60 90 L40 80 Z' fill='%23e74c3c'/%3E%3Cpath d='M80 50 L100 70 L120 50' fill='none' stroke='%23c0392b' stroke-width='3'/%3E%3Ctext x='100' y='115' font-family='Arial' font-size='14' fill='white' text-anchor='middle'%3ECLASSIC%3C/text%3E%3C/svg%3E",
+  // Accessories (gym gloves)
+  accessories: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Cpath d='M50 100 L50 70 L70 60 L70 50 L80 50 L80 60 L90 55 L90 45 L100 45 L100 55 L110 50 L110 40 L120 40 L120 55 L130 55 L130 70 L140 80 L140 130 L50 130 Z' fill='%23333'/%3E%3Crect x='55' y='85' width='80' height='40' rx='3' fill='%23555'/%3E%3C/svg%3E",
+  // Other/generic
+  other: "data:image/svg+xml,%3Csvg xmlns='http://www.w3.org/2000/svg' width='200' height='200' viewBox='0 0 200 200'%3E%3Crect fill='%231a1a2e' width='200' height='200'/%3E%3Crect x='50' y='50' width='100' height='100' rx='10' fill='%23555'/%3E%3Ctext x='100' y='110' font-family='Arial' font-size='40' fill='%23888' text-anchor='middle'%3E?%3C/text%3E%3C/svg%3E",
+};
+
+async function seedProducts(gymId: string, staffId: string, staffName: string) {
+  // Clear existing products for clean seed
+  await prisma.sale.deleteMany({ where: { gymId } });
+  await prisma.stockLog.deleteMany({
+    where: { product: { gymId } },
+  });
+  await prisma.product.deleteMany({ where: { gymId } });
+
+  // ========== SUPPLEMENTS (25 products) ==========
+  const supplements = [
+    // Proteins (7)
+    { name: "Whey Protein Isolate 2kg", description: "Premium izolat proteina surutke, 90% proteina, niska laktoza", sku: "WPI-2000", category: "protein", price: 8500, costPrice: 6000, stock: 15, lowAlert: 3 },
+    { name: "Whey Protein Concentrate 1kg", description: "Koncentrat proteina surutke, odličan odnos cena/kvalitet", sku: "WPC-1000", category: "protein", price: 3200, costPrice: 2200, stock: 25, lowAlert: 5 },
+    { name: "Casein Protein 900g", description: "Sporo oslobađajući kazein protein, idealan za noć", sku: "CAS-900", category: "protein", price: 4500, costPrice: 3200, stock: 8, lowAlert: 2 },
+    { name: "Vegan Protein Mix 1kg", description: "Biljni protein - grašak, pirinač, konoplja", sku: "VEG-1000", category: "protein", price: 4200, costPrice: 2800, stock: 10, lowAlert: 3 },
+    { name: "Whey Gold Standard 2.27kg", description: "Optimum Nutrition Whey Gold Standard", sku: "ON-WGS-2270", category: "protein", price: 11500, costPrice: 8500, stock: 6, lowAlert: 2 },
+    { name: "Hydro Whey 1.6kg", description: "Hidrolizovani whey protein za brzu apsorpciju", sku: "HYD-1600", category: "protein", price: 9800, costPrice: 7200, stock: 4, lowAlert: 2 },
+    { name: "Whey Protein 500g - Starter", description: "Manja pakovanje za početnike, čokolada", sku: "WPC-500", category: "protein", price: 1800, costPrice: 1200, stock: 20, lowAlert: 5 },
+
+    // Pre-workout (4)
+    { name: "Pre-Workout Extreme 300g", description: "Intenzivan pre-workout sa kofeinom i beta-alaninom", sku: "PWE-300", category: "preworkout", price: 3500, costPrice: 2400, stock: 12, lowAlert: 3 },
+    { name: "C4 Original Pre-Workout", description: "Cellucor C4 Original, popularan pre-workout", sku: "C4-ORI", category: "preworkout", price: 4200, costPrice: 3000, stock: 8, lowAlert: 2 },
+    { name: "Pre-Workout Pump (bez kofeina)", description: "Stim-free pre-workout za večernji trening", sku: "PWP-SF", category: "preworkout", price: 3200, costPrice: 2200, stock: 6, lowAlert: 2 },
+    { name: "Pre-Workout Sample Pack", description: "5 različitih ukusa za probu", sku: "PW-SAMPLE", category: "preworkout", price: 800, costPrice: 500, stock: 30, lowAlert: 10 },
+
+    // Creatine (3)
+    { name: "Kreatin Monohidrat 500g", description: "Čist kreatin monohidrat, mikronizovan", sku: "CRE-500", category: "creatine", price: 2200, costPrice: 1400, stock: 20, lowAlert: 5 },
+    { name: "Creapure Kreatin 300g", description: "Premium Creapure® kreatin iz Nemačke", sku: "CRP-300", category: "creatine", price: 2800, costPrice: 2000, stock: 10, lowAlert: 3 },
+    { name: "Kreatin Kapsule 120 caps", description: "Kreatin u kapsulama, praktično doziranje", sku: "CRE-CAP", category: "creatine", price: 1800, costPrice: 1200, stock: 15, lowAlert: 4 },
+
+    // BCAA (3)
+    { name: "BCAA 2:1:1 Powder 400g", description: "BCAA u prahu, odnos 2:1:1, limun ukus", sku: "BCAA-400", category: "bcaa", price: 2800, costPrice: 1900, stock: 12, lowAlert: 3 },
+    { name: "EAA Essential 350g", description: "Kompletan spektar esencijalnih aminokiselina", sku: "EAA-350", category: "bcaa", price: 3200, costPrice: 2200, stock: 8, lowAlert: 2 },
+    { name: "BCAA Kapsule 200 caps", description: "BCAA u kapsulama za praktičnu upotrebu", sku: "BCAA-CAP", category: "bcaa", price: 2400, costPrice: 1600, stock: 10, lowAlert: 3 },
+
+    // Mass Gainer (2)
+    { name: "Mass Gainer 3kg", description: "Visokokalorični gainer za povećanje mase", sku: "MASS-3000", category: "mass-gainer", price: 5500, costPrice: 3800, stock: 6, lowAlert: 2 },
+    { name: "Serious Mass 2.7kg", description: "Optimum Nutrition Serious Mass", sku: "ON-SM-2700", category: "mass-gainer", price: 6800, costPrice: 5000, stock: 4, lowAlert: 2 },
+
+    // Vitamins (4)
+    { name: "Vitamin D3 + K2 60 caps", description: "Vitamin D3 2000IU + K2 MK-7", sku: "VIT-D3K2", category: "vitamins", price: 1200, costPrice: 700, stock: 25, lowAlert: 5 },
+    { name: "Omega-3 Fish Oil 90 caps", description: "Riblje ulje, 1000mg EPA/DHA", sku: "OMG-90", category: "vitamins", price: 1800, costPrice: 1100, stock: 18, lowAlert: 4 },
+    { name: "ZMA 90 caps", description: "Cink, magnezijum, B6 za bolji san i oporavak", sku: "ZMA-90", category: "vitamins", price: 1500, costPrice: 900, stock: 15, lowAlert: 4 },
+    { name: "Multivitamin Sport 60 tabs", description: "Kompletan multivitamin za sportiste", sku: "MULTI-60", category: "vitamins", price: 1600, costPrice: 1000, stock: 20, lowAlert: 5 },
+
+    // Fat Burner (2)
+    { name: "Thermo Burner 90 caps", description: "Termogeni fat burner sa L-karnitinom", sku: "THRM-90", category: "fat-burner", price: 2800, costPrice: 1800, stock: 10, lowAlert: 3 },
+    { name: "L-Carnitine 1000ml", description: "Tečni L-karnitin, citrus ukus", sku: "LCAR-1000", category: "fat-burner", price: 2200, costPrice: 1400, stock: 12, lowAlert: 3 },
+  ];
+
+  // ========== FOOD & DRINKS (18 products) ==========
+  const foodDrinks = [
+    // Protein Bars (5)
+    { name: "Protein Bar Čokolada 60g", description: "20g proteina, low sugar", sku: "PBAR-CHO", category: "protein-bar", price: 350, costPrice: 220, stock: 50, lowAlert: 15 },
+    { name: "Protein Bar Kikiriki 60g", description: "20g proteina, kikiriki butter", sku: "PBAR-PNT", category: "protein-bar", price: 350, costPrice: 220, stock: 40, lowAlert: 12 },
+    { name: "Protein Bar Cookies 60g", description: "20g proteina, cookies & cream", sku: "PBAR-COO", category: "protein-bar", price: 350, costPrice: 220, stock: 35, lowAlert: 10 },
+    { name: "Quest Bar Mix Box (12kom)", description: "Mix kutija 12 Quest barova", sku: "QUEST-12", category: "protein-bar", price: 4200, costPrice: 3200, stock: 8, lowAlert: 2 },
+    { name: "Protein Brownie 65g", description: "Protein brownie, dupla čokolada", sku: "PBRW-65", category: "protein-bar", price: 400, costPrice: 260, stock: 30, lowAlert: 10 },
+
+    // Energy Bars (3)
+    { name: "Energy Bar Ovseni 50g", description: "Energetska pločica sa ovsenim pahuljicama", sku: "EBAR-OVS", category: "energy-bar", price: 180, costPrice: 100, stock: 60, lowAlert: 20 },
+    { name: "Fruit & Nut Bar 40g", description: "Voće i orašasti plodovi, bez dodatog šećera", sku: "FNUT-40", category: "energy-bar", price: 220, costPrice: 140, stock: 45, lowAlert: 15 },
+    { name: "Date Energy Ball 3-pack", description: "Energetske kuglice od urmi", sku: "DATE-3P", category: "energy-bar", price: 280, costPrice: 180, stock: 25, lowAlert: 8 },
+
+    // Protein Shakes RTD (3)
+    { name: "Protein Shake RTD 330ml", description: "Gotov protein shake, čokolada, 25g proteina", sku: "RTD-CHO", category: "protein-shake", price: 450, costPrice: 300, stock: 24, lowAlert: 8 },
+    { name: "Protein Shake RTD Vanila 330ml", description: "Gotov protein shake, vanila, 25g proteina", sku: "RTD-VAN", category: "protein-shake", price: 450, costPrice: 300, stock: 20, lowAlert: 6 },
+    { name: "Protein Coffee 250ml", description: "Protein + kafa u jednom, 20g proteina", sku: "PCOF-250", category: "protein-shake", price: 380, costPrice: 250, stock: 18, lowAlert: 6 },
+
+    // Energy Drinks (3)
+    { name: "BCAA Energy Drink 250ml", description: "BCAA energetsko piće, mango", sku: "BCAA-DRK", category: "energy-drink", price: 280, costPrice: 180, stock: 36, lowAlert: 12 },
+    { name: "Pre-Workout Shot 60ml", description: "Koncentrovani pre-workout shot", sku: "PW-SHOT", category: "energy-drink", price: 320, costPrice: 200, stock: 30, lowAlert: 10 },
+    { name: "Monster Energy 500ml", description: "Monster Energy Original", sku: "MNSTR-500", category: "energy-drink", price: 280, costPrice: 200, stock: 48, lowAlert: 15 },
+
+    // Water (2)
+    { name: "Voda 0.5L", description: "Flaširana voda 0.5L", sku: "H2O-500", category: "water", price: 80, costPrice: 40, stock: 100, lowAlert: 30 },
+    { name: "Voda 1.5L", description: "Flaširana voda 1.5L", sku: "H2O-1500", category: "water", price: 120, costPrice: 60, stock: 50, lowAlert: 15 },
+
+    // Snacks (2)
+    { name: "Rice Cakes 100g", description: "Pirinčane galete, bez soli", sku: "RICE-100", category: "snacks", price: 180, costPrice: 100, stock: 30, lowAlert: 10 },
+    { name: "Protein Chips 30g", description: "Proteinski čips, BBQ ukus", sku: "PCHIP-30", category: "snacks", price: 250, costPrice: 160, stock: 25, lowAlert: 8 },
+  ];
+
+  // ========== OTHER (12 products) ==========
+  const other = [
+    // Merchandise (5)
+    { name: "Classic Gym Majica - M", description: "Pamučna majica sa logom, veličina M", sku: "SHIRT-M", category: "merchandise", price: 2500, costPrice: 1200, stock: 10, lowAlert: 3 },
+    { name: "Classic Gym Majica - L", description: "Pamučna majica sa logom, veličina L", sku: "SHIRT-L", category: "merchandise", price: 2500, costPrice: 1200, stock: 12, lowAlert: 3 },
+    { name: "Classic Gym Majica - XL", description: "Pamučna majica sa logom, veličina XL", sku: "SHIRT-XL", category: "merchandise", price: 2500, costPrice: 1200, stock: 8, lowAlert: 2 },
+    { name: "Classic Gym Shaker 700ml", description: "Shaker sa logom, BPA free", sku: "SHAKE-700", category: "merchandise", price: 800, costPrice: 400, stock: 25, lowAlert: 8 },
+    { name: "Classic Gym Peškir", description: "Gym peškir sa logom, microfiber", sku: "TOWEL-01", category: "merchandise", price: 1500, costPrice: 800, stock: 15, lowAlert: 5 },
+
+    // Accessories (5)
+    { name: "Rukavice za trening M/L", description: "Kožne rukavice za teretanu", sku: "GLOV-ML", category: "accessories", price: 1800, costPrice: 1000, stock: 8, lowAlert: 3 },
+    { name: "Rukavice za trening S/M", description: "Kožne rukavice za teretanu, manja veličina", sku: "GLOV-SM", category: "accessories", price: 1800, costPrice: 1000, stock: 6, lowAlert: 2 },
+    { name: "Lifting Straps", description: "Trake za dizanje tegova", sku: "STRAP-01", category: "accessories", price: 1200, costPrice: 600, stock: 12, lowAlert: 4 },
+    { name: "Pojas za trening L", description: "Kožni pojas za teške dizeve", sku: "BELT-L", category: "accessories", price: 4500, costPrice: 2800, stock: 4, lowAlert: 2 },
+    { name: "Wrist Wraps", description: "Bandaže za zglobove", sku: "WRIST-01", category: "accessories", price: 1000, costPrice: 500, stock: 10, lowAlert: 3 },
+
+    // Other (2)
+    { name: "Gym Bag Classic", description: "Sportska torba sa Classic logom", sku: "BAG-01", category: "other", price: 3500, costPrice: 2000, stock: 6, lowAlert: 2 },
+    { name: "Foam Roller 45cm", description: "Pena za masažu i oporavak", sku: "FOAM-45", category: "other", price: 2200, costPrice: 1400, stock: 5, lowAlert: 2 },
+  ];
+
+  const allProducts = [...supplements, ...foodDrinks, ...other];
+
+  let productCount = 0;
+  for (const p of allProducts) {
+    // Get image based on category
+    const categoryToImage: Record<string, keyof typeof productImages> = {
+      "protein": "protein",
+      "preworkout": "preworkout",
+      "creatine": "creatine",
+      "bcaa": "bcaa",
+      "mass-gainer": "massGainer",
+      "vitamins": "vitamins",
+      "fat-burner": "fatBurner",
+      "protein-bar": "proteinBar",
+      "energy-bar": "energyBar",
+      "protein-shake": "proteinShake",
+      "energy-drink": "energyDrink",
+      "water": "water",
+      "snacks": "snacks",
+      "merchandise": "merchandise",
+      "accessories": "accessories",
+      "other": "other",
+    };
+    const imageKey = categoryToImage[p.category] || "other";
+    const imageUrl = productImages[imageKey];
+
+    const product = await prisma.product.create({
+      data: {
+        gymId,
+        name: p.name,
+        description: p.description,
+        sku: p.sku,
+        category: p.category,
+        price: p.price,
+        costPrice: p.costPrice,
+        currentStock: p.stock,
+        lowStockAlert: p.lowAlert,
+        imageUrl,
+        isActive: true,
+      },
+    });
+
+    // Create initial stock log
+    await prisma.stockLog.create({
+      data: {
+        productId: product.id,
+        type: "initial",
+        quantity: p.stock,
+        previousStock: 0,
+        newStock: p.stock,
+        staffId,
+        staffName,
+        note: "Početno stanje - seed",
+      },
+    });
+
+    productCount++;
+  }
+
+  console.log(`  ✅ Created ${supplements.length} supplements`);
+  console.log(`  ✅ Created ${foodDrinks.length} food & drinks`);
+  console.log(`  ✅ Created ${other.length} merchandise & accessories`);
+  console.log(`  ✅ Total: ${productCount} products with initial stock`);
+}
+
 function printSummary(coachConfigs: { staffId: string; pin: string; name: string }[], members: MemberConfig[]) {
   console.log("\n\n✨ Seed completed!\n");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━");
@@ -1487,6 +1696,33 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  │ Draft Goal:       Ljetnja Oprema 2026 (not published)            │");
   console.log("  └──────────────────────────────────────────────────────────────────┘");
 
+  console.log("\n  🛒 SHOP INVENTORY:");
+  console.log("  ┌──────────────────────────────────────────────────────────────────┐");
+  console.log("  │ Supplements (25 products):                                       │");
+  console.log("  │ ├─ Proteins: 7 (Whey Isolate, Concentrate, Casein, Vegan, etc)   │");
+  console.log("  │ ├─ Pre-workout: 4 (Extreme, C4, Stim-free, Samples)              │");
+  console.log("  │ ├─ Creatine: 3 (Monohidrat, Creapure, Kapsule)                   │");
+  console.log("  │ ├─ BCAA: 3 (Powder, EAA, Kapsule)                                │");
+  console.log("  │ ├─ Mass Gainer: 2 (3kg, Serious Mass)                            │");
+  console.log("  │ ├─ Vitamins: 4 (D3+K2, Omega-3, ZMA, Multi)                      │");
+  console.log("  │ └─ Fat Burner: 2 (Thermo, L-Carnitine)                           │");
+  console.log("  │                                                                  │");
+  console.log("  │ Food & Drinks (18 products):                                     │");
+  console.log("  │ ├─ Protein Bars: 5 (Čoko, Kikiriki, Cookies, Quest, Brownie)     │");
+  console.log("  │ ├─ Energy Bars: 3 (Ovseni, Fruit&Nut, Date balls)                │");
+  console.log("  │ ├─ RTD Shakes: 3 (Čoko, Vanila, Coffee)                          │");
+  console.log("  │ ├─ Energy Drinks: 3 (BCAA drink, PW Shot, Monster)               │");
+  console.log("  │ ├─ Water: 2 (0.5L, 1.5L)                                         │");
+  console.log("  │ └─ Snacks: 2 (Rice Cakes, Protein Chips)                         │");
+  console.log("  │                                                                  │");
+  console.log("  │ Merchandise & Accessories (12 products):                         │");
+  console.log("  │ ├─ Merchandise: 5 (Majice M/L/XL, Shaker, Peškir)                │");
+  console.log("  │ ├─ Accessories: 5 (Rukavice, Straps, Pojas, Wrist wraps)         │");
+  console.log("  │ └─ Other: 2 (Gym Bag, Foam Roller)                               │");
+  console.log("  │                                                                  │");
+  console.log("  │ Total: 55 products with stock and SVG images                     │");
+  console.log("  └──────────────────────────────────────────────────────────────────┘");
+
   console.log("\n  📋 TEST SCENARIOS:");
   console.log("  • Admin coach performance: Login as S-ADMIN, check /api/admin/coach-performance");
   console.log("  • Admin goals: Login as S-ADMIN, manage goals at /gym-portal/manage/goals");
@@ -1499,6 +1735,8 @@ function printSummary(coachConfigs: { staffId: string; pin: string; name: string
   console.log("  • Metrics (coach view): Login as MANJA, view MJ01's metrics");
   console.log("  • Metrics (member view): Login as MILOS to see own metrics");
   console.log("  • Metrics (no target): Login as TEST to see neutral semaphore");
+  console.log("  • Shop inventory: Login as S-ADMIN, visit /gym-portal/manage/shop");
+  console.log("  • Record sale: In shop, go to Prodaja tab, click Nova prodaja");
   console.log("");
   console.log("━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━━\n");
 }

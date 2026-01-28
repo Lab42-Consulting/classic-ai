@@ -52,6 +52,8 @@ model Gym {
   gymCheckins     GymCheckin[]      // Member check-ins at the gym
   fundraisingGoals FundraisingGoal[] // Fundraising goals for gym improvements (legacy - being replaced)
   goals           Goal[]            // Goal voting system (replaces fundraisingGoals)
+  products        Product[]         // Inventory products
+  sales           Sale[]            // Sales transactions
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -949,4 +951,106 @@ model GoalContribution {
   @@index([goalId])
   @@index([goalId, createdAt])
   @@map("goal_contributions")
+}
+
+// ============================================================================
+// INVENTORY / SHOP SYSTEM
+// Phase 1: Basic product inventory and sales tracking
+// Phase 2: Member discounts, milestones, challenge reward integration
+// ============================================================================
+
+// Product - items sold at the gym (supplements, snacks, merchandise)
+model Product {
+  id            String    @id @default(cuid())
+  gymId         String
+  gym           Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Product info
+  name          String    // "Protein Powder", "Energy Bar"
+  description   String?   @db.Text
+  sku           String?   // Optional SKU/barcode
+  imageUrl      String?   @db.Text  // Base64 encoded image
+  category      String?   // "supplements" | "snacks" | "drinks" | "merchandise" | "other"
+
+  // Pricing
+  price         Int       // Selling price in cents (e.g., 500 = €5.00)
+  costPrice     Int?      // Cost price for profit tracking (cents)
+
+  // Inventory
+  currentStock  Int       @default(0)
+  lowStockAlert Int?      // Alert when stock falls below this level
+
+  // Status
+  isActive      Boolean   @default(true)  // Available for sale
+
+  // Relations
+  stockLogs     StockLog[]
+  sales         Sale[]
+
+  createdAt     DateTime  @default(now())
+  updatedAt     DateTime  @updatedAt
+
+  @@index([gymId])
+  @@index([gymId, isActive])
+  @@index([gymId, category])
+  @@map("products")
+}
+
+// StockLog - tracks all inventory adjustments (purchases, adjustments, etc.)
+model StockLog {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+
+  // Adjustment details
+  type        String    // "purchase" | "sale" | "adjustment" | "initial" | "return"
+  quantity    Int       // Positive for additions, negative for deductions
+  note        String?   // Reason for adjustment
+
+  // Who made the adjustment
+  staffId     String?
+  staffName   String?   // Cached for display
+
+  // Previous and new stock levels (for audit trail)
+  previousStock Int?
+  newStock      Int?
+
+  createdAt   DateTime  @default(now())
+
+  @@index([productId])
+  @@index([productId, createdAt])
+  @@map("stock_logs")
+}
+
+// Sale - records product sales transactions
+model Sale {
+  id          String    @id @default(cuid())
+  productId   String
+  product     Product   @relation(fields: [productId], references: [id], onDelete: Cascade)
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  // Sale details
+  quantity    Int       @default(1)
+  unitPrice   Int       // Price at time of sale (cents)
+  totalAmount Int       // Total in cents (quantity * unitPrice)
+
+  // Optional member link (for tracking member purchases)
+  memberId    String?
+  memberName  String?   // Cached for display
+
+  // Staff who made the sale
+  staffId     String?
+  staffName   String?
+
+  // Payment
+  paymentMethod String? // "cash" | "card" | "other"
+
+  createdAt   DateTime  @default(now())
+
+  @@index([productId])
+  @@index([gymId])
+  @@index([gymId, createdAt])
+  @@index([memberId])
+  @@map("sales")
 }

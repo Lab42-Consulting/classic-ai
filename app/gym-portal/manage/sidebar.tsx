@@ -54,7 +54,6 @@ const navGroups: NavGroup[] = [
     label: "Teretana",
     icon: "building",
     items: [
-      { label: "Prodavnica", href: "/gym-portal/manage/shop", icon: "shop" },
       { label: "Galerija", href: "/gym-portal/manage/gallery", icon: "gallery" },
       {
         label: "Branding",
@@ -77,17 +76,29 @@ const navGroups: NavGroup[] = [
         icon: "locations",
         ownerOnly: true,
       },
+      {
+        label: "Magacin",
+        href: "/gym-portal/manage/shop",
+        icon: "shop",
+        ownerOnly: true,
+      },
     ],
   },
 ];
 
-// Owner-only view - just locations
+// Owner-only view - locations and magacin
 const ownerNavGroups: NavGroup[] = [
   {
     id: "locations",
     label: "Lokacije",
     icon: "locations",
     href: "/gym-portal/manage/locations",
+  },
+  {
+    id: "magacin",
+    label: "Magacin",
+    icon: "shop",
+    href: "/gym-portal/manage/shop",
   },
 ];
 

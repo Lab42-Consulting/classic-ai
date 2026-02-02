@@ -4,7 +4,7 @@ import prisma from "@/lib/db";
 
 /**
  * GET /api/admin/sales
- * List sales with optional date filtering
+ * List sales with optional date filtering (Owner only - Magacin feature)
  */
 export async function GET(request: NextRequest) {
   try {
@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -83,7 +83,7 @@ export async function GET(request: NextRequest) {
 
 /**
  * POST /api/admin/sales
- * Record a new sale
+ * Record a new sale (Owner only - Magacin feature)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
       select: { role: true, gymId: true, name: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const body = await request.json();

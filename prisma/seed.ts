@@ -1582,7 +1582,7 @@ async function seedProducts(gymId: string, staffId: string, staffName: string) {
         name: p.name,
         description: p.description,
         sku: p.sku,
-        category: p.category,
+        // categoryId is null - owners create their own categories
         price: p.price,
         costPrice: p.costPrice,
         currentStock: p.stock,

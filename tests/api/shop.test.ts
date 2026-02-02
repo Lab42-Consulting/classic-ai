@@ -15,9 +15,11 @@ import {
   mockStockLogSale,
   mockSale,
   mockSaleWithProduct,
+  mockOwnerSession,
   mockAdminSession,
   mockStaffSession,
   mockMemberSession,
+  mockStaffOwner,
   mockStaffAdmin,
   mockStaffCoach,
   mockGym,
@@ -30,7 +32,7 @@ import {
 // PRODUCTS API TESTS
 // =============================================================================
 
-describe('Shop API - Products (Admin Only)', () => {
+describe('Magacin API - Products (Owner Only)', () => {
   // =========================================================================
   // GET /api/admin/products - List Products
   // =========================================================================
@@ -58,11 +60,11 @@ describe('Shop API - Products (Admin Only)', () => {
         expect(data.error).toBe('Unauthorized')
       })
 
-      it('should return 403 if staff is not admin', async () => {
-        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+      it('should return 403 if staff is not owner', async () => {
+        vi.mocked(getSession).mockResolvedValue(mockAdminSession)
         vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-          ...mockStaffCoach,
-          role: 'COACH',
+          ...mockStaffAdmin,
+          role: 'ADMIN',
         } as never)
 
         const request = createMockGetRequest()
@@ -70,16 +72,16 @@ describe('Shop API - Products (Admin Only)', () => {
         const data = await response.json()
 
         expect(response.status).toBe(403)
-        expect(data.error).toBe('Admin access required')
+        expect(data.error).toBe('Owner access required')
       })
     })
 
     describe('Successful Retrieval', () => {
       beforeEach(() => {
-        vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+        vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
         vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-          ...mockStaffAdmin,
-          role: 'ADMIN',
+          ...mockStaffOwner,
+          role: 'owner',
           gymId: mockGym.id,
         } as never)
       })
@@ -117,12 +119,12 @@ describe('Shop API - Products (Admin Only)', () => {
   // =========================================================================
   describe('POST /api/admin/products - Create Product', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
-        name: mockStaffAdmin.name,
+        name: mockStaffOwner.name,
       } as never)
     })
 
@@ -226,10 +228,10 @@ describe('Shop API - Products (Admin Only)', () => {
   // =========================================================================
   describe('GET /api/admin/products/[id] - Get Single Product', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
       } as never)
     })
@@ -270,10 +272,10 @@ describe('Shop API - Products (Admin Only)', () => {
   // =========================================================================
   describe('PUT /api/admin/products/[id] - Update Product', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
       } as never)
     })
@@ -326,10 +328,10 @@ describe('Shop API - Products (Admin Only)', () => {
   // =========================================================================
   describe('DELETE /api/admin/products/[id] - Delete Product', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
       } as never)
     })
@@ -385,12 +387,12 @@ describe('Shop API - Products (Admin Only)', () => {
   // =========================================================================
   describe('POST /api/admin/products/[id]/stock - Adjust Stock', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
-        name: mockStaffAdmin.name,
+        name: mockStaffOwner.name,
       } as never)
     })
 
@@ -512,16 +514,16 @@ describe('Shop API - Products (Admin Only)', () => {
 // SALES API TESTS
 // =============================================================================
 
-describe('Shop API - Sales (Admin Only)', () => {
+describe('Magacin API - Sales (Owner Only)', () => {
   // =========================================================================
   // GET /api/admin/sales - List Sales
   // =========================================================================
   describe('GET /api/admin/sales - List Sales', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
       } as never)
     })
@@ -563,12 +565,12 @@ describe('Shop API - Sales (Admin Only)', () => {
   // =========================================================================
   describe('POST /api/admin/sales - Record Sale', () => {
     beforeEach(() => {
-      vi.mocked(getSession).mockResolvedValue(mockAdminSession)
+      vi.mocked(getSession).mockResolvedValue(mockOwnerSession)
       vi.mocked(prisma.staff.findUnique).mockResolvedValue({
-        ...mockStaffAdmin,
-        role: 'ADMIN',
+        ...mockStaffOwner,
+        role: 'owner',
         gymId: mockGym.id,
-        name: mockStaffAdmin.name,
+        name: mockStaffOwner.name,
       } as never)
     })
 

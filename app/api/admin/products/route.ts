@@ -4,7 +4,7 @@ import prisma from "@/lib/db";
 
 /**
  * GET /api/admin/products
- * List all products for the gym
+ * List all products for the gym (Owner only - Magacin feature)
  */
 export async function GET() {
   try {
@@ -19,12 +19,17 @@ export async function GET() {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const products = await prisma.product.findMany({
       where: { gymId: staff.gymId },
+      include: {
+        category: {
+          select: { id: true, name: true, color: true, icon: true },
+        },
+      },
       orderBy: { name: "asc" },
     });
 
@@ -40,7 +45,7 @@ export async function GET() {
 
 /**
  * POST /api/admin/products
- * Create a new product
+ * Create a new product (Owner only - Magacin feature)
  */
 export async function POST(request: NextRequest) {
   try {
@@ -55,8 +60,8 @@ export async function POST(request: NextRequest) {
       select: { role: true, gymId: true, name: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -65,7 +70,7 @@ export async function POST(request: NextRequest) {
       description,
       sku,
       imageUrl,
-      category,
+      categoryId,
       price,
       costPrice,
       currentStock = 0,
@@ -88,6 +93,19 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Verify category belongs to this gym if provided
+    if (categoryId) {
+      const category = await prisma.productCategory.findFirst({
+        where: { id: categoryId, gymId: staff.gymId },
+      });
+      if (!category) {
+        return NextResponse.json(
+          { error: "Category not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     // Create product with initial stock log
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
@@ -97,12 +115,17 @@ export async function POST(request: NextRequest) {
           description,
           sku,
           imageUrl,
-          category,
+          categoryId,
           price: Math.round(price),
           costPrice: costPrice ? Math.round(costPrice) : null,
           currentStock: currentStock,
           lowStockAlert,
           isActive,
+        },
+        include: {
+          category: {
+            select: { id: true, name: true, color: true, icon: true },
+          },
         },
       });
 

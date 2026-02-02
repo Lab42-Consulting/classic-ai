@@ -19,7 +19,7 @@ A digital accountability and guidance system for gym members and staff.
    - [Challenge Management](#challenge-management)
    - [Gym Branding](#gym-branding)
    - [Goal Voting System](#goal-voting-system)
-   - [Shop/Inventory Management](#shopinventory-management)
+   - [Magacin (Warehouse/Inventory) Management](#magacin-warehouseinventory-management)
 6. [Coach Guide](#coach-guide)
    - [Logging In as Coach](#logging-in-as-coach)
    - [Coach Dashboard](#coach-dashboard)
@@ -616,15 +616,19 @@ Members see goals on their home page based on status:
 
 ---
 
-### Shop/Inventory Management
+### Magacin (Warehouse/Inventory) Management
 
-Manage your gym's product inventory and track sales at `/gym-portal/manage/shop`.
+Manage your gym's product inventory and track sales at `/gym-portal/manage/shop`. **This feature is owner-only** and designed for tracking products sold outside the gym premises.
 
-#### Accessing the Shop
+#### Accessing Magacin
 
-1. Log in as Admin at `/staff-login`
+1. Log in as Owner at `/staff-login`
 2. Navigate to the Gym Portal
-3. Click **"Prodavnica"** (Shop) in the sidebar
+3. Click **"Magacin"** (Warehouse) in the sidebar
+
+**Access Requirements:**
+- **Owner role only** - Admins and coaches cannot access this feature
+- Located in the owner-only section of the sidebar
 
 #### Products Tab
 
@@ -642,6 +646,28 @@ The Products tab displays all items in your inventory:
 - **Edit**: Click on any product to edit details
 - **Delete**: Remove products (soft delete if has sales history)
 
+#### Managing Product Categories (Owner Only)
+
+Before adding products, you can create custom categories to organize your inventory:
+
+1. Navigate to the Magacin page
+2. Click **"Upravljaj kategorijama"** (Manage Categories) button
+3. Create new categories:
+   - **Naziv** (Name): Category name (e.g., "Suplementi", "Oprema")
+   - **Boja** (Color): Optional hex color for visual organization
+   - **Ikona** (Icon): Optional icon identifier
+
+**Category Management:**
+- Category names must be unique per gym
+- Cannot delete categories that have products assigned
+- Must reassign products before deleting a category
+
+**API Endpoints:**
+- `GET /api/owner/categories` - List all categories
+- `POST /api/owner/categories` - Create category
+- `PUT /api/owner/categories/[id]` - Update category
+- `DELETE /api/owner/categories/[id]` - Delete category (only if no products)
+
 #### Adding a New Product
 
 1. Click **"Novi proizvod"** button
@@ -650,9 +676,9 @@ The Products tab displays all items in your inventory:
 | Field | Required | Description |
 |-------|----------|-------------|
 | Naziv | Yes | Product name |
-| Kategorija | Yes | Select from supplements, food & drinks, or other |
-| Cena (RSD) | Yes | Selling price in Serbian Dinars |
-| Nabavna cena | No | Cost price for profit tracking |
+| Kategorija | Yes | Select from your custom categories |
+| Cena (RSD) | Yes | Selling price in Serbian Dinars (whole units) |
+| Nabavna cena | No | Cost price for profit tracking (whole units) |
 | SKU | No | Stock keeping unit or barcode |
 | Opis | No | Product description |
 | Početno stanje | No | Initial stock quantity |
@@ -660,13 +686,10 @@ The Products tab displays all items in your inventory:
 
 3. Click **"Sačuvaj proizvod"** to create
 
-**Product Categories:**
-
-| Group | Categories (Serbian) |
-|-------|---------------------|
-| **Suplementi** | Proteini, Pre-workout, Kreatin, BCAA/Amino, Mass Gainer, Vitamini, Fat Burner |
-| **Hrana i Pića** | Protein Bar, Energetske pločice, Protein Shake, Energetska pića, Voda, Grickalice |
-| **Ostalo** | Merchandising, Oprema, Ostalo |
+**Important Notes:**
+- Categories are now **custom** - you create them yourself
+- Prices are stored in **whole RSD units** (not cents)
+- Owner-only feature for inventory management
 
 #### Managing Stock
 
@@ -728,10 +751,16 @@ All prices are displayed in Serbian Dinars (RSD) with thousands separator:
 
 #### API Endpoints
 
+**Owner-only endpoints - all require owner role:**
+
 | Endpoint | Method | Description |
 |----------|--------|-------------|
-| `/api/admin/products` | GET | List all products |
-| `/api/admin/products` | POST | Create new product |
+| `/api/owner/categories` | GET | List all custom categories |
+| `/api/owner/categories` | POST | Create new category |
+| `/api/owner/categories/[id]` | PUT | Update category |
+| `/api/owner/categories/[id]` | DELETE | Delete category (only if no products) |
+| `/api/admin/products` | GET | List all products (owner only) |
+| `/api/admin/products` | POST | Create new product (owner only) |
 | `/api/admin/products/[id]` | GET | Get product with stock history |
 | `/api/admin/products/[id]` | PUT | Update product |
 | `/api/admin/products/[id]` | DELETE | Delete/deactivate product |

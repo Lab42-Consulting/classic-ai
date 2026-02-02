@@ -8,7 +8,7 @@ interface RouteContext {
 
 /**
  * POST /api/admin/products/[id]/stock
- * Adjust product stock (purchase, adjustment, return)
+ * Adjust product stock (purchase, adjustment, return) (Owner only - Magacin feature)
  */
 export async function POST(request: NextRequest, context: RouteContext) {
   try {
@@ -23,8 +23,8 @@ export async function POST(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true, name: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;

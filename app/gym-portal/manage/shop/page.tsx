@@ -3,13 +3,21 @@
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
 
+interface ProductCategory {
+  id: string;
+  name: string;
+  color: string | null;
+  icon: string | null;
+}
+
 interface Product {
   id: string;
   name: string;
   description: string | null;
   sku: string | null;
   imageUrl: string | null;
-  category: string | null;
+  categoryId: string | null;
+  category: ProductCategory | null;
   price: number;
   costPrice: number | null;
   currentStock: number;
@@ -31,7 +39,6 @@ interface Sale {
   product: {
     id: string;
     name: string;
-    category: string | null;
   };
 }
 
@@ -41,31 +48,7 @@ interface Member {
   memberId: string;
 }
 
-const CATEGORY_GROUPS = ["Suplementi", "Hrana i Pića", "Ostalo"] as const;
-
-const CATEGORIES = [
-  // Supplements
-  { value: "protein", label: "Proteini", group: "Suplementi" },
-  { value: "preworkout", label: "Pre-workout", group: "Suplementi" },
-  { value: "creatine", label: "Kreatin", group: "Suplementi" },
-  { value: "bcaa", label: "BCAA / Amino", group: "Suplementi" },
-  { value: "mass-gainer", label: "Mass gainer", group: "Suplementi" },
-  { value: "vitamins", label: "Vitamini", group: "Suplementi" },
-  { value: "fat-burner", label: "Fat burner", group: "Suplementi" },
-  // Food & Drinks
-  { value: "protein-bar", label: "Protein bar", group: "Hrana i Pića" },
-  { value: "energy-bar", label: "Energetske pločice", group: "Hrana i Pića" },
-  { value: "protein-shake", label: "Protein shake", group: "Hrana i Pića" },
-  { value: "energy-drink", label: "Energetska pića", group: "Hrana i Pića" },
-  { value: "water", label: "Voda", group: "Hrana i Pića" },
-  { value: "snacks", label: "Grickalice", group: "Hrana i Pića" },
-  // Other
-  { value: "merchandise", label: "Merchandising", group: "Ostalo" },
-  { value: "accessories", label: "Oprema", group: "Ostalo" },
-  { value: "other", label: "Ostalo", group: "Ostalo" },
-] as const;
-
-export default function ShopPage() {
+export default function MagacinPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
 
@@ -75,6 +58,7 @@ export default function ShopPage() {
 
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
+  const [categories, setCategories] = useState<ProductCategory[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
@@ -91,7 +75,7 @@ export default function ShopPage() {
     description: "",
     sku: "",
     imageUrl: "",
-    category: "",
+    categoryId: "",
     price: "",
     costPrice: "",
     currentStock: "0",
@@ -120,7 +104,19 @@ export default function ShopPage() {
 
   useEffect(() => {
     fetchProducts();
+    fetchCategories();
   }, []);
+
+  const fetchCategories = async () => {
+    try {
+      const response = await fetch("/api/owner/categories");
+      if (!response.ok) return;
+      const data = await response.json();
+      setCategories(data.categories || []);
+    } catch {
+      // Silently fail
+    }
+  };
 
   useEffect(() => {
     if (activeTab === "sales") {
@@ -183,7 +179,7 @@ export default function ShopPage() {
   const filteredProducts = products.filter((product) => {
     const matchesSearch = product.name.toLowerCase().includes(searchQuery.toLowerCase()) ||
       (product.sku?.toLowerCase().includes(searchQuery.toLowerCase()));
-    const matchesCategory = !categoryFilter || product.category === categoryFilter;
+    const matchesCategory = !categoryFilter || product.categoryId === categoryFilter;
     const matchesStock = stockFilter === "all" ||
       (stockFilter === "out" && product.currentStock === 0) ||
       (stockFilter === "low" && product.lowStockAlert && product.currentStock <= product.lowStockAlert && product.currentStock > 0);
@@ -198,7 +194,7 @@ export default function ShopPage() {
         description: product.description || "",
         sku: product.sku || "",
         imageUrl: product.imageUrl || "",
-        category: product.category || "",
+        categoryId: product.categoryId || "",
         price: (product.price).toString(),
         costPrice: product.costPrice ? (product.costPrice).toString() : "",
         currentStock: product.currentStock.toString(),
@@ -212,7 +208,7 @@ export default function ShopPage() {
         description: "",
         sku: "",
         imageUrl: "",
-        category: "",
+        categoryId: "",
         price: "",
         costPrice: "",
         currentStock: "0",
@@ -263,7 +259,7 @@ export default function ShopPage() {
         description: productForm.description.trim() || null,
         sku: productForm.sku.trim() || null,
         imageUrl: productForm.imageUrl || null,
-        category: productForm.category || null,
+        categoryId: productForm.categoryId || null,
         price: Math.round(parseFloat(productForm.price)),
         costPrice: productForm.costPrice ? Math.round(parseFloat(productForm.costPrice)) : null,
         currentStock: parseInt(productForm.currentStock) || 0,
@@ -457,9 +453,9 @@ export default function ShopPage() {
       {/* Page Header */}
       <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
         <div>
-          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Prodavnica</h1>
+          <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Magacin</h1>
           <p className="text-foreground-muted mt-1">
-            Upravljajte proizvodima i pratite prodaju
+            Upravljajte zalihama proizvoda i pratite prodaju
           </p>
         </div>
 
@@ -547,12 +543,8 @@ export default function ShopPage() {
                 className="px-4 py-2.5 bg-background-secondary border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
               >
                 <option value="">Sve kategorije</option>
-                {CATEGORY_GROUPS.map((group) => (
-                  <optgroup key={group} label={group}>
-                    {CATEGORIES.filter((c) => c.group === group).map((cat) => (
-                      <option key={cat.value} value={cat.value}>{cat.label}</option>
-                    ))}
-                  </optgroup>
+                {categories.map((cat) => (
+                  <option key={cat.id} value={cat.id}>{cat.name}</option>
                 ))}
               </select>
 
@@ -637,8 +629,11 @@ export default function ShopPage() {
                         </td>
                         <td className="px-4 py-3 hidden sm:table-cell">
                           {product.category ? (
-                            <span className="px-2 py-1 bg-white/10 rounded-lg text-xs text-foreground">
-                              {CATEGORIES.find(c => c.value === product.category)?.label || product.category}
+                            <span
+                              className="px-2 py-1 rounded-lg text-xs text-foreground"
+                              style={{ backgroundColor: product.category.color ? `${product.category.color}20` : 'rgba(255,255,255,0.1)' }}
+                            >
+                              {product.category.name}
                             </span>
                           ) : (
                             <span className="text-foreground-muted">-</span>
@@ -938,17 +933,13 @@ export default function ShopPage() {
                     <div>
                       <label className="block text-sm font-medium text-foreground mb-1">Kategorija</label>
                       <select
-                        value={productForm.category}
-                        onChange={(e) => setProductForm({ ...productForm, category: e.target.value })}
+                        value={productForm.categoryId}
+                        onChange={(e) => setProductForm({ ...productForm, categoryId: e.target.value })}
                         className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
                       >
-                        <option value="">Izaberi...</option>
-                        {CATEGORY_GROUPS.map((group) => (
-                          <optgroup key={group} label={group}>
-                            {CATEGORIES.filter((c) => c.group === group).map((cat) => (
-                              <option key={cat.value} value={cat.value}>{cat.label}</option>
-                            ))}
-                          </optgroup>
+                        <option value="">Bez kategorije</option>
+                        {categories.map((cat) => (
+                          <option key={cat.id} value={cat.id}>{cat.name}</option>
                         ))}
                       </select>
                     </div>

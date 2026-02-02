@@ -52,8 +52,9 @@ model Gym {
   gymCheckins     GymCheckin[]      // Member check-ins at the gym
   fundraisingGoals FundraisingGoal[] // Fundraising goals for gym improvements (legacy - being replaced)
   goals           Goal[]            // Goal voting system (replaces fundraisingGoals)
-  products        Product[]         // Inventory products
-  sales           Sale[]            // Sales transactions
+  productCategories ProductCategory[] // Custom product categories (owner)
+  products        Product[]         // Inventory products (owner)
+  sales           Sale[]            // Sales transactions (owner)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -954,12 +955,31 @@ model GoalContribution {
 }
 
 // ============================================================================
-// INVENTORY / SHOP SYSTEM
-// Phase 1: Basic product inventory and sales tracking
-// Phase 2: Member discounts, milestones, challenge reward integration
+// MAGACIN (INVENTORY) SYSTEM - Owner Only
+// For gym owners to track products they sell outside the gym
 // ============================================================================
 
-// Product - items sold at the gym (supplements, snacks, merchandise)
+// ProductCategory - custom categories created by gym owner for organizing products
+model ProductCategory {
+  id          String    @id @default(cuid())
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name        String    // Category name (e.g., "Suplementi", "Oprema", "Hrana")
+  color       String?   // Optional color for UI display (hex code)
+  icon        String?   // Optional icon identifier
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([gymId, name])  // Category names must be unique per gym
+  @@index([gymId])
+  @@map("product_categories")
+}
+
+// Product - items sold by the gym owner (inventory management)
 model Product {
   id            String    @id @default(cuid())
   gymId         String
@@ -970,11 +990,14 @@ model Product {
   description   String?   @db.Text
   sku           String?   // Optional SKU/barcode
   imageUrl      String?   @db.Text  // Base64 encoded image
-  category      String?   // "supplements" | "snacks" | "drinks" | "merchandise" | "other"
+
+  // Category (custom, created by owner)
+  categoryId    String?
+  category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   // Pricing
-  price         Int       // Selling price in cents (e.g., 500 = €5.00)
-  costPrice     Int?      // Cost price for profit tracking (cents)
+  price         Int       // Selling price in RSD (whole units)
+  costPrice     Int?      // Cost price for profit tracking
 
   // Inventory
   currentStock  Int       @default(0)
@@ -992,7 +1015,7 @@ model Product {
 
   @@index([gymId])
   @@index([gymId, isActive])
-  @@index([gymId, category])
+  @@index([gymId, categoryId])
   @@map("products")
 }
 

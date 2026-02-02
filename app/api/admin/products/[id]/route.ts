@@ -8,7 +8,7 @@ interface RouteContext {
 
 /**
  * GET /api/admin/products/[id]
- * Get a single product with stock history
+ * Get a single product with stock history (Owner only - Magacin feature)
  */
 export async function GET(request: NextRequest, context: RouteContext) {
   try {
@@ -23,8 +23,8 @@ export async function GET(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;
@@ -32,6 +32,9 @@ export async function GET(request: NextRequest, context: RouteContext) {
     const product = await prisma.product.findFirst({
       where: { id, gymId: staff.gymId },
       include: {
+        category: {
+          select: { id: true, name: true, color: true, icon: true },
+        },
         stockLogs: {
           orderBy: { createdAt: "desc" },
           take: 50,
@@ -58,7 +61,7 @@ export async function GET(request: NextRequest, context: RouteContext) {
 
 /**
  * PUT /api/admin/products/[id]
- * Update a product
+ * Update a product (Owner only - Magacin feature)
  */
 export async function PUT(request: NextRequest, context: RouteContext) {
   try {
@@ -73,8 +76,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;
@@ -94,7 +97,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       description,
       sku,
       imageUrl,
-      category,
+      categoryId,
       price,
       costPrice,
       lowStockAlert,
@@ -116,6 +119,19 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       );
     }
 
+    // Verify category belongs to this gym if provided
+    if (categoryId) {
+      const category = await prisma.productCategory.findFirst({
+        where: { id: categoryId, gymId: staff.gymId },
+      });
+      if (!category) {
+        return NextResponse.json(
+          { error: "Category not found" },
+          { status: 404 }
+        );
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -123,11 +139,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         ...(description !== undefined && { description }),
         ...(sku !== undefined && { sku }),
         ...(imageUrl !== undefined && { imageUrl }),
-        ...(category !== undefined && { category }),
+        ...(categoryId !== undefined && { categoryId }),
         ...(price !== undefined && { price: Math.round(price) }),
         ...(costPrice !== undefined && { costPrice: costPrice ? Math.round(costPrice) : null }),
         ...(lowStockAlert !== undefined && { lowStockAlert }),
         ...(isActive !== undefined && { isActive }),
+      },
+      include: {
+        category: {
+          select: { id: true, name: true, color: true, icon: true },
+        },
       },
     });
 
@@ -143,7 +164,7 @@ export async function PUT(request: NextRequest, context: RouteContext) {
 
 /**
  * DELETE /api/admin/products/[id]
- * Delete a product (soft delete by setting isActive to false)
+ * Delete a product (soft delete by setting isActive to false) (Owner only - Magacin feature)
  */
 export async function DELETE(request: NextRequest, context: RouteContext) {
   try {
@@ -158,8 +179,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "admin") {
-      return NextResponse.json({ error: "Admin access required" }, { status: 403 });
+    if (!staff || staff.role.toLowerCase() !== "owner") {
+      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;

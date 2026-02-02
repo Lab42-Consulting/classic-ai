@@ -2,12 +2,27 @@
 
 ## Classic Method - Gym Intelligence System
 
-**Version:** 1.17
+**Version:** 1.18
 **Last Updated:** January 2026
+
+**Changelog v1.18:**
+- **Magacin (Warehouse) System Enhancements**: Renamed and enhanced inventory system for gym owners
+  - Renamed from "Prodavnica" (Shop) to "Magacin" (Warehouse/Inventory) to clarify purpose
+  - **Changed to Owner-Only Access**: Now restricted to gym owners only (previously admin-accessible)
+  - **Custom Product Categories**: Owners can create and manage their own product categories
+    - Category name, optional color, and optional icon
+    - Unique category names per gym
+    - Cannot delete categories that have products assigned
+  - Products now reference custom categories instead of predefined categories
+  - Prices stored in whole RSD units (not cents)
+- **New Model**: ProductCategory (custom categories per gym)
+- **New API Endpoints**: `/api/owner/categories`, `/api/owner/categories/[id]`
+- **Updated Models**: Product (category is now a relation to ProductCategory)
+- **UI Updates**: Magacin moved to owner-only section in sidebar
 
 **Changelog v1.17:**
 - **Shop/Inventory Management System**: Added comprehensive product and inventory management for gym shops
-  - Product catalog with categories: supplements (7 types), food & drinks (6 types), merchandise & accessories (3 types)
+  - Product catalog with predefined categories: supplements (7 types), food & drinks (6 types), merchandise & accessories (3 types)
   - Stock tracking with purchase, adjustment, and return operations
   - Sales recording with member association and payment method tracking
   - Low stock alerts for inventory management
@@ -1319,61 +1334,74 @@ The fundraising goals system provides transparency for gym members by showing ho
 - **Currency:** Stored in cents internally, displayed in euros
 - **Conversion:** `displayAmount = storedAmount / 100`
 
-### 3.20 Shop/Inventory Management System
+### 3.20 Magacin (Warehouse/Inventory) System
 
-The shop management system enables gyms to manage and sell products (supplements, snacks, merchandise) with full inventory tracking.
+The Magacin system enables gym **owners** to manage and track products they sell outside the gym premises with full inventory tracking. This is an owner-only feature, separate from member and admin functionalities.
 
-#### FR-SHOP-001: Product Management (Admin)
-- **Purpose:** Admin creates and manages products available for sale
-- **Location:** `/gym-portal/manage/shop`
+#### FR-MAG-001: Product Management (Owner Only)
+- **Purpose:** Owner creates and manages products in their inventory
+- **Location:** `/gym-portal/manage/shop` (Magacin)
+- **Access:** Owner role only
 - **Required Fields:**
   - Name (product name)
-  - Price (in RSD - Serbian dinars)
-  - Category (supplements, food & drinks, other)
+  - Price (in RSD - Serbian dinars, whole units)
+  - Category (custom category created by owner)
 - **Optional Fields:**
   - Description
   - SKU/Barcode
   - Image (base64, auto-generated SVG placeholders by category)
-  - Cost Price (for profit tracking)
+  - Cost Price (for profit tracking, in whole RSD)
   - Initial Stock quantity
   - Low Stock Alert threshold
 
-#### FR-SHOP-002: Product Categories
-- **Category Groups:**
+#### FR-MAG-002: Custom Product Categories (Owner Only)
+- **Purpose:** Owners create and manage their own product categories
+- **Location:** Category management within Magacin page
+- **Access:** Owner role only
+- **Fields:**
+  - **Name** (required): Category name (e.g., "Suplementi", "Oprema", "Hrana")
+  - **Color** (optional): Hex color code for UI display
+  - **Icon** (optional): Icon identifier for UI display
+- **Constraints:**
+  - Category names must be unique per gym
+  - Cannot delete categories that have products assigned
+  - If category has products, must reassign products before deletion
+- **API Endpoints:**
+  - `GET /api/owner/categories` - List all categories for gym
+  - `POST /api/owner/categories` - Create new category
+  - `PUT /api/owner/categories/[id]` - Update category
+  - `DELETE /api/owner/categories/[id]` - Delete category (only if no products)
 
-| Group | Serbian | Categories |
-|-------|---------|------------|
-| Suplementi | Supplements | Proteini, Pre-workout, Kreatin, BCAA/Amino, Mass Gainer, Vitamini, Fat Burner |
-| Hrana i Pića | Food & Drinks | Protein Bar, Energy Bar, Protein Shake, Energy Drink, Voda, Grickalice |
-| Ostalo | Other | Merchandising, Oprema, Ostalo |
-
-#### FR-SHOP-003: Inventory Tracking
+#### FR-MAG-003: Inventory Tracking (Owner Only)
 - **Purpose:** Track stock levels with full audit trail
+- **Access:** Owner role only
 - **Stock Adjustment Types:**
   - `purchase`: Stock received from supplier (+)
-  - `sale`: Stock sold to member (-)
+  - `sale`: Stock sold (-)
   - `adjustment`: Manual correction (+/-)
   - `return`: Stock returned (+)
   - `initial`: Initial stock setup (+)
 - **Audit Log:** Every change records:
   - Previous stock level
   - New stock level
-  - Staff who made the change
+  - Owner who made the change
   - Timestamp
   - Optional note
 
-#### FR-SHOP-004: Stock Alerts
-- **Purpose:** Notify admins when products are running low
+#### FR-MAG-004: Stock Alerts (Owner Only)
+- **Purpose:** Notify owners when products are running low
+- **Access:** Owner role only
 - **Configuration:** Per-product `lowStockAlert` threshold
 - **Display:** Visual indicator when `currentStock <= lowStockAlert`
 
-#### FR-SHOP-005: Sales Recording
+#### FR-MAG-005: Sales Recording (Owner Only)
 - **Purpose:** Record product sales with payment tracking
+- **Access:** Owner role only
 - **Required Fields:**
   - Product selection
   - Quantity
 - **Optional Fields:**
-  - Member (link sale to gym member)
+  - Member (link sale to gym member, optional)
   - Payment method (cash, card, other)
 - **Process:**
   1. Select product from active products
@@ -1383,28 +1411,31 @@ The shop management system enables gyms to manage and sell products (supplements
   5. Submit creates Sale record and StockLog entry
   6. Stock automatically decremented
 
-#### FR-SHOP-006: Sales History
-- **Location:** Sales tab in shop page
+#### FR-MAG-006: Sales History (Owner Only)
+- **Location:** Sales tab in Magacin page
+- **Access:** Owner role only
 - **Display:** List of sales with:
   - Product name
   - Quantity
   - Total amount
   - Member name (if linked)
-  - Staff who recorded sale
+  - Owner who recorded sale
   - Timestamp
 - **Filtering:** By date range, by product
 
-#### FR-SHOP-007: Product Soft Delete
+#### FR-MAG-007: Product Soft Delete (Owner Only)
 - **Purpose:** Deactivate products without losing sales history
+- **Access:** Owner role only
 - **Behavior:**
   - If product has sales history: Set `isActive: false` (soft delete)
   - If product has no sales: Hard delete (remove from database)
 - **Effect:** Deactivated products don't appear in sales dropdown
 
-#### FR-SHOP-008: Currency Display
+#### FR-MAG-008: Currency Display
 - **Storage:** Prices stored in whole currency units (e.g., 2500 = 2500 RSD)
 - **Display:** Serbian Dinar (RSD) format with Intl.NumberFormat
 - **Example:** `2.500 RSD` (with thousands separator)
+- **Note:** All prices in RSD (whole units), not cents
 
 ---
 
@@ -1942,7 +1973,40 @@ model MetricEntry {
 }
 ```
 
-### 5.18 Product Model
+### 5.18 ProductCategory Model
+
+**Purpose:** Custom product categories created by gym owners for organizing their inventory in the Magacin system.
+
+```prisma
+model ProductCategory {
+  id          String    @id @default(cuid())
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name        String    // Category name (e.g., "Suplementi", "Oprema", "Hrana")
+  color       String?   // Optional color for UI display (hex code)
+  icon        String?   // Optional icon identifier
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([gymId, name])  // Category names must be unique per gym
+  @@index([gymId])
+  @@map("product_categories")
+}
+```
+
+**Key Features:**
+- Owners create custom categories for their gym
+- Optional color and icon for visual organization
+- Category names must be unique per gym
+- Cannot delete categories that have products assigned
+
+### 5.19 Product Model
+
+**Purpose:** Products in the gym owner's inventory (Magacin system). Owner-only access for tracking items sold outside the gym.
 
 ```prisma
 model Product {
@@ -1955,11 +2019,14 @@ model Product {
   description   String?   @db.Text
   sku           String?   // Optional SKU/barcode
   imageUrl      String?   @db.Text  // Base64 encoded image
-  category      String?   // supplements, food & drinks, other categories
+
+  // Category (custom, created by owner)
+  categoryId    String?
+  category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
   // Pricing
   price         Int       // Selling price in RSD (whole units)
-  costPrice     Int?      // Cost price for profit tracking
+  costPrice     Int?      // Cost price for profit tracking (whole RSD)
 
   // Inventory
   currentStock  Int       @default(0)
@@ -1977,17 +2044,17 @@ model Product {
 
   @@index([gymId])
   @@index([gymId, isActive])
-  @@index([gymId, category])
+  @@index([gymId, categoryId])
   @@map("products")
 }
 ```
 
-**Category Values:**
-- Supplements: `protein`, `preworkout`, `creatine`, `bcaa`, `mass-gainer`, `vitamins`, `fat-burner`
-- Food & Drinks: `protein-bar`, `energy-bar`, `protein-shake`, `energy-drink`, `water`, `snacks`
-- Other: `merchandise`, `accessories`, `other`
+**Key Changes from v1.17:**
+- Category changed from `String` to relationship with `ProductCategory`
+- Owners can now create custom categories instead of using predefined ones
+- Prices stored in whole RSD units (not cents)
 
-### 5.19 StockLog Model
+### 5.20 StockLog Model
 
 ```prisma
 model StockLog {
@@ -2018,7 +2085,7 @@ model StockLog {
 
 **Purpose:** Full audit trail of all inventory changes, enabling stock reconciliation and tracking of discrepancies.
 
-### 5.20 Sale Model
+### 5.21 Sale Model
 
 ```prisma
 model Sale {
@@ -3028,7 +3095,102 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
 { "error": "Možete obrisati samo metrike koje ste vi kreirali" }
 ```
 
-### 7.12 Shop/Inventory Management (Admin Only)
+### 7.12 Magacin (Warehouse/Inventory) Management (Owner Only)
+
+All Magacin endpoints require **owner role** authentication. Admins and coaches cannot access these endpoints.
+
+#### GET /api/owner/categories
+```json
+// Response (200) - List all product categories for the gym
+{
+  "categories": [
+    {
+      "id": "category-cuid",
+      "name": "Suplementi",
+      "color": "#10B981",
+      "icon": "pill",
+      "_count": {
+        "products": 15
+      },
+      "createdAt": "2026-01-10T10:00:00Z"
+    },
+    {
+      "id": "category-cuid-2",
+      "name": "Oprema",
+      "color": "#F59E0B",
+      "icon": "dumbbell",
+      "_count": {
+        "products": 8
+      },
+      "createdAt": "2026-01-12T14:00:00Z"
+    }
+  ]
+}
+
+// Response (403) - Not owner
+{ "error": "Owner access required" }
+```
+
+#### POST /api/owner/categories
+```json
+// Request - Create new category
+{
+  "name": "Dodatna ishrana",
+  "color": "#8B5CF6",  // Optional
+  "icon": "apple"      // Optional
+}
+
+// Response (200)
+{
+  "success": true,
+  "category": {
+    "id": "category-cuid",
+    "name": "Dodatna ishrana",
+    "color": "#8B5CF6",
+    "icon": "apple"
+  }
+}
+
+// Response (400) - Duplicate name
+{ "error": "Kategorija sa tim nazivom već postoji" }
+
+// Response (400) - Empty name
+{ "error": "Category name is required" }
+```
+
+#### PUT /api/owner/categories/[id]
+```json
+// Request - Update category
+{
+  "name": "Suplementi Premium",  // Optional
+  "color": "#059669",            // Optional
+  "icon": "star"                 // Optional
+}
+
+// Response (200)
+{
+  "success": true,
+  "category": { ... }
+}
+
+// Response (400) - Duplicate name
+{ "error": "Kategorija sa tim nazivom već postoji" }
+
+// Response (404)
+{ "error": "Category not found" }
+```
+
+#### DELETE /api/owner/categories/[id]
+```json
+// Response (200) - Category deleted
+{ "success": true }
+
+// Response (400) - Category has products
+{ "error": "Kategorija ima 15 proizvoda. Premestite ih pre brisanja." }
+
+// Response (404)
+{ "error": "Category not found" }
+```
 
 #### GET /api/admin/products
 ```json
@@ -3041,8 +3203,13 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
       "description": "Premium whey protein isolate",
       "sku": "WP-001",
       "imageUrl": "data:image/svg+xml;base64,...",
-      "category": "protein",
-      "price": 5990,  // 5990 RSD
+      "categoryId": "category-cuid",
+      "category": {
+        "id": "category-cuid",
+        "name": "Suplementi",
+        "color": "#10B981"
+      },
+      "price": 5990,  // 5990 RSD (whole units)
       "costPrice": 4500,
       "currentStock": 15,
       "lowStockAlert": 5,
@@ -3051,19 +3218,21 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
     }
   ]
 }
+
+// Note: Owner-only access, returns 403 for non-owners
 ```
 
 #### POST /api/admin/products
 ```json
-// Request - Create new product
+// Request - Create new product (Owner only)
 {
   "name": "Whey Protein 2kg",
   "description": "Premium whey protein isolate",
   "sku": "WP-001",
   "imageUrl": "data:image/svg+xml;base64,...",
-  "category": "protein",
-  "price": 5990,
-  "costPrice": 4500,
+  "categoryId": "category-cuid",  // Reference to custom category
+  "price": 5990,                  // Whole RSD units
+  "costPrice": 4500,              // Whole RSD units
   "initialStock": 20,
   "lowStockAlert": 5
 }
@@ -3076,6 +3245,9 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
 
 // Response (400)
 { "error": "Name and price are required" }
+
+// Response (403)
+{ "error": "Owner access required" }
 ```
 
 #### GET /api/admin/products/[id]
@@ -3178,8 +3350,7 @@ Direct assignment endpoint that bypasses the request/approval flow. Used when co
       "paymentMethod": "cash",
       "product": {
         "id": "product-cuid",
-        "name": "Whey Protein 2kg",
-        "category": "protein"
+        "name": "Whey Protein 2kg"
       },
       "createdAt": "2026-01-20T14:30:00Z"
     }

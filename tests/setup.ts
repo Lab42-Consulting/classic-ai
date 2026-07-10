@@ -264,6 +264,7 @@ vi.mock('@/lib/db', () => {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   }
 
   const stockLogMock = {

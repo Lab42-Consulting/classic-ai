@@ -124,3 +124,98 @@ export async function loadStorefrontData(slug: string) {
     featured: (featured as RawProduct[]).map(toPublicProduct),
   };
 }
+
+export interface ProductQuery {
+  categoryId?: string;
+  brandId?: string;
+  search?: string;
+  minPrice?: number;
+  maxPrice?: number;
+  inStock?: boolean;
+  sort?: string;
+  page?: number;
+  pageSize?: number;
+}
+
+/** Filtered/sorted/paginated product listing for the public storefront. */
+export async function loadStorefrontProducts(slug: string, q: ProductQuery) {
+  const gym = await getEnabledStoreGym(slug);
+  if (!gym) return null;
+
+  const pageSize = Math.min(Math.max(q.pageSize ?? 24, 1), 60);
+  const page = Math.max(q.page ?? 1, 1);
+
+  // Category filter: when a parent category is selected, include its subcategories too
+  let categoryFilter: { in: string[] } | undefined;
+  if (q.categoryId) {
+    const children = await prisma.productCategory.findMany({
+      where: { gymId: gym.id, parentId: q.categoryId },
+      select: { id: true },
+    });
+    categoryFilter = { in: [q.categoryId, ...children.map((c) => c.id)] };
+  }
+
+  const where: Record<string, unknown> = {
+    gymId: gym.id,
+    isActive: true,
+    isVisibleOnline: true,
+    ...(categoryFilter && { categoryId: categoryFilter }),
+    ...(q.brandId && { brandId: q.brandId }),
+    ...(q.inStock && { currentStock: { gt: 0 } }),
+  };
+  if (q.search) {
+    where.OR = [
+      { name: { contains: q.search, mode: "insensitive" } },
+      { description: { contains: q.search, mode: "insensitive" } },
+    ];
+  }
+  if (q.minPrice !== undefined || q.maxPrice !== undefined) {
+    where.price = {
+      ...(q.minPrice !== undefined && { gte: q.minPrice }),
+      ...(q.maxPrice !== undefined && { lte: q.maxPrice }),
+    };
+  }
+
+  const orderBy =
+    q.sort === "price_asc"
+      ? [{ price: "asc" as const }]
+      : q.sort === "price_desc"
+      ? [{ price: "desc" as const }]
+      : q.sort === "name"
+      ? [{ name: "asc" as const }]
+      : q.sort === "newest"
+      ? [{ createdAt: "desc" as const }]
+      : [{ displayOrder: "asc" as const }, { name: "asc" as const }];
+
+  const [rows, total, categories, brands] = await Promise.all([
+    prisma.product.findMany({
+      where,
+      select: PUBLIC_PRODUCT_SELECT,
+      orderBy,
+      skip: (page - 1) * pageSize,
+      take: pageSize,
+    }),
+    prisma.product.count({ where }),
+    prisma.productCategory.findMany({
+      where: { gymId: gym.id },
+      select: { id: true, name: true, parentId: true, displayOrder: true },
+      orderBy: [{ displayOrder: "asc" }, { name: "asc" }],
+    }),
+    prisma.brand.findMany({
+      where: { gymId: gym.id },
+      select: { id: true, name: true },
+      orderBy: { name: "asc" },
+    }),
+  ]);
+
+  return {
+    gym: { id: gym.id, name: gym.name, logo: gym.logo },
+    products: (rows as RawProduct[]).map(toPublicProduct),
+    total,
+    page,
+    pageSize,
+    totalPages: Math.max(1, Math.ceil(total / pageSize)),
+    categories,
+    brands,
+  };
+}

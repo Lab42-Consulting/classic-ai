@@ -9,6 +9,7 @@ import { put, del } from "@vercel/blob";
 const MAX_AVATAR_SIZE = 500 * 1024; // 500KB
 const MAX_MEAL_PHOTO_SIZE = 1 * 1024 * 1024; // 1MB
 const MAX_BRANDING_SIZE = 1 * 1024 * 1024; // 1MB
+const MAX_PRODUCT_SIZE = 1 * 1024 * 1024; // 1MB
 
 // Valid image types
 const VALID_IMAGE_TYPES = ["image/jpeg", "image/png", "image/webp"];
@@ -18,7 +19,7 @@ const VALID_DATA_URL_PREFIXES = [
   "data:image/webp",
 ];
 
-type ImageCategory = "avatar" | "meal" | "branding";
+type ImageCategory = "avatar" | "meal" | "branding" | "product";
 
 interface UploadResult {
   success: boolean;
@@ -37,6 +38,8 @@ function getMaxSize(category: ImageCategory): number {
       return MAX_MEAL_PHOTO_SIZE;
     case "branding":
       return MAX_BRANDING_SIZE;
+    case "product":
+      return MAX_PRODUCT_SIZE;
   }
 }
 
@@ -103,6 +106,8 @@ function getCategoryDisplayName(category: ImageCategory): string {
       return "Avatar";
     case "branding":
       return "Logo";
+    case "product":
+      return "Product image";
   }
 }
 

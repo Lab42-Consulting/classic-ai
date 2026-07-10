@@ -456,8 +456,24 @@ export default function MagacinPage() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setProductForm({ ...productForm, imageUrl: event.target?.result as string });
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      // Optimistic preview, then upload to Vercel Blob and swap in the URL
+      setProductForm((prev) => ({ ...prev, imageUrl: base64 }));
+      try {
+        const res = await fetch("/api/admin/products/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: base64 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) setProductForm((prev) => ({ ...prev, imageUrl: data.url }));
+        }
+        // On failure, keep the base64 data URL as a graceful fallback
+      } catch {
+        // keep base64 fallback
+      }
     };
     reader.readAsDataURL(file);
 

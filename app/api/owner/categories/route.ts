@@ -65,7 +65,7 @@ export async function POST(request: NextRequest) {
     }
 
     const body = await request.json();
-    const { name, color, icon } = body;
+    const { name, color, icon, parentId, displayOrder } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -89,12 +89,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Single-level nesting: a parent must be an existing top-level category in this gym
+    if (parentId) {
+      const parent = await prisma.productCategory.findFirst({
+        where: { id: parentId, gymId: staff.gymId },
+        select: { id: true, parentId: true },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Nadređena kategorija nije pronađena" },
+          { status: 400 }
+        );
+      }
+      if (parent.parentId) {
+        return NextResponse.json(
+          { error: "Potkategorija ne može imati potkategorije" },
+          { status: 400 }
+        );
+      }
+    }
+
     const category = await prisma.productCategory.create({
       data: {
         gymId: staff.gymId,
         name: name.trim(),
         color: color || null,
         icon: icon || null,
+        parentId: parentId || null,
+        displayOrder: typeof displayOrder === "number" ? displayOrder : null,
       },
     });
 

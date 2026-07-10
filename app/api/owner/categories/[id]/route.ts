@@ -39,13 +39,39 @@ export async function PUT(request: NextRequest, context: RouteContext) {
     }
 
     const body = await request.json();
-    const { name, color, icon } = body;
+    const { name, color, icon, parentId, displayOrder } = body;
 
     if (name !== undefined && !name.trim()) {
       return NextResponse.json(
         { error: "Category name cannot be empty" },
         { status: 400 }
       );
+    }
+
+    // Validate parent change (single-level nesting; no self-parenting)
+    if (parentId !== undefined && parentId) {
+      if (parentId === id) {
+        return NextResponse.json(
+          { error: "Kategorija ne može biti sama sebi nadređena" },
+          { status: 400 }
+        );
+      }
+      const parent = await prisma.productCategory.findFirst({
+        where: { id: parentId, gymId: staff.gymId },
+        select: { id: true, parentId: true },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Nadređena kategorija nije pronađena" },
+          { status: 400 }
+        );
+      }
+      if (parent.parentId) {
+        return NextResponse.json(
+          { error: "Potkategorija ne može imati potkategorije" },
+          { status: 400 }
+        );
+      }
     }
 
     // Check for duplicate name (if name is being changed)
@@ -72,6 +98,10 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         ...(name !== undefined && { name: name.trim() }),
         ...(color !== undefined && { color: color || null }),
         ...(icon !== undefined && { icon: icon || null }),
+        ...(parentId !== undefined && { parentId: parentId || null }),
+        ...(displayOrder !== undefined && {
+          displayOrder: typeof displayOrder === "number" ? displayOrder : null,
+        }),
       },
     });
 
@@ -112,7 +142,7 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     const existingCategory = await prisma.productCategory.findFirst({
       where: { id, gymId: staff.gymId },
       include: {
-        _count: { select: { products: true } },
+        _count: { select: { products: true, children: true } },
       },
     });
 
@@ -124,6 +154,14 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
     if (existingCategory._count.products > 0) {
       return NextResponse.json(
         { error: `Kategorija ima ${existingCategory._count.products} proizvoda. Premestite ih pre brisanja.` },
+        { status: 400 }
+      );
+    }
+
+    // Check if category has subcategories
+    if (existingCategory._count.children > 0) {
+      return NextResponse.json(
+        { error: `Kategorija ima ${existingCategory._count.children} potkategorija. Obrišite ih pre brisanja.` },
         { status: 400 }
       );
     }

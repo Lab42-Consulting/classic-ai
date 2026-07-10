@@ -2,6 +2,7 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface ProductCategory {
   id: string;
@@ -458,6 +459,13 @@ export default function MagacinPage() {
             Upravljajte zalihama proizvoda i pratite prodaju
           </p>
         </div>
+
+        <Link
+          href="/gym-portal/manage/shop/catalog"
+          className="px-4 py-2 rounded-xl text-sm font-medium bg-background-secondary hover:bg-white/10 text-foreground border border-border text-center"
+        >
+          Kategorije i brendovi
+        </Link>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-background-secondary rounded-xl">

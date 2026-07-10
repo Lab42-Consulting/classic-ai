@@ -80,7 +80,6 @@ const navGroups: NavGroup[] = [
         label: "Magacin",
         href: "/gym-portal/manage/shop",
         icon: "shop",
-        ownerOnly: true,
       },
     ],
   },

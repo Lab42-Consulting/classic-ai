@@ -19,8 +19,8 @@ export async function GET(request: NextRequest) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const { searchParams } = new URL(request.url);
@@ -98,8 +98,8 @@ export async function POST(request: NextRequest) {
       select: { role: true, gymId: true, name: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const body = await request.json();

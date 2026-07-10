@@ -56,6 +56,7 @@ model Gym {
   products        Product[]         // Inventory products (owner)
   sales           Sale[]            // Sales transactions (owner)
   brands          Brand[]           // Product brands (owner, storefront)
+  orders          Order[]           // Storefront orders (owner)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -122,6 +123,8 @@ model Member {
   // Session scheduling
   sessionRequests     SessionRequest[]
   scheduledSessions   ScheduledSession[]
+
+  orders              Order[]           // Storefront orders placed by this member
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -1046,6 +1049,7 @@ model Product {
   // Relations
   stockLogs     StockLog[]
   sales         Sale[]
+  orderItems    OrderItem[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1115,4 +1119,66 @@ model Sale {
   @@index([gymId, createdAt])
   @@index([memberId])
   @@map("sales")
+}
+
+// Order - a customer order placed through the public storefront (paid in person, no online card)
+model Order {
+  id              String    @id @default(cuid())
+  gymId           String
+  gym             Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  orderNumber     String    // Human-friendly, unique per gym (e.g. "0001")
+
+  // Lifecycle
+  status          String    @default("new")  // new | confirmed | ready | fulfilled | cancelled
+  fulfillmentType String    // pickup | delivery
+
+  // Customer (guest checkout; memberId set when a logged-in member ordered)
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  deliveryAddress String?   @db.Text  // Required when fulfillmentType = delivery
+  note            String?   @db.Text
+
+  memberId        String?
+  member          Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  // Money (whole RSD, never cents)
+  subtotalRsd     Int
+  deliveryFeeRsd  Int?
+  totalRsd        Int
+
+  items           OrderItem[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  fulfilledAt     DateTime?
+  cancelledReason String?   @db.Text
+
+  @@unique([gymId, orderNumber])  // Order numbers unique per gym
+  @@index([gymId, status])
+  @@index([gymId, createdAt])
+  @@index([memberId])
+  @@map("orders")
+}
+
+// OrderItem - a line item within an Order (product snapshot at order time)
+model OrderItem {
+  id                String    @id @default(cuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId         String?   // Nullable so order history survives product deletion
+  product           Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameCached String    // Snapshot of the product name at order time
+
+  unitPriceRsd      Int       // Price at order time (whole RSD)
+  quantity          Int
+  lineTotalRsd      Int       // unitPriceRsd * quantity
+
+  createdAt         DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }

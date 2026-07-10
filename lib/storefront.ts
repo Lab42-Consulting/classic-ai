@@ -219,3 +219,35 @@ export async function loadStorefrontProducts(slug: string, q: ProductQuery) {
     brands,
   };
 }
+
+/** Single product for the public detail page (must be active + online) + related products. */
+export async function loadStorefrontProduct(slug: string, productId: string) {
+  const gym = await getEnabledStoreGym(slug);
+  if (!gym) return null;
+
+  const raw = await prisma.product.findFirst({
+    where: { id: productId, gymId: gym.id, isActive: true, isVisibleOnline: true },
+    select: PUBLIC_PRODUCT_SELECT,
+  });
+  if (!raw) return null;
+
+  const product = toPublicProduct(raw as RawProduct);
+
+  const relatedRaw = await prisma.product.findMany({
+    where: {
+      gymId: gym.id,
+      isActive: true,
+      isVisibleOnline: true,
+      id: { not: productId },
+      ...(product.categoryId && { categoryId: product.categoryId }),
+    },
+    select: PUBLIC_PRODUCT_SELECT,
+    take: 4,
+  });
+
+  return {
+    gym: { id: gym.id, name: gym.name, logo: gym.logo },
+    product,
+    related: (relatedRaw as RawProduct[]).map(toPublicProduct),
+  };
+}

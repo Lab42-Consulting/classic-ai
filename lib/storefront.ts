@@ -251,3 +251,132 @@ export async function loadStorefrontProduct(slug: string, productId: string) {
     related: (relatedRaw as RawProduct[]).map(toPublicProduct),
   };
 }
+
+export interface CheckoutInput {
+  customerName: string;
+  customerPhone: string;
+  customerEmail?: string | null;
+  fulfillmentType: "pickup" | "delivery";
+  deliveryAddress?: string | null;
+  note?: string | null;
+  items: { productId: string; quantity: number }[];
+}
+
+export type OrderResult =
+  | { ok: true; order: { id: string; orderNumber: string; totalRsd: number; subtotalRsd: number; deliveryFeeRsd: number | null; fulfillmentType: string; status: string } }
+  | { ok: false; status: number; error: string; details?: string[] };
+
+/**
+ * Create a storefront order (pay-in-person). Prices and availability are taken
+ * SERVER-SIDE (never trusting the client). Does not decrement stock or take
+ * payment — both happen at fulfillment (#25).
+ */
+export async function createStorefrontOrder(
+  slug: string,
+  input: CheckoutInput,
+  memberId?: string | null
+): Promise<OrderResult> {
+  const gym = await getEnabledStoreGym(slug);
+  if (!gym) return { ok: false, status: 404, error: "Prodavnica nije dostupna" };
+
+  if (!input.customerName?.trim() || !input.customerPhone?.trim()) {
+    return { ok: false, status: 400, error: "Ime i telefon su obavezni" };
+  }
+  if (input.fulfillmentType !== "pickup" && input.fulfillmentType !== "delivery") {
+    return { ok: false, status: 400, error: "Neispravan način preuzimanja" };
+  }
+  if (input.fulfillmentType === "delivery" && !input.deliveryAddress?.trim()) {
+    return { ok: false, status: 400, error: "Adresa za dostavu je obavezna" };
+  }
+  if (!Array.isArray(input.items) || input.items.length === 0) {
+    return { ok: false, status: 400, error: "Korpa je prazna" };
+  }
+
+  const ids = [...new Set(input.items.map((i) => i.productId))];
+  const products = await prisma.product.findMany({
+    where: { id: { in: ids }, gymId: gym.id, isActive: true, isVisibleOnline: true },
+    select: { id: true, name: true, price: true, currentStock: true },
+  });
+  const byId = new Map(products.map((p) => [p.id, p]));
+
+  const unavailable: string[] = [];
+  const lineItems: {
+    productId: string;
+    productNameCached: string;
+    unitPriceRsd: number;
+    quantity: number;
+    lineTotalRsd: number;
+  }[] = [];
+  for (const i of input.items) {
+    const p = byId.get(i.productId);
+    const qty = Math.max(1, Math.floor(i.quantity));
+    if (!p || p.currentStock < qty) {
+      unavailable.push(p?.name ?? i.productId);
+      continue;
+    }
+    lineItems.push({
+      productId: p.id,
+      productNameCached: p.name,
+      unitPriceRsd: p.price,
+      quantity: qty,
+      lineTotalRsd: p.price * qty,
+    });
+  }
+  if (unavailable.length > 0) {
+    return { ok: false, status: 409, error: "Neki proizvodi nisu dostupni", details: unavailable };
+  }
+
+  // Only link a member who actually belongs to this gym
+  let linkedMemberId: string | null = null;
+  if (memberId) {
+    const member = await prisma.member.findFirst({
+      where: { id: memberId, gymId: gym.id },
+      select: { id: true },
+    });
+    linkedMemberId = member?.id ?? null;
+  }
+
+  const subtotalRsd = lineItems.reduce((s, li) => s + li.lineTotalRsd, 0);
+
+  let deliveryFeeRsd: number | null = null;
+  if (input.fulfillmentType === "delivery") {
+    const fee = gym.storeDeliveryFeeRsd ?? 0;
+    const threshold = gym.storeFreeDeliveryThresholdRsd;
+    deliveryFeeRsd = threshold != null && subtotalRsd >= threshold ? 0 : fee;
+  }
+  const totalRsd = subtotalRsd + (deliveryFeeRsd ?? 0);
+
+  const order = await prisma.$transaction(async (tx) => {
+    const existing = await tx.order.count({ where: { gymId: gym.id } });
+    const orderNumber = String(existing + 1).padStart(4, "0");
+    return tx.order.create({
+      data: {
+        gymId: gym.id,
+        orderNumber,
+        status: "new",
+        fulfillmentType: input.fulfillmentType,
+        customerName: input.customerName.trim(),
+        customerPhone: input.customerPhone.trim(),
+        customerEmail: input.customerEmail?.trim() || null,
+        deliveryAddress: input.fulfillmentType === "delivery" ? input.deliveryAddress!.trim() : null,
+        note: input.note?.trim() || null,
+        memberId: linkedMemberId,
+        subtotalRsd,
+        deliveryFeeRsd,
+        totalRsd,
+        items: { create: lineItems },
+      },
+      select: {
+        id: true,
+        orderNumber: true,
+        totalRsd: true,
+        subtotalRsd: true,
+        deliveryFeeRsd: true,
+        fulfillmentType: true,
+        status: true,
+      },
+    });
+  });
+
+  return { ok: true, order };
+}

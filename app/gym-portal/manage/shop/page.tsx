@@ -9,6 +9,12 @@ interface ProductCategory {
   name: string;
   color: string | null;
   icon: string | null;
+  parentId?: string | null;
+}
+
+interface Brand {
+  id: string;
+  name: string;
 }
 
 interface Product {
@@ -19,11 +25,17 @@ interface Product {
   imageUrl: string | null;
   categoryId: string | null;
   category: ProductCategory | null;
+  brandId: string | null;
+  brand: Brand | null;
   price: number;
   costPrice: number | null;
   currentStock: number;
   lowStockAlert: number | null;
   isActive: boolean;
+  isVisibleOnline: boolean;
+  isFeatured: boolean;
+  slug: string | null;
+  displayOrder: number | null;
   createdAt: string;
 }
 
@@ -60,6 +72,7 @@ export default function MagacinPage() {
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
@@ -77,11 +90,14 @@ export default function MagacinPage() {
     sku: "",
     imageUrl: "",
     categoryId: "",
+    brandId: "",
     price: "",
     costPrice: "",
     currentStock: "0",
     lowStockAlert: "",
     isActive: true,
+    isVisibleOnline: false,
+    isFeatured: false,
   });
 
   // Stock adjustment state
@@ -106,6 +122,7 @@ export default function MagacinPage() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchBrands();
   }, []);
 
   const fetchCategories = async () => {
@@ -114,6 +131,17 @@ export default function MagacinPage() {
       if (!response.ok) return;
       const data = await response.json();
       setCategories(data.categories || []);
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch("/api/admin/brands");
+      if (!response.ok) return;
+      const data = await response.json();
+      setBrands(data.brands || []);
     } catch {
       // Silently fail
     }
@@ -196,11 +224,14 @@ export default function MagacinPage() {
         sku: product.sku || "",
         imageUrl: product.imageUrl || "",
         categoryId: product.categoryId || "",
+        brandId: product.brandId || "",
         price: (product.price).toString(),
         costPrice: product.costPrice ? (product.costPrice).toString() : "",
         currentStock: product.currentStock.toString(),
         lowStockAlert: product.lowStockAlert?.toString() || "",
         isActive: product.isActive,
+        isVisibleOnline: product.isVisibleOnline,
+        isFeatured: product.isFeatured,
       });
     } else {
       setEditingProduct(null);
@@ -210,11 +241,14 @@ export default function MagacinPage() {
         sku: "",
         imageUrl: "",
         categoryId: "",
+        brandId: "",
         price: "",
         costPrice: "",
         currentStock: "0",
         lowStockAlert: "",
         isActive: true,
+        isVisibleOnline: false,
+        isFeatured: false,
       });
     }
     setPanelMode("product");
@@ -261,11 +295,14 @@ export default function MagacinPage() {
         sku: productForm.sku.trim() || null,
         imageUrl: productForm.imageUrl || null,
         categoryId: productForm.categoryId || null,
+        brandId: productForm.brandId || null,
         price: Math.round(parseFloat(productForm.price)),
         costPrice: productForm.costPrice ? Math.round(parseFloat(productForm.costPrice)) : null,
         currentStock: parseInt(productForm.currentStock) || 0,
         lowStockAlert: productForm.lowStockAlert ? parseInt(productForm.lowStockAlert) : null,
         isActive: productForm.isActive,
+        isVisibleOnline: productForm.isVisibleOnline,
+        isFeatured: productForm.isFeatured,
       };
 
       const response = await fetch(
@@ -946,9 +983,20 @@ export default function MagacinPage() {
                         className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
                       >
                         <option value="">Bez kategorije</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
+                        {categories
+                          .filter((c) => !c.parentId)
+                          .flatMap((parent) => [
+                            <option key={parent.id} value={parent.id}>
+                              {parent.name}
+                            </option>,
+                            ...categories
+                              .filter((c) => c.parentId === parent.id)
+                              .map((sub) => (
+                                <option key={sub.id} value={sub.id}>
+                                  {"— " + sub.name}
+                                </option>
+                              )),
+                          ])}
                       </select>
                     </div>
                     <div>
@@ -961,6 +1009,23 @@ export default function MagacinPage() {
                         placeholder="SKU"
                       />
                     </div>
+                  </div>
+
+                  {/* Brand */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Brend</label>
+                    <select
+                      value={productForm.brandId}
+                      onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
+                    >
+                      <option value="">Bez brenda</option>
+                      {brands.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Price */}
@@ -1015,6 +1080,38 @@ export default function MagacinPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Storefront visibility toggles */}
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-white/5 cursor-pointer">
+                      <div>
+                        <p className="font-medium text-foreground">Prikaži u prodavnici</p>
+                        <p className="text-xs text-foreground-muted">Proizvod je vidljiv u javnoj prodavnici</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={productForm.isVisibleOnline}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, isVisibleOnline: e.target.checked })
+                        }
+                        className="w-5 h-5 accent-accent"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-white/5 cursor-pointer">
+                      <div>
+                        <p className="font-medium text-foreground">Istaknuto</p>
+                        <p className="text-xs text-foreground-muted">Prikaži među istaknutim proizvodima</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={productForm.isFeatured}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, isFeatured: e.target.checked })
+                        }
+                        className="w-5 h-5 accent-accent"
+                      />
+                    </label>
+                  </div>
 
                   {/* Active Toggle - Redesigned */}
                   <div

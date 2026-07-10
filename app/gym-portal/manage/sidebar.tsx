@@ -81,6 +81,11 @@ const navGroups: NavGroup[] = [
         href: "/gym-portal/manage/shop",
         icon: "shop",
       },
+      {
+        label: "Porudžbine",
+        href: "/gym-portal/manage/orders",
+        icon: "shop",
+      },
     ],
   },
 ];

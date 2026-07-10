@@ -55,6 +55,7 @@ model Gym {
   productCategories ProductCategory[] // Custom product categories (owner)
   products        Product[]         // Inventory products (owner)
   sales           Sale[]            // Sales transactions (owner)
+  brands          Brand[]           // Product brands (owner, storefront)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -960,6 +961,25 @@ model GoalContribution {
 // ============================================================================
 
 // ProductCategory - custom categories created by gym owner for organizing products
+// Brand - product manufacturer/brand (storefront), per gym
+model Brand {
+  id          String    @id @default(cuid())
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name        String    // Brand name (e.g., "Optimum Nutrition")
+  logoUrl     String?   @db.Text  // Optional brand logo (base64 data URL or external URL)
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([gymId, name])  // Brand names must be unique per gym
+  @@index([gymId])
+  @@map("brands")
+}
+
 model ProductCategory {
   id          String    @id @default(cuid())
   gymId       String
@@ -969,6 +989,12 @@ model ProductCategory {
   color       String?   // Optional color for UI display (hex code)
   icon        String?   // Optional icon identifier
 
+  // Subcategory hierarchy (single level: a category may have one parent)
+  parentId     String?
+  parent       ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     ProductCategory[] @relation("CategoryHierarchy")
+  displayOrder Int?      // Manual ordering within the gym / parent
+
   products    Product[]
 
   createdAt   DateTime  @default(now())
@@ -976,6 +1002,7 @@ model ProductCategory {
 
   @@unique([gymId, name])  // Category names must be unique per gym
   @@index([gymId])
+  @@index([gymId, parentId])
   @@map("product_categories")
 }
 
@@ -995,6 +1022,10 @@ model Product {
   categoryId    String?
   category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
+  // Brand (optional, storefront)
+  brandId       String?
+  brand         Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
   // Pricing
   price         Int       // Selling price in RSD (whole units)
   costPrice     Int?      // Cost price for profit tracking
@@ -1004,7 +1035,13 @@ model Product {
   lowStockAlert Int?      // Alert when stock falls below this level
 
   // Status
-  isActive      Boolean   @default(true)  // Available for sale
+  isActive      Boolean   @default(true)  // Available for in-person sale / inventory
+
+  // Storefront (public shop)
+  isVisibleOnline Boolean @default(false)  // Published to the public storefront (default OFF)
+  isFeatured    Boolean   @default(false)  // Surfaces in "Istaknuti proizvodi" (featured)
+  displayOrder  Int?      // Manual sort within a category / listing
+  slug          String?   // Optional URL slug for the product detail page
 
   // Relations
   stockLogs     StockLog[]
@@ -1016,6 +1053,8 @@ model Product {
   @@index([gymId])
   @@index([gymId, isActive])
   @@index([gymId, categoryId])
+  @@index([gymId, isVisibleOnline])
+  @@index([gymId, brandId])
   @@map("products")
 }
 

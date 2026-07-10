@@ -98,10 +98,15 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       sku,
       imageUrl,
       categoryId,
+      brandId,
       price,
       costPrice,
       lowStockAlert,
       isActive,
+      isVisibleOnline,
+      isFeatured,
+      displayOrder,
+      slug,
     } = body;
 
     // Validate
@@ -132,6 +137,16 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       }
     }
 
+    // Verify brand belongs to this gym if provided
+    if (brandId) {
+      const brand = await prisma.brand.findFirst({
+        where: { id: brandId, gymId: staff.gymId },
+      });
+      if (!brand) {
+        return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+      }
+    }
+
     const product = await prisma.product.update({
       where: { id },
       data: {
@@ -142,12 +157,22 @@ export async function PUT(request: NextRequest, context: RouteContext) {
         ...(categoryId !== undefined && { categoryId }),
         ...(price !== undefined && { price: Math.round(price) }),
         ...(costPrice !== undefined && { costPrice: costPrice ? Math.round(costPrice) : null }),
+        ...(brandId !== undefined && { brandId: brandId || null }),
         ...(lowStockAlert !== undefined && { lowStockAlert }),
         ...(isActive !== undefined && { isActive }),
+        ...(isVisibleOnline !== undefined && { isVisibleOnline: Boolean(isVisibleOnline) }),
+        ...(isFeatured !== undefined && { isFeatured: Boolean(isFeatured) }),
+        ...(displayOrder !== undefined && {
+          displayOrder: typeof displayOrder === "number" ? displayOrder : null,
+        }),
+        ...(slug !== undefined && { slug: slug ? slug.trim() : null }),
       },
       include: {
         category: {
           select: { id: true, name: true, color: true, icon: true },
+        },
+        brand: {
+          select: { id: true, name: true },
         },
       },
     });

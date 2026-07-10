@@ -2,6 +2,17 @@ import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
 
+/** Serbian-aware slug generator for product detail URLs */
+export function slugify(input: string): string {
+  return input
+    .toLowerCase()
+    .replace(/đ/g, "dj")
+    .normalize("NFD")
+    .replace(/[̀-ͯ]/g, "")
+    .replace(/[^a-z0-9]+/g, "-")
+    .replace(/^-+|-+$/g, "");
+}
+
 /**
  * GET /api/admin/products
  * List all products for the gym (Owner only - Magacin feature)
@@ -28,6 +39,9 @@ export async function GET() {
       include: {
         category: {
           select: { id: true, name: true, color: true, icon: true },
+        },
+        brand: {
+          select: { id: true, name: true },
         },
       },
       orderBy: { name: "asc" },
@@ -71,11 +85,16 @@ export async function POST(request: NextRequest) {
       sku,
       imageUrl,
       categoryId,
+      brandId,
       price,
       costPrice,
       currentStock = 0,
       lowStockAlert,
       isActive = true,
+      isVisibleOnline = false,
+      isFeatured = false,
+      displayOrder,
+      slug,
     } = body;
 
     // Validate required fields
@@ -106,6 +125,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verify brand belongs to this gym if provided
+    if (brandId) {
+      const brand = await prisma.brand.findFirst({
+        where: { id: brandId, gymId: staff.gymId },
+      });
+      if (!brand) {
+        return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+      }
+    }
+
     // Create product with initial stock log
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
@@ -116,15 +145,23 @@ export async function POST(request: NextRequest) {
           sku,
           imageUrl,
           categoryId,
+          brandId: brandId || null,
           price: Math.round(price),
           costPrice: costPrice ? Math.round(costPrice) : null,
           currentStock: currentStock,
           lowStockAlert,
           isActive,
+          isVisibleOnline: Boolean(isVisibleOnline),
+          isFeatured: Boolean(isFeatured),
+          displayOrder: typeof displayOrder === "number" ? displayOrder : null,
+          slug: (slug && slug.trim()) || slugify(name),
         },
         include: {
           category: {
             select: { id: true, name: true, color: true, icon: true },
+          },
+          brand: {
+            select: { id: true, name: true },
           },
         },
       });

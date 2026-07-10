@@ -23,8 +23,8 @@ export async function PUT(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;
@@ -102,8 +102,8 @@ export async function DELETE(request: NextRequest, context: RouteContext) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const { id } = await context.params;

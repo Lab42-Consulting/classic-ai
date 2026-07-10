@@ -520,6 +520,13 @@ export default function MagacinPage() {
           Kategorije i brendovi
         </Link>
 
+        <Link
+          href="/gym-portal/manage/shop/settings"
+          className="px-4 py-2 rounded-xl text-sm font-medium bg-background-secondary hover:bg-white/10 text-foreground border border-border text-center"
+        >
+          Podešavanja prodavnice
+        </Link>
+
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-background-secondary rounded-xl">
           <button

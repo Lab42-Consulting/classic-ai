@@ -43,6 +43,14 @@ model Gym {
   openingHours    String?           @db.Text // Opening hours (e.g., "Mon-Fri: 6:00-22:00, Sat-Sun: 8:00-20:00")
   galleryImages   Json              @default("[]") // Array of {id, imageUrl, caption} for public gallery
 
+  // Storefront (public shop) configuration
+  storeEnabled                  Boolean @default(false) // Whether the public storefront is enabled
+  storePickupAddress            String? @db.Text        // Where customers pick up orders
+  storeDeliveryFeeRsd           Int?                    // Flat delivery fee in RSD
+  storeFreeDeliveryThresholdRsd Int?                    // Order total (RSD) above which delivery is free
+  storeContactPhone             String?                 // Store contact phone
+  storeNote                     String? @db.Text        // Note shown at checkout (e.g. payment terms)
+
   members         Member[]
   staff           Staff[]
   aiUsageMonthly  AIUsageMonthly[]

@@ -15,7 +15,7 @@ export function ProductCard({ slug, product }: { slug: string; product: ProductC
   return (
     <Link
       href={`/gym-portal/${slug}/shop/product/${product.id}`}
-      className="group flex flex-col bg-background-secondary border border-white/10 rounded-2xl overflow-hidden hover:border-white/20 transition-colors"
+      className="group flex flex-col bg-background-secondary border border-white/10 rounded-2xl overflow-hidden transition-all duration-300 hover:-translate-y-1 hover:border-accent/40 hover:shadow-[0_18px_44px_-16px_rgba(0,0,0,0.65)]"
     >
       <div className="aspect-square bg-white/5 flex items-center justify-center overflow-hidden">
         {product.imageUrl ? (

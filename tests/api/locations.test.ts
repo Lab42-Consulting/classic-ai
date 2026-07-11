@@ -157,7 +157,7 @@ describe('Locations API', () => {
         address: 'New Address 123',
       })
 
-      const response = await (createLocation as (req: Request) => Promise<Response>)(request)
+      const response = await (createLocation as unknown as (req: Request) => Promise<Response>)(request)
       const data = await response.json()
 
       expect(response.status).toBe(200)
@@ -178,7 +178,7 @@ describe('Locations API', () => {
         address: 'Some Address',
       })
 
-      const response = await (createLocation as (req: Request) => Promise<Response>)(request)
+      const response = await (createLocation as unknown as (req: Request) => Promise<Response>)(request)
       const data = await response.json()
 
       expect(response.status).toBe(400)
@@ -196,7 +196,7 @@ describe('Locations API', () => {
         name: 'New Location',
       })
 
-      const response = await (createLocation as (req: Request) => Promise<Response>)(request)
+      const response = await (createLocation as unknown as (req: Request) => Promise<Response>)(request)
       const data = await response.json()
 
       expect(response.status).toBe(403)

@@ -55,7 +55,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(getSession).mockResolvedValue(null)
 
         const request = createMockGetRequest()
-        const response = await adminGoalsGet(request as never)
+        const response = await adminGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(401)
@@ -72,7 +72,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(prisma.goal.findMany).mockResolvedValue(goalsWithOptions as never)
 
         const request = createMockGetRequest()
-        const response = await adminGoalsGet(request as never)
+        const response = await adminGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -85,7 +85,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(prisma.goal.findMany).mockResolvedValue([mockGoalVotingWithOptions] as never)
 
         const request = createMockGetRequest({ status: 'voting' })
-        const response = await adminGoalsGet(request as never)
+        const response = await adminGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -97,7 +97,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(prisma.goal.findMany).mockResolvedValue([])
 
         const request = createMockGetRequest()
-        const response = await adminGoalsGet(request as never)
+        const response = await adminGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -459,7 +459,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(getSession).mockResolvedValue(null)
 
         const request = createMockGetRequest()
-        const response = await memberGoalsGet(request as never)
+        const response = await memberGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(401)
@@ -478,7 +478,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(votingModule.getMemberVote).mockResolvedValue(null)
 
         const request = createMockGetRequest()
-        const response = await memberGoalsGet(request as never)
+        const response = await memberGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -493,7 +493,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(votingModule.getMemberVote).mockResolvedValue(mockGoalOption1.id)
 
         const request = createMockGetRequest()
-        const response = await memberGoalsGet(request as never)
+        const response = await memberGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -504,7 +504,7 @@ describe('Goal Voting System API', () => {
         vi.mocked(prisma.goal.findMany).mockResolvedValue([])
 
         const request = createMockGetRequest()
-        const response = await memberGoalsGet(request as never)
+        const response = await memberGoalsGet()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -674,33 +674,33 @@ describe('Goal Voting System API', () => {
   describe('Goal Status Utilities', () => {
     describe('getGoalStatus', () => {
       it('should return draft for draft goals', () => {
-        expect(getGoalStatus(mockGoalDraft)).toBe('draft')
+        expect(getGoalStatus(mockGoalDraft as never)).toBe('draft')
       })
 
       it('should return voting for active voting goals', () => {
-        expect(getGoalStatus(mockGoalVoting)).toBe('voting')
+        expect(getGoalStatus(mockGoalVoting as never)).toBe('voting')
       })
 
       it('should return fundraising for fundraising goals', () => {
-        expect(getGoalStatus(mockGoalFundraising)).toBe('fundraising')
+        expect(getGoalStatus(mockGoalFundraising as never)).toBe('fundraising')
       })
 
       it('should return completed for completed goals', () => {
-        expect(getGoalStatus(mockGoalCompleted)).toBe('completed')
+        expect(getGoalStatus(mockGoalCompleted as never)).toBe('completed')
       })
     })
 
     describe('canVote', () => {
       it('should return true for active voting goal', () => {
-        expect(canVote(mockGoalVoting)).toBe(true)
+        expect(canVote(mockGoalVoting as never)).toBe(true)
       })
 
       it('should return false for non-voting status', () => {
-        expect(canVote(mockGoalFundraising)).toBe(false)
+        expect(canVote(mockGoalFundraising as never)).toBe(false)
       })
 
       it('should return false for expired voting', () => {
-        expect(canVote(mockExpiredVotingGoal)).toBe(false)
+        expect(canVote(mockExpiredVotingGoal as never)).toBe(false)
       })
     })
 

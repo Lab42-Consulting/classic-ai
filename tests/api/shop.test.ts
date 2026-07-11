@@ -42,7 +42,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(getSession).mockResolvedValue(null)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(401)
@@ -53,7 +53,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(getSession).mockResolvedValue(mockMemberSession)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(401)
@@ -68,7 +68,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         } as never)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(403)
@@ -85,7 +85,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct] as never)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -110,7 +110,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         ] as never)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -122,7 +122,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(prisma.product.findMany).mockResolvedValue([])
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(200)

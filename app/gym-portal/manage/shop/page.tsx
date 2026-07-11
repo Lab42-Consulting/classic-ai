@@ -61,6 +61,44 @@ interface Member {
   memberId: string;
 }
 
+function StockCell({
+  product,
+  onSave,
+}: {
+  product: Product;
+  onSave: (p: Product, val: number) => void;
+}) {
+  const [val, setVal] = useState(String(product.currentStock));
+  useEffect(() => {
+    setVal(String(product.currentStock));
+  }, [product.currentStock]);
+  const color =
+    product.currentStock === 0
+      ? "border-red-500/40 text-red-400"
+      : product.lowStockAlert && product.currentStock <= product.lowStockAlert
+      ? "border-yellow-500/40 text-yellow-400"
+      : "border-emerald-500/40 text-emerald-400";
+  const commit = () => {
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0 && n !== product.currentStock) onSave(product, n);
+    else setVal(String(product.currentStock));
+  };
+  return (
+    <input
+      type="number"
+      min="0"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      title="Izmeni zalihe (Enter za čuvanje)"
+      className={`w-20 text-center px-2 py-1 rounded-lg bg-background border font-medium focus:outline-none focus:border-accent ${color}`}
+    />
+  );
+}
+
 export default function MagacinPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -480,6 +518,27 @@ export default function MagacinPage() {
     if (fileInputRef.current) fileInputRef.current.value = "";
   };
 
+  const handleInlineStock = async (product: Product, newValue: number) => {
+    const delta = newValue - product.currentStock;
+    if (delta === 0) return;
+    try {
+      const response = await fetch(`/api/admin/products/${product.id}/stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "adjustment", quantity: delta, note: "Ručna izmena zaliha" }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Greška");
+      }
+      setMessage({ type: "success", text: "Zalihe ažurirane" });
+      fetchProducts();
+    } catch (e) {
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Greška pri izmeni zaliha" });
+      fetchProducts();
+    }
+  };
+
   const formatPrice = (amount: number) => {
     return new Intl.NumberFormat("sr-RS").format(amount) + " RSD";
   };
@@ -505,7 +564,7 @@ export default function MagacinPage() {
   return (
     <div className="relative">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Magacin</h1>
           <p className="text-foreground-muted mt-1">
@@ -513,6 +572,7 @@ export default function MagacinPage() {
           </p>
         </div>
 
+        <div className="flex flex-wrap items-center gap-2">
         <Link
           href="/gym-portal/manage/shop/catalog"
           className="px-4 py-2 rounded-xl text-sm font-medium bg-background-secondary hover:bg-white/10 text-foreground border border-border text-center"
@@ -549,6 +609,7 @@ export default function MagacinPage() {
           >
             Prodaja
           </button>
+        </div>
         </div>
       </div>
 
@@ -711,17 +772,7 @@ export default function MagacinPage() {
                           <span className="font-semibold text-foreground">{formatPrice(product.price)}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${
-                              product.currentStock === 0
-                                ? "bg-red-500/20 text-red-400"
-                                : product.lowStockAlert && product.currentStock <= product.lowStockAlert
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-emerald-500/20 text-emerald-400"
-                            }`}
-                          >
-                            {product.currentStock} kom
-                          </span>
+                          <StockCell product={product} onSave={handleInlineStock} />
                         </td>
                         <td className="px-4 py-3 text-center hidden sm:table-cell">
                           <span
@@ -738,7 +789,7 @@ export default function MagacinPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => openStockPanel(product)}
-                              title="Zalihe"
+                              title="Nabavka / korekcija (sa napomenom)"
                               className="p-2 hover:bg-white/10 rounded-lg transition-colors text-foreground-muted hover:text-foreground"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

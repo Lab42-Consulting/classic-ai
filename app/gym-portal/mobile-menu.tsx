@@ -8,6 +8,8 @@ interface MobileMenuProps {
   accentColor: string;
   hasTrainers: boolean;
   hasContact: boolean;
+  hasStore: boolean;
+  shopHref: string;
   gymName: string;
   gymLogo: string | null;
 }
@@ -55,6 +57,8 @@ function MenuOverlay({
   accentColor,
   hasTrainers,
   hasContact,
+  hasStore,
+  shopHref,
   gymName,
   gymLogo,
 }: {
@@ -63,6 +67,8 @@ function MenuOverlay({
   accentColor: string;
   hasTrainers: boolean;
   hasContact: boolean;
+  hasStore: boolean;
+  shopHref: string;
   gymName: string;
   gymLogo: string | null;
 }) {
@@ -171,6 +177,22 @@ function MenuOverlay({
 
       {/* Navigation links */}
       <nav style={{ display: "flex", flexDirection: "column", alignItems: "center", gap: "0.5rem", marginBottom: "2.5rem" }}>
+        {hasStore && (
+          <Link
+            href={shopHref}
+            onClick={onClose}
+            style={{
+              fontSize: "1.5rem",
+              fontWeight: 700,
+              color: accentColor,
+              padding: "0.75rem 1.5rem",
+              borderRadius: "0.75rem",
+              textDecoration: "none",
+            }}
+          >
+            Prodavnica
+          </Link>
+        )}
         {hasTrainers && (
           <a
             href="#trainers"
@@ -283,7 +305,7 @@ function MenuOverlay({
   return createPortal(menuContent, document.body);
 }
 
-export function MobileMenu({ accentColor, hasTrainers, hasContact, gymName, gymLogo }: MobileMenuProps) {
+export function MobileMenu({ accentColor, hasTrainers, hasContact, hasStore, shopHref, gymName, gymLogo }: MobileMenuProps) {
   const [isOpen, setIsOpen] = useState(false);
 
   return (
@@ -307,6 +329,8 @@ export function MobileMenu({ accentColor, hasTrainers, hasContact, gymName, gymL
         accentColor={accentColor}
         hasTrainers={hasTrainers}
         hasContact={hasContact}
+        hasStore={hasStore}
+        shopHref={shopHref}
         gymName={gymName}
         gymLogo={gymLogo}
       />

@@ -80,7 +80,11 @@ const navGroups: NavGroup[] = [
         label: "Magacin",
         href: "/gym-portal/manage/shop",
         icon: "shop",
-        ownerOnly: true,
+      },
+      {
+        label: "Porudžbine",
+        href: "/gym-portal/manage/orders",
+        icon: "shop",
       },
     ],
   },

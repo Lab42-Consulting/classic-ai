@@ -42,7 +42,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(getSession).mockResolvedValue(null)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(401)
@@ -53,26 +53,43 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(getSession).mockResolvedValue(mockMemberSession)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(401)
         expect(data.error).toBe('Unauthorized')
       })
 
-      it('should return 403 if staff is not owner', async () => {
+      it('should return 403 if staff is a coach', async () => {
+        vi.mocked(getSession).mockResolvedValue(mockStaffSession)
+        vi.mocked(prisma.staff.findUnique).mockResolvedValue({
+          ...mockStaffCoach,
+          role: 'COACH',
+        } as never)
+
+        const request = createMockGetRequest()
+        const response = await getProducts()
+        const data = await response.json()
+
+        expect(response.status).toBe(403)
+        expect(data.error).toBe('Admin or owner access required')
+      })
+
+      it('should allow an admin (not just owner) to manage the catalog', async () => {
         vi.mocked(getSession).mockResolvedValue(mockAdminSession)
         vi.mocked(prisma.staff.findUnique).mockResolvedValue({
           ...mockStaffAdmin,
           role: 'ADMIN',
+          gymId: mockGym.id,
         } as never)
+        vi.mocked(prisma.product.findMany).mockResolvedValue([mockProduct] as never)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
-        expect(response.status).toBe(403)
-        expect(data.error).toBe('Owner access required')
+        expect(response.status).toBe(200)
+        expect(data.products).toHaveLength(1)
       })
     })
 
@@ -93,7 +110,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         ] as never)
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(200)
@@ -105,7 +122,7 @@ describe('Magacin API - Products (Owner Only)', () => {
         vi.mocked(prisma.product.findMany).mockResolvedValue([])
 
         const request = createMockGetRequest()
-        const response = await getProducts(request as never)
+        const response = await getProducts()
         const data = await response.json()
 
         expect(response.status).toBe(200)

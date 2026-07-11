@@ -43,6 +43,14 @@ model Gym {
   openingHours    String?           @db.Text // Opening hours (e.g., "Mon-Fri: 6:00-22:00, Sat-Sun: 8:00-20:00")
   galleryImages   Json              @default("[]") // Array of {id, imageUrl, caption} for public gallery
 
+  // Storefront (public shop) configuration
+  storeEnabled                  Boolean @default(false) // Whether the public storefront is enabled
+  storePickupAddress            String? @db.Text        // Where customers pick up orders
+  storeDeliveryFeeRsd           Int?                    // Flat delivery fee in RSD
+  storeFreeDeliveryThresholdRsd Int?                    // Order total (RSD) above which delivery is free
+  storeContactPhone             String?                 // Store contact phone
+  storeNote                     String? @db.Text        // Note shown at checkout (e.g. payment terms)
+
   members         Member[]
   staff           Staff[]
   aiUsageMonthly  AIUsageMonthly[]
@@ -55,6 +63,8 @@ model Gym {
   productCategories ProductCategory[] // Custom product categories (owner)
   products        Product[]         // Inventory products (owner)
   sales           Sale[]            // Sales transactions (owner)
+  brands          Brand[]           // Product brands (owner, storefront)
+  orders          Order[]           // Storefront orders (owner)
   createdAt       DateTime          @default(now())
   updatedAt       DateTime          @updatedAt
 
@@ -121,6 +131,8 @@ model Member {
   // Session scheduling
   sessionRequests     SessionRequest[]
   scheduledSessions   ScheduledSession[]
+
+  orders              Order[]           // Storefront orders placed by this member
 
   createdAt           DateTime          @default(now())
   updatedAt           DateTime          @updatedAt
@@ -960,6 +972,25 @@ model GoalContribution {
 // ============================================================================
 
 // ProductCategory - custom categories created by gym owner for organizing products
+// Brand - product manufacturer/brand (storefront), per gym
+model Brand {
+  id          String    @id @default(cuid())
+  gymId       String
+  gym         Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  name        String    // Brand name (e.g., "Optimum Nutrition")
+  logoUrl     String?   @db.Text  // Optional brand logo (base64 data URL or external URL)
+
+  products    Product[]
+
+  createdAt   DateTime  @default(now())
+  updatedAt   DateTime  @updatedAt
+
+  @@unique([gymId, name])  // Brand names must be unique per gym
+  @@index([gymId])
+  @@map("brands")
+}
+
 model ProductCategory {
   id          String    @id @default(cuid())
   gymId       String
@@ -969,6 +1000,12 @@ model ProductCategory {
   color       String?   // Optional color for UI display (hex code)
   icon        String?   // Optional icon identifier
 
+  // Subcategory hierarchy (single level: a category may have one parent)
+  parentId     String?
+  parent       ProductCategory?  @relation("CategoryHierarchy", fields: [parentId], references: [id], onDelete: SetNull)
+  children     ProductCategory[] @relation("CategoryHierarchy")
+  displayOrder Int?      // Manual ordering within the gym / parent
+
   products    Product[]
 
   createdAt   DateTime  @default(now())
@@ -976,6 +1013,7 @@ model ProductCategory {
 
   @@unique([gymId, name])  // Category names must be unique per gym
   @@index([gymId])
+  @@index([gymId, parentId])
   @@map("product_categories")
 }
 
@@ -995,6 +1033,10 @@ model Product {
   categoryId    String?
   category      ProductCategory? @relation(fields: [categoryId], references: [id], onDelete: SetNull)
 
+  // Brand (optional, storefront)
+  brandId       String?
+  brand         Brand?    @relation(fields: [brandId], references: [id], onDelete: SetNull)
+
   // Pricing
   price         Int       // Selling price in RSD (whole units)
   costPrice     Int?      // Cost price for profit tracking
@@ -1004,11 +1046,18 @@ model Product {
   lowStockAlert Int?      // Alert when stock falls below this level
 
   // Status
-  isActive      Boolean   @default(true)  // Available for sale
+  isActive      Boolean   @default(true)  // Available for in-person sale / inventory
+
+  // Storefront (public shop)
+  isVisibleOnline Boolean @default(false)  // Published to the public storefront (default OFF)
+  isFeatured    Boolean   @default(false)  // Surfaces in "Istaknuti proizvodi" (featured)
+  displayOrder  Int?      // Manual sort within a category / listing
+  slug          String?   // Optional URL slug for the product detail page
 
   // Relations
   stockLogs     StockLog[]
   sales         Sale[]
+  orderItems    OrderItem[]
 
   createdAt     DateTime  @default(now())
   updatedAt     DateTime  @updatedAt
@@ -1016,6 +1065,8 @@ model Product {
   @@index([gymId])
   @@index([gymId, isActive])
   @@index([gymId, categoryId])
+  @@index([gymId, isVisibleOnline])
+  @@index([gymId, brandId])
   @@map("products")
 }
 
@@ -1076,4 +1127,66 @@ model Sale {
   @@index([gymId, createdAt])
   @@index([memberId])
   @@map("sales")
+}
+
+// Order - a customer order placed through the public storefront (paid in person, no online card)
+model Order {
+  id              String    @id @default(cuid())
+  gymId           String
+  gym             Gym       @relation(fields: [gymId], references: [id], onDelete: Cascade)
+
+  orderNumber     String    // Human-friendly, unique per gym (e.g. "0001")
+
+  // Lifecycle
+  status          String    @default("new")  // new | confirmed | ready | fulfilled | cancelled
+  fulfillmentType String    // pickup | delivery
+
+  // Customer (guest checkout; memberId set when a logged-in member ordered)
+  customerName    String
+  customerPhone   String
+  customerEmail   String?
+  deliveryAddress String?   @db.Text  // Required when fulfillmentType = delivery
+  note            String?   @db.Text
+
+  memberId        String?
+  member          Member?   @relation(fields: [memberId], references: [id], onDelete: SetNull)
+
+  // Money (whole RSD, never cents)
+  subtotalRsd     Int
+  deliveryFeeRsd  Int?
+  totalRsd        Int
+
+  items           OrderItem[]
+
+  createdAt       DateTime  @default(now())
+  updatedAt       DateTime  @updatedAt
+  fulfilledAt     DateTime?
+  cancelledReason String?   @db.Text
+
+  @@unique([gymId, orderNumber])  // Order numbers unique per gym
+  @@index([gymId, status])
+  @@index([gymId, createdAt])
+  @@index([memberId])
+  @@map("orders")
+}
+
+// OrderItem - a line item within an Order (product snapshot at order time)
+model OrderItem {
+  id                String    @id @default(cuid())
+  orderId           String
+  order             Order     @relation(fields: [orderId], references: [id], onDelete: Cascade)
+
+  productId         String?   // Nullable so order history survives product deletion
+  product           Product?  @relation(fields: [productId], references: [id], onDelete: SetNull)
+  productNameCached String    // Snapshot of the product name at order time
+
+  unitPriceRsd      Int       // Price at order time (whole RSD)
+  quantity          Int
+  lineTotalRsd      Int       // unitPriceRsd * quantity
+
+  createdAt         DateTime  @default(now())
+
+  @@index([orderId])
+  @@index([productId])
+  @@map("order_items")
 }

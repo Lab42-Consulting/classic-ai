@@ -264,6 +264,7 @@ vi.mock('@/lib/db', () => {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+    count: vi.fn(),
   }
 
   const stockLogMock = {
@@ -289,6 +290,30 @@ vi.mock('@/lib/db', () => {
     create: vi.fn(),
     update: vi.fn(),
     delete: vi.fn(),
+  }
+
+  const brandMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    delete: vi.fn(),
+  }
+
+  const orderMock = {
+    findUnique: vi.fn(),
+    findFirst: vi.fn(),
+    findMany: vi.fn(),
+    create: vi.fn(),
+    update: vi.fn(),
+    count: vi.fn(),
+  }
+
+  const orderItemMock = {
+    findMany: vi.fn(),
+    create: vi.fn(),
+    createMany: vi.fn(),
   }
 
   // Build the prisma mock object
@@ -327,6 +352,9 @@ vi.mock('@/lib/db', () => {
     stockLog: stockLogMock,
     sale: saleMock,
     productCategory: productCategoryMock,
+    brand: brandMock,
+    order: orderMock,
+    orderItem: orderItemMock,
     // $transaction passes the same mocks as tx argument
     // eslint-disable-next-line @typescript-eslint/no-explicit-any
     $transaction: vi.fn(async (callback: (tx: any) => Promise<unknown>) => {

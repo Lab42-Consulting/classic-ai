@@ -2,12 +2,19 @@
 
 import { useEffect, useState, useRef } from "react";
 import { useRouter } from "next/navigation";
+import Link from "next/link";
 
 interface ProductCategory {
   id: string;
   name: string;
   color: string | null;
   icon: string | null;
+  parentId?: string | null;
+}
+
+interface Brand {
+  id: string;
+  name: string;
 }
 
 interface Product {
@@ -18,11 +25,17 @@ interface Product {
   imageUrl: string | null;
   categoryId: string | null;
   category: ProductCategory | null;
+  brandId: string | null;
+  brand: Brand | null;
   price: number;
   costPrice: number | null;
   currentStock: number;
   lowStockAlert: number | null;
   isActive: boolean;
+  isVisibleOnline: boolean;
+  isFeatured: boolean;
+  slug: string | null;
+  displayOrder: number | null;
   createdAt: string;
 }
 
@@ -48,6 +61,44 @@ interface Member {
   memberId: string;
 }
 
+function StockCell({
+  product,
+  onSave,
+}: {
+  product: Product;
+  onSave: (p: Product, val: number) => void;
+}) {
+  const [val, setVal] = useState(String(product.currentStock));
+  useEffect(() => {
+    setVal(String(product.currentStock));
+  }, [product.currentStock]);
+  const color =
+    product.currentStock === 0
+      ? "border-red-500/40 text-red-400"
+      : product.lowStockAlert && product.currentStock <= product.lowStockAlert
+      ? "border-yellow-500/40 text-yellow-400"
+      : "border-emerald-500/40 text-emerald-400";
+  const commit = () => {
+    const n = parseInt(val, 10);
+    if (!isNaN(n) && n >= 0 && n !== product.currentStock) onSave(product, n);
+    else setVal(String(product.currentStock));
+  };
+  return (
+    <input
+      type="number"
+      min="0"
+      value={val}
+      onChange={(e) => setVal(e.target.value)}
+      onBlur={commit}
+      onKeyDown={(e) => {
+        if (e.key === "Enter") (e.target as HTMLInputElement).blur();
+      }}
+      title="Izmeni zalihe (Enter za čuvanje)"
+      className={`w-20 text-center px-2 py-1 rounded-lg bg-background border font-medium focus:outline-none focus:border-accent ${color}`}
+    />
+  );
+}
+
 export default function MagacinPage() {
   const router = useRouter();
   const fileInputRef = useRef<HTMLInputElement>(null);
@@ -59,6 +110,7 @@ export default function MagacinPage() {
   // Products state
   const [products, setProducts] = useState<Product[]>([]);
   const [categories, setCategories] = useState<ProductCategory[]>([]);
+  const [brands, setBrands] = useState<Brand[]>([]);
   const [searchQuery, setSearchQuery] = useState("");
   const [categoryFilter, setCategoryFilter] = useState<string>("");
   const [stockFilter, setStockFilter] = useState<"all" | "low" | "out">("all");
@@ -76,11 +128,14 @@ export default function MagacinPage() {
     sku: "",
     imageUrl: "",
     categoryId: "",
+    brandId: "",
     price: "",
     costPrice: "",
     currentStock: "0",
     lowStockAlert: "",
     isActive: true,
+    isVisibleOnline: false,
+    isFeatured: false,
   });
 
   // Stock adjustment state
@@ -105,6 +160,7 @@ export default function MagacinPage() {
   useEffect(() => {
     fetchProducts();
     fetchCategories();
+    fetchBrands();
   }, []);
 
   const fetchCategories = async () => {
@@ -113,6 +169,17 @@ export default function MagacinPage() {
       if (!response.ok) return;
       const data = await response.json();
       setCategories(data.categories || []);
+    } catch {
+      // Silently fail
+    }
+  };
+
+  const fetchBrands = async () => {
+    try {
+      const response = await fetch("/api/admin/brands");
+      if (!response.ok) return;
+      const data = await response.json();
+      setBrands(data.brands || []);
     } catch {
       // Silently fail
     }
@@ -195,11 +262,14 @@ export default function MagacinPage() {
         sku: product.sku || "",
         imageUrl: product.imageUrl || "",
         categoryId: product.categoryId || "",
+        brandId: product.brandId || "",
         price: (product.price).toString(),
         costPrice: product.costPrice ? (product.costPrice).toString() : "",
         currentStock: product.currentStock.toString(),
         lowStockAlert: product.lowStockAlert?.toString() || "",
         isActive: product.isActive,
+        isVisibleOnline: product.isVisibleOnline,
+        isFeatured: product.isFeatured,
       });
     } else {
       setEditingProduct(null);
@@ -209,11 +279,14 @@ export default function MagacinPage() {
         sku: "",
         imageUrl: "",
         categoryId: "",
+        brandId: "",
         price: "",
         costPrice: "",
         currentStock: "0",
         lowStockAlert: "",
         isActive: true,
+        isVisibleOnline: false,
+        isFeatured: false,
       });
     }
     setPanelMode("product");
@@ -260,11 +333,14 @@ export default function MagacinPage() {
         sku: productForm.sku.trim() || null,
         imageUrl: productForm.imageUrl || null,
         categoryId: productForm.categoryId || null,
+        brandId: productForm.brandId || null,
         price: Math.round(parseFloat(productForm.price)),
         costPrice: productForm.costPrice ? Math.round(parseFloat(productForm.costPrice)) : null,
         currentStock: parseInt(productForm.currentStock) || 0,
         lowStockAlert: productForm.lowStockAlert ? parseInt(productForm.lowStockAlert) : null,
         isActive: productForm.isActive,
+        isVisibleOnline: productForm.isVisibleOnline,
+        isFeatured: productForm.isFeatured,
       };
 
       const response = await fetch(
@@ -418,12 +494,49 @@ export default function MagacinPage() {
     }
 
     const reader = new FileReader();
-    reader.onload = (event) => {
-      setProductForm({ ...productForm, imageUrl: event.target?.result as string });
+    reader.onload = async (event) => {
+      const base64 = event.target?.result as string;
+      // Optimistic preview, then upload to Vercel Blob and swap in the URL
+      setProductForm((prev) => ({ ...prev, imageUrl: base64 }));
+      try {
+        const res = await fetch("/api/admin/products/image", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ imageUrl: base64 }),
+        });
+        if (res.ok) {
+          const data = await res.json();
+          if (data.url) setProductForm((prev) => ({ ...prev, imageUrl: data.url }));
+        }
+        // On failure, keep the base64 data URL as a graceful fallback
+      } catch {
+        // keep base64 fallback
+      }
     };
     reader.readAsDataURL(file);
 
     if (fileInputRef.current) fileInputRef.current.value = "";
+  };
+
+  const handleInlineStock = async (product: Product, newValue: number) => {
+    const delta = newValue - product.currentStock;
+    if (delta === 0) return;
+    try {
+      const response = await fetch(`/api/admin/products/${product.id}/stock`, {
+        method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ type: "adjustment", quantity: delta, note: "Ručna izmena zaliha" }),
+      });
+      if (!response.ok) {
+        const err = await response.json();
+        throw new Error(err.error || "Greška");
+      }
+      setMessage({ type: "success", text: "Zalihe ažurirane" });
+      fetchProducts();
+    } catch (e) {
+      setMessage({ type: "error", text: e instanceof Error ? e.message : "Greška pri izmeni zaliha" });
+      fetchProducts();
+    }
   };
 
   const formatPrice = (amount: number) => {
@@ -451,13 +564,28 @@ export default function MagacinPage() {
   return (
     <div className="relative">
       {/* Page Header */}
-      <div className="flex flex-col sm:flex-row sm:items-center sm:justify-between gap-4 mb-6">
+      <div className="flex flex-col lg:flex-row lg:items-center lg:justify-between gap-4 mb-6">
         <div>
           <h1 className="text-2xl sm:text-3xl font-bold text-foreground">Magacin</h1>
           <p className="text-foreground-muted mt-1">
             Upravljajte zalihama proizvoda i pratite prodaju
           </p>
         </div>
+
+        <div className="flex flex-wrap items-center gap-2">
+        <Link
+          href="/gym-portal/manage/shop/catalog"
+          className="px-4 py-2 rounded-xl text-sm font-medium bg-background-secondary hover:bg-white/10 text-foreground border border-border text-center"
+        >
+          Kategorije i brendovi
+        </Link>
+
+        <Link
+          href="/gym-portal/manage/shop/settings"
+          className="px-4 py-2 rounded-xl text-sm font-medium bg-background-secondary hover:bg-white/10 text-foreground border border-border text-center"
+        >
+          Podešavanja prodavnice
+        </Link>
 
         {/* Tabs */}
         <div className="flex gap-1 p-1 bg-background-secondary rounded-xl">
@@ -481,6 +609,7 @@ export default function MagacinPage() {
           >
             Prodaja
           </button>
+        </div>
         </div>
       </div>
 
@@ -643,17 +772,7 @@ export default function MagacinPage() {
                           <span className="font-semibold text-foreground">{formatPrice(product.price)}</span>
                         </td>
                         <td className="px-4 py-3 text-center">
-                          <span
-                            className={`inline-flex px-2 py-1 rounded-lg text-xs font-medium ${
-                              product.currentStock === 0
-                                ? "bg-red-500/20 text-red-400"
-                                : product.lowStockAlert && product.currentStock <= product.lowStockAlert
-                                ? "bg-yellow-500/20 text-yellow-400"
-                                : "bg-emerald-500/20 text-emerald-400"
-                            }`}
-                          >
-                            {product.currentStock} kom
-                          </span>
+                          <StockCell product={product} onSave={handleInlineStock} />
                         </td>
                         <td className="px-4 py-3 text-center hidden sm:table-cell">
                           <span
@@ -670,7 +789,7 @@ export default function MagacinPage() {
                           <div className="flex items-center justify-end gap-1">
                             <button
                               onClick={() => openStockPanel(product)}
-                              title="Zalihe"
+                              title="Nabavka / korekcija (sa napomenom)"
                               className="p-2 hover:bg-white/10 rounded-lg transition-colors text-foreground-muted hover:text-foreground"
                             >
                               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -938,9 +1057,20 @@ export default function MagacinPage() {
                         className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
                       >
                         <option value="">Bez kategorije</option>
-                        {categories.map((cat) => (
-                          <option key={cat.id} value={cat.id}>{cat.name}</option>
-                        ))}
+                        {categories
+                          .filter((c) => !c.parentId)
+                          .flatMap((parent) => [
+                            <option key={parent.id} value={parent.id}>
+                              {parent.name}
+                            </option>,
+                            ...categories
+                              .filter((c) => c.parentId === parent.id)
+                              .map((sub) => (
+                                <option key={sub.id} value={sub.id}>
+                                  {"— " + sub.name}
+                                </option>
+                              )),
+                          ])}
                       </select>
                     </div>
                     <div>
@@ -953,6 +1083,23 @@ export default function MagacinPage() {
                         placeholder="SKU"
                       />
                     </div>
+                  </div>
+
+                  {/* Brand */}
+                  <div>
+                    <label className="block text-sm font-medium text-foreground mb-1">Brend</label>
+                    <select
+                      value={productForm.brandId}
+                      onChange={(e) => setProductForm({ ...productForm, brandId: e.target.value })}
+                      className="w-full px-3 py-2.5 bg-background border border-border rounded-xl text-foreground focus:outline-none focus:border-accent"
+                    >
+                      <option value="">Bez brenda</option>
+                      {brands.map((b) => (
+                        <option key={b.id} value={b.id}>
+                          {b.name}
+                        </option>
+                      ))}
+                    </select>
                   </div>
 
                   {/* Price */}
@@ -1007,6 +1154,38 @@ export default function MagacinPage() {
                       </div>
                     </div>
                   )}
+
+                  {/* Storefront visibility toggles */}
+                  <div className="grid grid-cols-1 gap-2">
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-white/5 cursor-pointer">
+                      <div>
+                        <p className="font-medium text-foreground">Prikaži u prodavnici</p>
+                        <p className="text-xs text-foreground-muted">Proizvod je vidljiv u javnoj prodavnici</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={productForm.isVisibleOnline}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, isVisibleOnline: e.target.checked })
+                        }
+                        className="w-5 h-5 accent-accent"
+                      />
+                    </label>
+                    <label className="flex items-center justify-between p-3 rounded-xl border border-border bg-white/5 cursor-pointer">
+                      <div>
+                        <p className="font-medium text-foreground">Istaknuto</p>
+                        <p className="text-xs text-foreground-muted">Prikaži među istaknutim proizvodima</p>
+                      </div>
+                      <input
+                        type="checkbox"
+                        checked={productForm.isFeatured}
+                        onChange={(e) =>
+                          setProductForm({ ...productForm, isFeatured: e.target.checked })
+                        }
+                        className="w-5 h-5 accent-accent"
+                      />
+                    </label>
+                  </div>
 
                   {/* Active Toggle - Redesigned */}
                   <div

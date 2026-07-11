@@ -1,6 +1,7 @@
 import { NextRequest, NextResponse } from "next/server";
 import { getSession } from "@/lib/auth";
 import prisma from "@/lib/db";
+import { slugify } from "@/lib/slug";
 
 /**
  * GET /api/admin/products
@@ -19,8 +20,8 @@ export async function GET() {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const products = await prisma.product.findMany({
@@ -28,6 +29,9 @@ export async function GET() {
       include: {
         category: {
           select: { id: true, name: true, color: true, icon: true },
+        },
+        brand: {
+          select: { id: true, name: true },
         },
       },
       orderBy: { name: "asc" },
@@ -60,8 +64,8 @@ export async function POST(request: NextRequest) {
       select: { role: true, gymId: true, name: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const body = await request.json();
@@ -71,11 +75,16 @@ export async function POST(request: NextRequest) {
       sku,
       imageUrl,
       categoryId,
+      brandId,
       price,
       costPrice,
       currentStock = 0,
       lowStockAlert,
       isActive = true,
+      isVisibleOnline = false,
+      isFeatured = false,
+      displayOrder,
+      slug,
     } = body;
 
     // Validate required fields
@@ -106,6 +115,16 @@ export async function POST(request: NextRequest) {
       }
     }
 
+    // Verify brand belongs to this gym if provided
+    if (brandId) {
+      const brand = await prisma.brand.findFirst({
+        where: { id: brandId, gymId: staff.gymId },
+      });
+      if (!brand) {
+        return NextResponse.json({ error: "Brand not found" }, { status: 404 });
+      }
+    }
+
     // Create product with initial stock log
     const product = await prisma.$transaction(async (tx) => {
       const newProduct = await tx.product.create({
@@ -116,15 +135,23 @@ export async function POST(request: NextRequest) {
           sku,
           imageUrl,
           categoryId,
+          brandId: brandId || null,
           price: Math.round(price),
           costPrice: costPrice ? Math.round(costPrice) : null,
           currentStock: currentStock,
           lowStockAlert,
           isActive,
+          isVisibleOnline: Boolean(isVisibleOnline),
+          isFeatured: Boolean(isFeatured),
+          displayOrder: typeof displayOrder === "number" ? displayOrder : null,
+          slug: (slug && slug.trim()) || slugify(name),
         },
         include: {
           category: {
             select: { id: true, name: true, color: true, icon: true },
+          },
+          brand: {
+            select: { id: true, name: true },
           },
         },
       });

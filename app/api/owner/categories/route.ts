@@ -19,8 +19,8 @@ export async function GET() {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const categories = await prisma.productCategory.findMany({
@@ -60,12 +60,12 @@ export async function POST(request: NextRequest) {
       select: { role: true, gymId: true },
     });
 
-    if (!staff || staff.role.toLowerCase() !== "owner") {
-      return NextResponse.json({ error: "Owner access required" }, { status: 403 });
+    if (!staff || !["owner", "admin"].includes(staff.role.toLowerCase())) {
+      return NextResponse.json({ error: "Admin or owner access required" }, { status: 403 });
     }
 
     const body = await request.json();
-    const { name, color, icon } = body;
+    const { name, color, icon, parentId, displayOrder } = body;
 
     if (!name || !name.trim()) {
       return NextResponse.json(
@@ -89,12 +89,34 @@ export async function POST(request: NextRequest) {
       );
     }
 
+    // Single-level nesting: a parent must be an existing top-level category in this gym
+    if (parentId) {
+      const parent = await prisma.productCategory.findFirst({
+        where: { id: parentId, gymId: staff.gymId },
+        select: { id: true, parentId: true },
+      });
+      if (!parent) {
+        return NextResponse.json(
+          { error: "Nadređena kategorija nije pronađena" },
+          { status: 400 }
+        );
+      }
+      if (parent.parentId) {
+        return NextResponse.json(
+          { error: "Potkategorija ne može imati potkategorije" },
+          { status: 400 }
+        );
+      }
+    }
+
     const category = await prisma.productCategory.create({
       data: {
         gymId: staff.gymId,
         name: name.trim(),
         color: color || null,
         icon: icon || null,
+        parentId: parentId || null,
+        displayOrder: typeof displayOrder === "number" ? displayOrder : null,
       },
     });
 

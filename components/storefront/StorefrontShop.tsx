@@ -32,6 +32,31 @@ interface ShopResponse {
   brands: Brand[];
 }
 
+function Chip({
+  active,
+  onClick,
+  children,
+  size = "md",
+}: {
+  active: boolean;
+  onClick: () => void;
+  children: React.ReactNode;
+  size?: "md" | "sm";
+}) {
+  return (
+    <button
+      onClick={onClick}
+      className={`${size === "sm" ? "px-3 py-1.5 text-xs" : "px-4 py-2 text-sm"} rounded-xl font-medium border transition-colors ${
+        active
+          ? "bg-accent text-white border-accent shadow-sm"
+          : "bg-background-secondary text-foreground-muted border-white/10 hover:text-foreground hover:border-white/25"
+      }`}
+    >
+      {children}
+    </button>
+  );
+}
+
 export function StorefrontShop({ slug }: { slug: string }) {
   const router = useRouter();
   const searchParams = useSearchParams();
@@ -41,9 +66,6 @@ export function StorefrontShop({ slug }: { slug: string }) {
   const [loading, setLoading] = useState(true);
   const [notFound, setNotFound] = useState(false);
   const [searchInput, setSearchInput] = useState(searchParams.get("q") || "");
-  const [minPrice, setMinPrice] = useState(searchParams.get("minPrice") || "");
-  const [maxPrice, setMaxPrice] = useState(searchParams.get("maxPrice") || "");
-  const [filtersOpen, setFiltersOpen] = useState(false);
 
   const fetchProducts = useCallback(async () => {
     setLoading(true);
@@ -68,7 +90,6 @@ export function StorefrontShop({ slug }: { slug: string }) {
     mutate(sp);
     if (resetPage) sp.delete("page");
     router.push(`/gym-portal/${slug}/shop?${sp.toString()}`);
-    setFiltersOpen(false);
   }
   const setParam = (key: string, value: string) =>
     navigate((sp) => (value ? sp.set(key, value) : sp.delete(key)));
@@ -79,10 +100,13 @@ export function StorefrontShop({ slug }: { slug: string }) {
   const inStock = searchParams.get("inStock") === "1";
   const currentSort = searchParams.get("sort") || "";
   const currentPage = data?.page || 1;
-  const hasFilters = !!(activeCategory || activeBrand || inStock || searchParams.get("q") || searchParams.get("minPrice") || searchParams.get("maxPrice"));
+  const hasFilters = !!(activeCategory || activeBrand || inStock || searchParams.get("q"));
 
-  const topCats = (data?.categories || []).filter((c) => !c.parentId);
-  const subsOf = (id: string) => (data?.categories || []).filter((c) => c.parentId === id);
+  const cats = data?.categories || [];
+  const topCats = cats.filter((c) => !c.parentId);
+  const activeCat = cats.find((c) => c.id === activeCategory) || null;
+  const activeParentId = activeCat ? activeCat.parentId || activeCat.id : null;
+  const visibleSubs = activeParentId ? cats.filter((c) => c.parentId === activeParentId) : [];
 
   if (notFound) {
     return (
@@ -92,215 +116,126 @@ export function StorefrontShop({ slug }: { slug: string }) {
     );
   }
 
-  const Sidebar = (
-    <div className="space-y-6">
-      {/* Categories */}
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground-muted mb-2">Kategorije</h3>
-        <ul className="space-y-0.5">
-          <li>
-            <button
-              onClick={() => setParam("category", "")}
-              className={`w-full text-left px-2 py-1.5 rounded-lg text-sm ${!activeCategory ? "bg-accent/15 text-foreground font-medium" : "text-foreground-muted hover:bg-white/5 hover:text-foreground"}`}
-            >
-              Sve kategorije
-            </button>
-          </li>
-          {topCats.map((c) => (
-            <li key={c.id}>
-              <button
-                onClick={() => setParam("category", c.id)}
-                className={`w-full text-left px-2 py-1.5 rounded-lg text-sm ${activeCategory === c.id ? "bg-accent/15 text-foreground font-medium" : "text-foreground-muted hover:bg-white/5 hover:text-foreground"}`}
-              >
-                {c.name}
-              </button>
-              {subsOf(c.id).map((s) => (
-                <button
-                  key={s.id}
-                  onClick={() => setParam("category", s.id)}
-                  className={`w-full text-left pl-5 pr-2 py-1.5 rounded-lg text-sm ${activeCategory === s.id ? "bg-accent/15 text-foreground font-medium" : "text-foreground-muted hover:bg-white/5 hover:text-foreground"}`}
-                >
-                  {s.name}
-                </button>
-              ))}
-            </li>
-          ))}
-        </ul>
-      </div>
-
-      {/* Brands */}
-      {(data?.brands || []).length > 0 && (
-        <div>
-          <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground-muted mb-2">Brendovi</h3>
-          <ul className="space-y-0.5 max-h-64 overflow-y-auto">
-            <li>
-              <button
-                onClick={() => setParam("brand", "")}
-                className={`w-full text-left px-2 py-1.5 rounded-lg text-sm ${!activeBrand ? "bg-accent/15 text-foreground font-medium" : "text-foreground-muted hover:bg-white/5 hover:text-foreground"}`}
-              >
-                Svi brendovi
-              </button>
-            </li>
-            {(data?.brands || []).map((b) => (
-              <li key={b.id}>
-                <button
-                  onClick={() => setParam("brand", b.id)}
-                  className={`w-full text-left px-2 py-1.5 rounded-lg text-sm ${activeBrand === b.id ? "bg-accent/15 text-foreground font-medium" : "text-foreground-muted hover:bg-white/5 hover:text-foreground"}`}
-                >
-                  {b.name}
-                </button>
-              </li>
-            ))}
-          </ul>
-        </div>
-      )}
-
-      {/* Price */}
-      <div>
-        <h3 className="text-xs font-semibold uppercase tracking-wide text-foreground-muted mb-2">Cena (RSD)</h3>
-        <div className="flex items-center gap-2">
-          <input
-            type="number" min="0" placeholder="Od" value={minPrice}
-            onChange={(e) => setMinPrice(e.target.value)}
-            className="w-full px-2 py-1.5 bg-background-secondary border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-accent"
-          />
-          <span className="text-foreground-muted">–</span>
-          <input
-            type="number" min="0" placeholder="Do" value={maxPrice}
-            onChange={(e) => setMaxPrice(e.target.value)}
-            className="w-full px-2 py-1.5 bg-background-secondary border border-white/10 rounded-lg text-sm text-foreground focus:outline-none focus:border-accent"
-          />
-        </div>
-        <button
-          onClick={() => navigate((sp) => {
-            if (minPrice) sp.set("minPrice", minPrice); else sp.delete("minPrice");
-            if (maxPrice) sp.set("maxPrice", maxPrice); else sp.delete("maxPrice");
-          })}
-          className="mt-2 w-full px-3 py-1.5 rounded-lg bg-white/5 hover:bg-white/10 text-sm text-foreground"
-        >
-          Primeni cenu
-        </button>
-      </div>
-
-      {/* In stock */}
-      <label className="flex items-center gap-2 cursor-pointer text-sm text-foreground">
-        <input
-          type="checkbox" checked={inStock}
-          onChange={(e) => setParam("inStock", e.target.checked ? "1" : "")}
-          className="w-4 h-4 accent-accent"
-        />
-        Samo dostupno
-      </label>
-
-      {hasFilters && (
-        <button
-          onClick={() => { setSearchInput(""); setMinPrice(""); setMaxPrice(""); router.push(`/gym-portal/${slug}/shop`); setFiltersOpen(false); }}
-          className="w-full px-3 py-2 rounded-lg border border-white/10 text-sm text-foreground-muted hover:text-foreground hover:bg-white/5"
-        >
-          Poništi filtere
-        </button>
-      )}
-    </div>
-  );
-
   return (
     <div className="min-h-screen bg-background">
       <StorefrontHeader slug={slug} gymName={data?.gym.name || "Prodavnica"} gymLogo={data?.gym.logo || null} />
 
       <main className="max-w-[1600px] mx-auto px-4 sm:px-6 py-6">
-        {/* Search + sort bar */}
-        <div className="flex flex-col sm:flex-row gap-3 mb-6">
-          <form
-            onSubmit={(e) => { e.preventDefault(); setParam("q", searchInput.trim()); }}
-            className="flex-1"
-          >
+        {/* Search + sort */}
+        <div className="flex flex-col sm:flex-row gap-3 mb-5">
+          <form onSubmit={(e) => { e.preventDefault(); setParam("q", searchInput.trim()); }} className="relative flex-1">
+            <svg className="absolute left-3.5 top-1/2 -translate-y-1/2 w-5 h-5 text-foreground-muted pointer-events-none" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+              <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-6-6m2-5a7 7 0 11-14 0 7 7 0 0114 0z" />
+            </svg>
             <input
               value={searchInput}
               onChange={(e) => setSearchInput(e.target.value)}
               placeholder="Pretraži proizvode..."
-              className="w-full px-4 py-2.5 bg-background-secondary border border-white/10 rounded-xl text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent"
+              className="w-full pl-11 pr-4 py-3 bg-background-secondary border border-white/10 rounded-xl text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent"
             />
           </form>
-          <div className="flex gap-2">
-            <button
-              onClick={() => setFiltersOpen((o) => !o)}
-              className="lg:hidden px-4 py-2.5 rounded-xl bg-background-secondary border border-white/10 text-foreground text-sm"
-            >
-              Filteri
-            </button>
-            <select
-              value={currentSort}
-              onChange={(e) => setParam("sort", e.target.value)}
-              className="px-3 py-2.5 bg-background-secondary border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-accent"
-            >
-              <option value="">Preporučeno</option>
-              <option value="price_asc">Cena: rastuće</option>
-              <option value="price_desc">Cena: opadajuće</option>
-              <option value="name">Naziv</option>
-              <option value="newest">Najnovije</option>
-            </select>
-          </div>
+          <select
+            value={currentSort}
+            onChange={(e) => setParam("sort", e.target.value)}
+            className="px-4 py-3 bg-background-secondary border border-white/10 rounded-xl text-foreground focus:outline-none focus:border-accent"
+          >
+            <option value="">Sortiraj: preporučeno</option>
+            <option value="price_asc">Cena: rastuće</option>
+            <option value="price_desc">Cena: opadajuće</option>
+            <option value="name">Naziv A–Š</option>
+            <option value="newest">Najnovije</option>
+          </select>
         </div>
 
-        <div className="flex gap-6">
-          {/* Sidebar (desktop) */}
-          <aside className="w-60 shrink-0 hidden lg:block">
-            <div className="sticky top-20">{Sidebar}</div>
-          </aside>
+        {/* Category tiles */}
+        <div className="flex flex-wrap gap-2 mb-3">
+          <Chip active={!activeCategory} onClick={() => setParam("category", "")}>Sve</Chip>
+          {topCats.map((c) => (
+            <Chip
+              key={c.id}
+              active={activeCategory === c.id || activeCat?.parentId === c.id}
+              onClick={() => setParam("category", c.id)}
+            >
+              {c.name}
+            </Chip>
+          ))}
+        </div>
 
-          {/* Sidebar (mobile, toggled) */}
-          {filtersOpen && (
-            <div className="lg:hidden fixed inset-0 z-50 bg-black/50" onClick={() => setFiltersOpen(false)}>
-              <div className="absolute left-0 top-0 bottom-0 w-72 max-w-[85%] bg-background border-r border-white/10 p-5 overflow-y-auto" onClick={(e) => e.stopPropagation()}>
-                <div className="flex items-center justify-between mb-4">
-                  <span className="font-semibold text-foreground">Filteri</span>
-                  <button onClick={() => setFiltersOpen(false)} className="text-foreground-muted">✕</button>
-                </div>
-                {Sidebar}
-              </div>
+        {/* Subcategory tiles (when a parent with subs is active) */}
+        {visibleSubs.length > 0 && (
+          <div className="flex flex-wrap gap-2 mb-3 pl-1">
+            {visibleSubs.map((s) => (
+              <Chip key={s.id} size="sm" active={activeCategory === s.id} onClick={() => setParam("category", s.id)}>
+                {s.name}
+              </Chip>
+            ))}
+          </div>
+        )}
+
+        {/* Brands + availability */}
+        {data && data.brands.length > 0 && (
+          <div className="flex flex-wrap items-center gap-2 mb-6">
+            <span className="text-xs uppercase tracking-wide text-foreground-muted mr-1">Brend</span>
+            <Chip size="sm" active={!activeBrand} onClick={() => setParam("brand", "")}>Svi</Chip>
+            {data.brands.map((b) => (
+              <Chip key={b.id} size="sm" active={activeBrand === b.id} onClick={() => setParam("brand", b.id)}>
+                {b.name}
+              </Chip>
+            ))}
+            <span className="w-px h-5 bg-white/10 mx-1" />
+            <Chip size="sm" active={inStock} onClick={() => setParam("inStock", inStock ? "" : "1")}>
+              Na stanju
+            </Chip>
+          </div>
+        )}
+
+        {/* Results */}
+        {loading ? (
+          <div className="py-24 text-center">
+            <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+          </div>
+        ) : !data || data.products.length === 0 ? (
+          <div className="py-24 text-center text-foreground-muted">Nema proizvoda za izabrane filtere.</div>
+        ) : (
+          <>
+            <div className="flex items-center justify-between mb-4">
+              <p className="text-sm text-foreground-muted">{data.total} proizvoda</p>
+              {hasFilters && (
+                <button
+                  onClick={() => { setSearchInput(""); router.push(`/gym-portal/${slug}/shop`); }}
+                  className="text-sm text-foreground-muted hover:text-foreground underline"
+                >
+                  Poništi filtere
+                </button>
+              )}
             </div>
-          )}
+            <div className="grid grid-cols-2 sm:grid-cols-3 lg:grid-cols-4 xl:grid-cols-5 gap-4">
+              {data.products.map((p) => (
+                <ProductCard key={p.id} slug={slug} product={p} />
+              ))}
+            </div>
 
-          {/* Products */}
-          <div className="flex-1 min-w-0">
-            {loading ? (
-              <div className="py-20 text-center">
-                <div className="w-10 h-10 border-4 border-accent border-t-transparent rounded-full animate-spin mx-auto" />
+            {data.totalPages > 1 && (
+              <div className="flex items-center justify-center gap-3 mt-10">
+                <button
+                  disabled={currentPage <= 1}
+                  onClick={() => goToPage(currentPage - 1)}
+                  className="px-4 py-2 rounded-xl bg-background-secondary border border-white/10 text-foreground disabled:opacity-40"
+                >
+                  Prethodna
+                </button>
+                <span className="text-sm text-foreground-muted">{currentPage} / {data.totalPages}</span>
+                <button
+                  disabled={currentPage >= data.totalPages}
+                  onClick={() => goToPage(currentPage + 1)}
+                  className="px-4 py-2 rounded-xl bg-background-secondary border border-white/10 text-foreground disabled:opacity-40"
+                >
+                  Sledeća
+                </button>
               </div>
-            ) : !data || data.products.length === 0 ? (
-              <div className="py-20 text-center text-foreground-muted">Nema proizvoda za izabrane filtere.</div>
-            ) : (
-              <>
-                <p className="text-sm text-foreground-muted mb-4">{data.total} proizvoda</p>
-                <div className="grid grid-cols-2 md:grid-cols-3 xl:grid-cols-4 gap-4">
-                  {data.products.map((p) => (
-                    <ProductCard key={p.id} slug={slug} product={p} />
-                  ))}
-                </div>
-
-                {data.totalPages > 1 && (
-                  <div className="flex items-center justify-center gap-3 mt-8">
-                    <button
-                      disabled={currentPage <= 1}
-                      onClick={() => goToPage(currentPage - 1)}
-                      className="px-4 py-2 rounded-xl bg-background-secondary border border-white/10 text-foreground disabled:opacity-40"
-                    >
-                      Prethodna
-                    </button>
-                    <span className="text-sm text-foreground-muted">{currentPage} / {data.totalPages}</span>
-                    <button
-                      disabled={currentPage >= data.totalPages}
-                      onClick={() => goToPage(currentPage + 1)}
-                      className="px-4 py-2 rounded-xl bg-background-secondary border border-white/10 text-foreground disabled:opacity-40"
-                    >
-                      Sledeća
-                    </button>
-                  </div>
-                )}
-              </>
             )}
-          </div>
-        </div>
+          </>
+        )}
       </main>
     </div>
   );

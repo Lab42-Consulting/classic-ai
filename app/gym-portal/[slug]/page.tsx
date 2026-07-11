@@ -44,6 +44,7 @@ async function getLocationData(slug: string) {
       primaryColor: true,
       galleryImages: true,
       ownerEmail: true,
+      storeEnabled: true,
       _count: {
         select: {
           members: true,
@@ -149,6 +150,8 @@ export default async function LocationMarketingPage({
   const accentColor = gym.primaryColor || "#ef4444";
   const hasTrainers = trainers.length > 0;
   const hasContact = !!(gym.address || gym.phone || gym.openingHours);
+  const hasStore = gym.storeEnabled;
+  const shopHref = `/gym-portal/${gym.slug}/shop`;
   const galleryImages = (gym.galleryImages as unknown as GalleryImage[]) || [];
 
   return (
@@ -206,6 +209,15 @@ export default async function LocationMarketingPage({
                 >
                   Šta nudimo
                 </a>
+                {hasStore && (
+                  <Link
+                    href={shopHref}
+                    className="text-sm font-semibold px-4 py-2 rounded-xl hover:bg-white/5 transition-all"
+                    style={{ color: accentColor }}
+                  >
+                    Prodavnica
+                  </Link>
+                )}
                 {galleryImages.length > 0 && (
                   <a
                     href="#gallery"
@@ -226,10 +238,21 @@ export default async function LocationMarketingPage({
 
               {/* Actions */}
               <div className="flex items-center gap-2 sm:gap-3">
+                {hasStore && (
+                  <Link
+                    href={shopHref}
+                    className="flex items-center gap-2 px-4 sm:px-5 py-2 rounded-xl text-white font-medium transition-all hover:opacity-90"
+                    style={{ backgroundColor: accentColor }}
+                  >
+                    <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
+                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 3h2l.4 2M7 13h10l4-8H5.4M7 13L5.4 5M7 13l-2.293 2.293c-.63.63-.184 1.707.707 1.707H17m0 0a2 2 0 100 4 2 2 0 000-4zm-8 2a2 2 0 11-4 0 2 2 0 014 0z" />
+                    </svg>
+                    <span className="hidden sm:inline">Prodavnica</span>
+                  </Link>
+                )}
                 <Link
                   href="/login"
-                  className="hidden sm:flex items-center gap-2 px-5 py-2 rounded-xl text-white font-medium transition-all hover:opacity-90"
-                  style={{ backgroundColor: accentColor }}
+                  className="hidden sm:flex items-center gap-2 px-5 py-2 rounded-xl font-medium transition-all border border-white/15 text-foreground hover:bg-white/5"
                 >
                   Prijava
                 </Link>
@@ -237,6 +260,8 @@ export default async function LocationMarketingPage({
                   accentColor={accentColor}
                   hasTrainers={hasTrainers}
                   hasContact={hasContact}
+                  hasStore={hasStore}
+                  shopHref={shopHref}
                   gymName={gym.name}
                   gymLogo={gym.logo}
                 />

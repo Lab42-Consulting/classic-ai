@@ -33,12 +33,12 @@ export default async function ProductDetailPage({ params }: PageProps) {
         <nav className="text-sm text-foreground-muted mb-4 flex items-center gap-2">
           <Link href={`/gym-portal/${slug}/shop`} className="hover:text-foreground">Prodavnica</Link>
           <span>/</span>
-          <Link href={`/gym-portal/${slug}/shop/browse`} className="hover:text-foreground">Svi proizvodi</Link>
+          <Link href={`/gym-portal/${slug}/shop`} className="hover:text-foreground">Svi proizvodi</Link>
           {product.categoryName && (
             <>
               <span>/</span>
               <Link
-                href={`/gym-portal/${slug}/shop/browse?category=${product.categoryId}`}
+                href={`/gym-portal/${slug}/shop?category=${product.categoryId}`}
                 className="hover:text-foreground"
               >
                 {product.categoryName}

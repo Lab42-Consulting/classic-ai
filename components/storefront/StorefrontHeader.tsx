@@ -28,7 +28,7 @@ export function StorefrontHeader({
         </Link>
         <nav className="flex items-center gap-1 sm:gap-2">
           <Link
-            href={`/gym-portal/${slug}/shop/browse`}
+            href={`/gym-portal/${slug}/shop`}
             className="px-3 py-2 text-sm text-foreground-muted hover:text-foreground rounded-lg hover:bg-white/5"
           >
             Svi proizvodi

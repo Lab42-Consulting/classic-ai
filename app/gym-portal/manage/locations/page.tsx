@@ -352,7 +352,7 @@ export default function LocationsPage() {
   }
 
   return (
-    <div className="max-w-5xl mx-auto px-4 sm:px-0">
+    <div className="px-4 sm:px-0">
       {/* Hero Section */}
       <div className="relative overflow-hidden rounded-2xl sm:rounded-3xl bg-gradient-to-br from-accent/20 via-accent/10 to-transparent border border-accent/20 p-5 sm:p-8 mb-6 sm:mb-8">
         <div className="absolute top-0 right-0 w-32 sm:w-64 h-32 sm:h-64 bg-accent/10 rounded-full blur-3xl -translate-y-1/2 translate-x-1/2" />

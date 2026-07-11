@@ -13,7 +13,7 @@ export function StorefrontHeader({
 }) {
   return (
     <header className="sticky top-0 z-40 bg-background/80 backdrop-blur-xl border-b border-white/10">
-      <div className="max-w-7xl mx-auto px-4 sm:px-6 h-16 flex items-center justify-between gap-4">
+      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8 h-16 flex items-center justify-between gap-4">
         <Link href={`/gym-portal/${slug}/shop`} className="flex items-center gap-2 min-w-0">
           {gymLogo ? (
             // eslint-disable-next-line @next/next/no-img-element

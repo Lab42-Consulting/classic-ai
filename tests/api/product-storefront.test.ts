@@ -1,5 +1,6 @@
 import { describe, it, expect, vi, beforeEach } from 'vitest'
-import { POST as createProduct, slugify } from '@/app/api/admin/products/route'
+import { POST as createProduct } from '@/app/api/admin/products/route'
+import { slugify } from '@/lib/slug'
 import prisma from '@/lib/db'
 import { getSession } from '@/lib/auth'
 import {

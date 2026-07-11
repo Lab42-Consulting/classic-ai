@@ -52,11 +52,12 @@ export default function ManageLayout({
           return;
         }
 
-        // Owners can access the locations page and the Magacin (shop) module
+        // Owners can access locations, the Magacin (shop) module, and store orders
         if (
           role === "owner" &&
           !pathname.includes("/locations") &&
-          !pathname.includes("/shop")
+          !pathname.includes("/shop") &&
+          !pathname.includes("/orders")
         ) {
           router.push("/gym-portal/manage/locations");
           return;

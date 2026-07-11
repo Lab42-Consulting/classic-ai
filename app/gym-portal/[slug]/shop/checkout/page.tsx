@@ -150,7 +150,7 @@ export default function CheckoutPage() {
         {items.length === 0 ? (
           <div className="text-center py-16">
             <p className="text-foreground-muted mb-4">Korpa je prazna.</p>
-            <Link href={`/gym-portal/${slug}/shop/browse`} className="text-accent">
+            <Link href={`/gym-portal/${slug}/shop`} className="text-accent">
               Pogledaj proizvode
             </Link>
           </div>

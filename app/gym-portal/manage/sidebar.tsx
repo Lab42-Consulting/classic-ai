@@ -104,6 +104,12 @@ const ownerNavGroups: NavGroup[] = [
     icon: "shop",
     href: "/gym-portal/manage/shop",
   },
+  {
+    id: "orders",
+    label: "Porudžbine",
+    icon: "shop",
+    href: "/gym-portal/manage/orders",
+  },
 ];
 
 function NavIcon({ icon, className }: { icon: string; className?: string }) {

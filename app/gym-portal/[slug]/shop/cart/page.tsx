@@ -55,7 +55,7 @@ export default function CartPage() {
           <div className="text-center py-20">
             <p className="text-foreground-muted mb-4">Vaša korpa je prazna.</p>
             <Link
-              href={`/gym-portal/${slug}/shop/browse`}
+              href={`/gym-portal/${slug}/shop`}
               className="inline-block px-6 py-3 rounded-xl bg-accent hover:bg-accent/90 text-white font-medium"
             >
               Pogledaj proizvode

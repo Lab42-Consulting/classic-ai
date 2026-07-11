@@ -467,11 +467,11 @@ export default function Sidebar({ isOwner, staffName, staffRole, onLogout }: Sid
 
   return (
     <aside
-      className={`flex-shrink-0 border-r border-border bg-background-secondary hidden lg:flex flex-col transition-all duration-300 ${
+      className={`flex-shrink-0 border-r border-border bg-background-secondary hidden lg:flex flex-col transition-all duration-300 sticky top-16 self-start h-[calc(100vh-4rem)] ${
         isCollapsed ? "w-16" : "w-60"
       }`}
     >
-      <nav className="sticky top-16 flex-1 p-2 space-y-1 max-h-[calc(100vh-4rem-3.5rem)] overflow-y-auto">
+      <nav className="flex-1 min-h-0 p-2 space-y-1 overflow-y-auto">
         {groups.map((group) => {
           const isExpanded = expandedGroups.has(group.id);
           const hasItems = group.items && group.items.length > 0;

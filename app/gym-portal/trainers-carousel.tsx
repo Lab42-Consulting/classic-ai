@@ -82,13 +82,13 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
 
       <div
         ref={scrollerRef}
-        className="flex gap-5 overflow-x-auto snap-x snap-mandatory scroll-smooth pb-4 -mx-4 px-4 sm:mx-0 sm:px-0 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex gap-5 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {trainers.map((t) => (
           <article
             key={t.id}
             data-card
-            className="group relative snap-start shrink-0 w-[280px] sm:w-[300px] lg:w-[320px] rounded-3xl overflow-hidden bg-background/40 border border-white/10 transition-transform duration-300 hover:-translate-y-1.5"
+            className="group relative snap-start shrink-0 w-[85%] sm:w-[calc((100%-1.25rem)/2)] md:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-3.75rem)/4)] rounded-3xl overflow-hidden bg-background/40 border border-white/10 transition-transform duration-300 hover:-translate-y-1.5"
           >
             {/* Accent border + glow on hover */}
             <div

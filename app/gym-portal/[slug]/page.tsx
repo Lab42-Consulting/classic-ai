@@ -510,7 +510,7 @@ export default async function LocationMarketingPage({
             style={{ borderColor: accentColor, animationDuration: '25s' }}
           />
 
-          <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="relative max-w-[1400px] mx-auto px-4 sm:px-6 lg:px-8">
             {/* Header with animations */}
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
               <div className="max-w-2xl">

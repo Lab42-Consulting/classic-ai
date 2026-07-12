@@ -340,7 +340,7 @@ export default async function LocationMarketingPage({
                 style={{ animationDelay: '0.4s' }}
               >
                 <Link
-                  href="/login"
+                  href="#contact"
                   className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2 group"
                   style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}
                 >
@@ -444,32 +444,28 @@ export default async function LocationMarketingPage({
                   </div>
                 </div>
 
-                {/* AI Card */}
-                <div className="group relative overflow-hidden">
+                {/* Shop Card */}
+                <Link href={shopHref} className="group relative overflow-hidden block">
                   <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl bg-violet-500/20" />
                   <div className="relative bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-violet-500/30 rounded-3xl p-5 transition-all duration-300 group-hover:translate-y-[-2px] h-full">
-                    {/* Decorative gradient */}
                     <div className="absolute top-0 right-0 w-20 h-20 opacity-10 bg-gradient-to-br from-violet-500 to-transparent rounded-bl-full" />
                     <div className="relative">
                       <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                        <svg className="w-5 h-5 text-violet-400 animate-pulse" style={{ animationDuration: '3s' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904 9 18.75l-.813-2.846a4.5 4.5 0 0 0-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 0 0 3.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 0 0 3.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 0 0-3.09 3.09ZM18.259 8.715 18 9.75l-.259-1.035a3.375 3.375 0 0 0-2.455-2.456L14.25 6l1.036-.259a3.375 3.375 0 0 0 2.455-2.456L18 2.25l.259 1.035a3.375 3.375 0 0 0 2.456 2.456L21.75 6l-1.035.259a3.375 3.375 0 0 0-2.456 2.456ZM16.894 20.567 16.5 21.75l-.394-1.183a2.25 2.25 0 0 0-1.423-1.423L13.5 18.75l1.183-.394a2.25 2.25 0 0 0 1.423-1.423l.394-1.183.394 1.183a2.25 2.25 0 0 0 1.423 1.423l1.183.394-1.183.394a2.25 2.25 0 0 0-1.423 1.423Z" />
-                        </svg>
+                        <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
                       </div>
                     </div>
-                    <div className="flex items-center gap-2">
-                      <span className="text-2xl font-bold text-foreground">AI</span>
-                      <span className="text-[10px] font-medium text-violet-400 bg-violet-500/20 px-1.5 py-0.5 rounded">24/7</span>
+                    <div className="text-2xl font-bold text-foreground">Shop</div>
+                    <div className="text-sm text-foreground-muted flex items-center gap-1">
+                      Suplementi
+                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
                     </div>
-                    <div className="text-sm text-foreground-muted">Asistenti</div>
-                    {/* Sparkle decoration */}
-                    <div className="absolute bottom-3 right-3">
-                      <svg className="w-4 h-4 text-violet-400/40 animate-pulse" style={{ animationDuration: '2s' }} fill="currentColor" viewBox="0 0 24 24">
-                        <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
-                      </svg>
+                    <div className="absolute bottom-3 right-3 flex gap-1">
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/40" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/30" />
+                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/20" />
                     </div>
                   </div>
-                </div>
+                </Link>
               </div>
             </div>
           </div>
@@ -579,26 +575,17 @@ export default async function LocationMarketingPage({
               </h2>
             </div>
             <p className="text-lg text-foreground-muted max-w-md lg:text-right">
-              Kompletna platforma za fitness sa AI podrškom, praćenjem napretka i stručnim vođstvom
+              Vrhunska oprema, stručni treneri i prodavnica suplemenata — sve za vaš napredak na jednom mestu.
             </p>
           </div>
 
           <div className="grid md:grid-cols-2 gap-4">
-            {/* Personal Trainer Card - Featured, spans 2 rows */}
+            {/* Personal Training - Featured, spans 2 rows */}
             <div className="md:row-span-2 group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-blue-500/20" />
               <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-blue-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
-                {/* Corner gradient */}
                 <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-[80px] opacity-20 bg-blue-500 group-hover:opacity-40 transition-opacity duration-500" />
-                {/* Sparkle decoration */}
-                <div className="absolute top-6 right-6 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <svg className="w-5 h-5 text-blue-400/60 animate-pulse" style={{ animationDuration: '2s' }} fill="currentColor" viewBox="0 0 24 24">
-                    <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
-                  </svg>
-                </div>
-
                 <div className="relative flex flex-col h-full">
-                  {/* Icon */}
                   <div className="relative mb-6">
                     <div className="absolute inset-0 w-16 h-16 rounded-2xl bg-blue-500 blur-xl opacity-30 group-hover:opacity-50 transition-opacity" />
                     <div className="relative w-16 h-16 rounded-2xl bg-blue-500/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
@@ -607,147 +594,104 @@ export default async function LocationMarketingPage({
                       </svg>
                     </div>
                   </div>
-
-                  {/* Title */}
-                  <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-3 transition-colors duration-300 group-hover:text-white">Lični Trener</h3>
+                  <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-3 transition-colors duration-300 group-hover:text-white">Personalni trening</h3>
                   <p className="text-foreground-muted leading-relaxed mb-6">
-                    Izaberite trenera koji će vas voditi kroz celokupnu fitness transformaciju.
+                    Naši treneri vas vode kroz celokupnu transformaciju — od prvog treninga do vašeg cilja.
                   </p>
-
-                  {/* Feature list */}
                   <div className="flex-1 space-y-4">
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 12a3 3 0 11-6 0 3 3 0 016 0z" />
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M2.458 12C3.732 7.943 7.523 5 12 5c4.478 0 8.268 2.943 9.542 7-1.274 4.057-5.064 7-9.542 7-4.477 0-8.268-2.943-9.542-7z" />
-                        </svg>
+                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-foreground">Praćenje klijenata</span>
-                        <p className="text-xs text-foreground-muted">Uvid u napredak, treninge i ishranu</p>
+                        <span className="text-sm font-medium text-foreground">Personalizovani programi</span>
+                        <p className="text-xs text-foreground-muted">Trening prilagođen vašim ciljevima</p>
                       </div>
                     </div>
-
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M8 7V3m8 4V3m-9 8h10M5 21h14a2 2 0 002-2V7a2 2 0 00-2-2H5a2 2 0 00-2 2v12a2 2 0 002 2z" />
-                        </svg>
+                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-foreground">Zakazivanje termina</span>
-                        <p className="text-xs text-foreground-muted">Jednostavno upravljanje rasporedima</p>
+                        <span className="text-sm font-medium text-foreground">Individualni i grupni treninzi</span>
+                        <p className="text-xs text-foreground-muted">Vežbajte sami ili u društvu</p>
                       </div>
                     </div>
-
                     <div className="flex items-start gap-3">
                       <div className="w-8 h-8 rounded-lg bg-blue-500/10 flex items-center justify-center flex-shrink-0 mt-0.5">
-                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M9 5H7a2 2 0 00-2 2v12a2 2 0 002 2h10a2 2 0 002-2V7a2 2 0 00-2-2h-2M9 5a2 2 0 002 2h2a2 2 0 002-2M9 5a2 2 0 012-2h2a2 2 0 012 2m-3 7h3m-3 4h3m-6-4h.01M9 16h.01" />
-                        </svg>
+                        <svg className="w-4 h-4 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M4.5 12.75l6 6 9-13.5" /></svg>
                       </div>
                       <div>
-                        <span className="text-sm font-medium text-foreground">Planovi ishrane</span>
-                        <p className="text-xs text-foreground-muted">Kreiranje prilagođenih jelovnika</p>
+                        <span className="text-sm font-medium text-foreground">Stručno vođstvo</span>
+                        <p className="text-xs text-foreground-muted">Iskusni treneri uz vas na svakom koraku</p>
                       </div>
                     </div>
                   </div>
                 </div>
-
-                {/* Decorative dots */}
-                <div className="absolute bottom-6 right-6 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400/40" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-blue-400/20" />
-                </div>
               </div>
             </div>
 
-            {/* AI Card */}
-            <div className="group relative">
+            {/* Supplement Shop */}
+            <Link href={shopHref} className="group relative block">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-violet-500/20" />
               <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-violet-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
-                {/* Corner gradient */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-violet-500 to-transparent rounded-bl-full" />
                 <div className="relative">
                   <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-violet-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
                   <div className="relative w-14 h-14 rounded-2xl bg-violet-500/20 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                    <svg className="w-7 h-7 text-violet-400 animate-pulse" style={{ animationDuration: '3s' }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                    </svg>
+                    <svg className="w-7 h-7 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
                   </div>
                 </div>
-                <div className="flex items-center gap-3 mb-2">
-                  <h3 className="text-xl font-bold text-foreground transition-colors duration-300 group-hover:text-white">AI Asistenti</h3>
-                  <span className="text-xs font-medium text-violet-400 bg-violet-500/20 px-2 py-1 rounded-md">24/7</span>
-                </div>
+                <h3 className="text-xl font-bold text-foreground mb-2 transition-colors duration-300 group-hover:text-white">Prodavnica suplemenata</h3>
                 <p className="text-foreground-muted text-sm leading-relaxed">
-                  Tri specijalizovana AI asistenta za ishranu, suplemente i trening.
+                  Vrhunski suplementi vodećih brendova — proteini, kreatin, vitamini i još mnogo toga.
                 </p>
-                {/* Decorative dots */}
-                <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-violet-400/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-violet-400/40" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-violet-400/20" />
-                </div>
+                <span className="inline-flex items-center gap-1.5 mt-4 text-sm font-semibold text-violet-400">
+                  Poseti prodavnicu
+                  <svg className="w-4 h-4 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </span>
               </div>
-            </div>
+            </Link>
 
-            {/* Progress Tracking Card */}
+            {/* Premium Equipment */}
             <div className="group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-emerald-500/20" />
               <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-emerald-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
-                {/* Corner gradient */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-emerald-500 to-transparent rounded-bl-full" />
                 <div className="relative">
                   <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-emerald-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
                   <div className="relative w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                    <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M3 13.125C3 12.504 3.504 12 4.125 12h2.25c.621 0 1.125.504 1.125 1.125v6.75C7.5 20.496 6.996 21 6.375 21h-2.25A1.125 1.125 0 013 19.875v-6.75zM9.75 8.625c0-.621.504-1.125 1.125-1.125h2.25c.621 0 1.125.504 1.125 1.125v11.25c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V8.625zM16.5 4.125c0-.621.504-1.125 1.125-1.125h2.25C20.496 3 21 3.504 21 4.125v15.75c0 .621-.504 1.125-1.125 1.125h-2.25a1.125 1.125 0 01-1.125-1.125V4.125z" />
-                    </svg>
+                    <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5v9m-3-9v9m10.5-9v9m3-9v9M2.25 12h1.5m16.5 0h1.5M3.75 9.75h3m10.5 0h3M3.75 14.25h3m10.5 0h3" /></svg>
                   </div>
                 </div>
-                <h3 className="text-xl font-bold text-foreground mb-2 transition-colors duration-300 group-hover:text-white">Praćenje Napretka</h3>
+                <h3 className="text-xl font-bold text-foreground mb-2 transition-colors duration-300 group-hover:text-white">Vrhunska oprema</h3>
                 <p className="text-foreground-muted text-sm leading-relaxed">
-                  Beležite obroke, treninge i pratite transformaciju sa statistikom.
+                  Najsavremenija oprema za snagu, kardio i funkcionalni trening.
                 </p>
-                {/* Decorative dots */}
-                <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/40" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-emerald-400/20" />
-                </div>
               </div>
             </div>
 
-            {/* Nutrition Plan Card */}
+            {/* Mobile App - Coming soon */}
             <div className="md:col-span-2 group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-orange-500/20" />
               <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-orange-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
-                {/* Corner gradient */}
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-orange-500 to-transparent rounded-bl-full" />
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6">
                   <div className="relative flex-shrink-0">
                     <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-orange-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
                     <div className="relative w-14 h-14 rounded-2xl bg-orange-500/20 flex items-center justify-center transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                      <svg className="w-7 h-7 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                        <path strokeLinecap="round" strokeLinejoin="round" d="M12 8.25v-1.5m0 1.5c-1.355 0-2.697.056-4.024.166C6.845 8.51 6 9.473 6 10.608v2.513m6-4.87c1.355 0 2.697.055 4.024.165C17.155 8.51 18 9.473 18 10.608v2.513m-3-4.87v-1.5m-6 1.5v-1.5m12 9.75l-1.5.75a3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0 3.354 3.354 0 00-3 0 3.354 3.354 0 01-3 0L3 16.5m15-3.38a48.474 48.474 0 00-6-.37c-2.032 0-4.034.125-6 .37m12 0c.39.049.777.102 1.163.16 1.07.16 1.837 1.094 1.837 2.175v5.17c0 .62-.504 1.124-1.125 1.124H4.125A1.125 1.125 0 013 20.625v-5.17c0-1.08.768-2.014 1.837-2.174A47.78 47.78 0 016 13.12M12.265 3.11a.375.375 0 11-.53 0L12 2.845l.265.265zm-3 0a.375.375 0 11-.53 0L9 2.845l.265.265zm6 0a.375.375 0 11-.53 0L15 2.845l.265.265z" />
-                      </svg>
+                      <svg className="w-7 h-7 text-orange-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M10.5 1.5H8.25A2.25 2.25 0 006 3.75v16.5a2.25 2.25 0 002.25 2.25h7.5A2.25 2.25 0 0018 20.25V3.75a2.25 2.25 0 00-2.25-2.25H13.5m-3 0V3h3V1.5m-3 0h3m-3 18.75h3" /></svg>
                     </div>
                   </div>
                   <div className="flex-1">
-                    <h3 className="text-xl font-bold text-foreground mb-2 transition-colors duration-300 group-hover:text-white">Plan Ishrane</h3>
+                    <div className="flex items-center gap-3 mb-2">
+                      <h3 className="text-xl font-bold text-foreground transition-colors duration-300 group-hover:text-white">Mobilna aplikacija</h3>
+                      <span className="px-2.5 py-1 rounded-md text-xs font-bold uppercase tracking-wide text-white" style={{ backgroundColor: accentColor }}>Uskoro</span>
+                    </div>
                     <p className="text-foreground-muted text-sm leading-relaxed">
-                      Kreirajte obroke, pratite kalorije, makronutrijente i hidrataciju na jednom mestu.
+                      Uskoro stiže naša aplikacija: AI asistenti za ishranu i trening, praćenje napretka i personalizovani planovi ishrane — sve na vašem telefonu.
                     </p>
                   </div>
-                </div>
-                {/* Decorative dots */}
-                <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400/60" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400/40" />
-                  <div className="w-1.5 h-1.5 rounded-full bg-orange-400/20" />
                 </div>
               </div>
             </div>

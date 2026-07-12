@@ -4,18 +4,12 @@ import { seedCacheIfEmpty } from "../lib/ai/cache";
 import { generateGenericResponse } from "../lib/ai";
 
 // Database selection logic
-// Use TARGET_DB env var to explicitly select: dev | staging | prod
+// Use TARGET_DB env var to explicitly select: dev | prod
 // Falls back to NODE_ENV-based selection if TARGET_DB not set
 function getDatabaseUrl(): { url: string; label: string } {
   const targetDb = process.env.TARGET_DB?.toLowerCase();
 
   // Explicit database selection via TARGET_DB
-  if (targetDb === "staging") {
-    const url = process.env.STAGING_DATABASE_URL;
-    if (!url) throw new Error("STAGING_DATABASE_URL not configured");
-    return { url, label: "STAGING" };
-  }
-
   if (targetDb === "prod" || targetDb === "production") {
     const url = process.env.DATABASE_URL;
     if (!url) throw new Error("DATABASE_URL not configured");

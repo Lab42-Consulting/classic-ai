@@ -12,7 +12,7 @@ feature branch
    → open PR to main
    → CI green (typecheck + tests + build)
    → merge to main
-   → migrate STAGING + PROD          ⚠️  Vercel does NOT run migrations
+   → migrate PROD                    ⚠️  Vercel does NOT run migrations
    → Vercel auto-deploys main → production
 ```
 
@@ -87,16 +87,15 @@ CI (`.github/workflows/ci.yml`) runs on every PR: `npm ci → prisma generate �
 
 Squash-merge into `main`. This triggers a Vercel **production** deploy.
 
-## 7. Apply migrations to staging & production
+## 7. Apply migrations to production
 
-Because Vercel doesn't migrate, run this yourself from a machine that can reach the Neon databases (or use the Neon SQL editor — see below). For an **additive** migration, do it **before** merging (safe either way):
+Because Vercel doesn't migrate, run this yourself from a machine that can reach the Neon database (or use the Neon SQL editor — see below). For an **additive** migration, do it **before** merging (safe either way):
 
 ```bash
-npm run db:migrate:staging     # → Neon staging DB (used by Vercel Preview)
 npm run db:migrate:prod        # → Neon production DB (uses .env.production)
 ```
 
-`migrate deploy` only applies migrations that aren't recorded yet; it never resets. **Never** run `migrate dev` against staging/prod.
+`migrate deploy` only applies migrations that aren't recorded yet; it never resets. **Never** run `migrate dev` against prod.
 
 ### If `migrate deploy` can't reach Neon
 
@@ -111,19 +110,16 @@ If you get `P1001: Can't reach database server …neon.tech`, your network can't
 | File | Used by | Purpose |
 | --- | --- | --- |
 | `.env.local` | local dev (`npm run dev`) | localhost Postgres + dev keys |
-| `.env.staging` | Vercel **Preview** | Neon staging DB |
 | `.env.production` | Vercel **Production** | Neon prod DB |
 
-The Prisma client selects the DB automatically at runtime from `NODE_ENV` / `VERCEL_ENV` (`lib/db`). Branch strategy: `main` → Production, `development` → Preview/Staging.
+The Prisma client selects the DB automatically at runtime (`lib/db`): local dev uses `DEV_DATABASE_URL`/localhost, everything on Vercel uses `DATABASE_URL`. Branch strategy: `main` → Production.
 
-### Do you need a staging database?
+### Is there a staging database?
 
-**Yes — recommended, not overkill.** The selection logic falls back to **`DATABASE_URL` (production)** when `STAGING_DATABASE_URL` is missing. That means **Vercel Preview deployments (every PR) would read/write the production database** if there's no staging DB. A staging DB keeps previews off prod and lets you rehearse migrations.
+**No — the project uses local + production only.** A permanent staging environment was intentionally dropped as overkill for a single-gym app. Two consequences to know:
 
-Cheap way to (re)create it on Neon: **branch from the production database** (Neon → Branches → New branch from `production`). The branch inherits the schema + data, so it's immediately in sync. Then:
-
-1. Copy the branch's connection string into `.env.staging` (`DATABASE_URL=…`) and into Vercel → Project → Settings → Environment Variables as `STAGING_DATABASE_URL` (Preview scope).
-2. Apply any migrations it's missing: `npm run db:migrate:staging` (a branch from prod usually needs none).
+- **Vercel Preview deployments use the production database** (there's no separate preview DB). If you don't want PR previews touching prod data, disable Preview deployments in Vercel → Settings.
+- **Rehearse risky migrations with an ephemeral Neon branch** instead: Neon → Branches → New branch from `production`, run `prisma migrate deploy` against its connection string, verify, then delete the branch. Nothing permanent to maintain.
 
 ## CI
 
@@ -135,7 +131,6 @@ Cheap way to (re)create it on Neon: **branch from the production database** (Neo
 | --- | --- |
 | Start local app | `npm run dev` → http://localhost:3000 |
 | New migration (local) | `npm run db:migrate:local -- --name x` |
-| Apply migrations (staging) | `npm run db:migrate:staging` |
 | Apply migrations (prod) | `npm run db:migrate:prod` |
 | Types / tests / build | `npx tsc --noEmit` · `npm run test:run` · `npm run build` |
 | Seed local data | `npm run db:seed:local` |

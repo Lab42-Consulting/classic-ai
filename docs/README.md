@@ -124,7 +124,7 @@ Once a member is active, their everyday activity flows through the whole system:
 - [Database Schema Reference](./DATABASE.md) — the full 39-model Prisma data model.
 - [SRS Summary](../SRS_SUMMARY.md) — summarized functional and non-functional requirements.
 - [Project README](../README.md) — project front door: overview, feature list, and quickstart.
-- [Deployment Guide](../DEPLOYMENT_GUIDE.md) — deploying across local, staging, and production (Vercel + Neon).
+- [Deployment Guide](../DEPLOYMENT_GUIDE.md) — deploying across local and production (Vercel + Neon).
 
 ---
 

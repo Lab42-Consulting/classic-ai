@@ -5,6 +5,7 @@ import { MobileMenu, BackToTop } from "../mobile-menu";
 import { LocationSwitcher } from "./location-switcher";
 import { TrainersCarousel } from "../trainers-carousel";
 import { HeroImage } from "../hero-image";
+import { PricingTable } from "../pricing-table";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -162,26 +163,31 @@ export default async function LocationMarketingPage({
     "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v3.png",
   ];
 
-  const pricingGroups: { title: string; symbol: string; items: { label: string; price: string; popular?: boolean }[] }[] = [
-    { title: "Žene", symbol: "♀", items: [
-      { label: "Članarina — ceo mesec", price: "3.200", popular: true },
-      { label: "Članarina — do 16h", price: "2.800" },
-      { label: "12 treninga — do 16h", price: "2.400" },
-      { label: "12 treninga — mesečno", price: "2.800" },
-    ] },
-    { title: "Muškarci", symbol: "♂", items: [
-      { label: "Članarina — ceo mesec", price: "3.600", popular: true },
-      { label: "Članarina — do 16h", price: "3.200" },
-      { label: "12 treninga — do 16h", price: "2.800" },
-      { label: "12 treninga — mesečno", price: "3.200" },
-    ] },
-    { title: "Ostalo", symbol: "★", items: [
+  const pricing: {
+    membership: Record<string, { label: string; desc: string; price: string; unit?: string; popular?: boolean }[]>;
+    other: { label: string; price: string }[];
+  } = {
+    membership: {
+      "Žene": [
+        { label: "Ceo mesec", desc: "Neograničen pristup", price: "3.200", unit: "mes", popular: true },
+        { label: "Do 16h", desc: "Radnim danima do 16h", price: "2.800", unit: "mes" },
+        { label: "12 treninga", desc: "12 dolazaka mesečno", price: "2.800" },
+        { label: "12 treninga do 16h", desc: "12 dolazaka, do 16h", price: "2.400" },
+      ],
+      "Muškarci": [
+        { label: "Ceo mesec", desc: "Neograničen pristup", price: "3.600", unit: "mes", popular: true },
+        { label: "Do 16h", desc: "Radnim danima do 16h", price: "3.200", unit: "mes" },
+        { label: "12 treninga", desc: "12 dolazaka mesečno", price: "3.200" },
+        { label: "12 treninga do 16h", desc: "12 dolazaka, do 16h", price: "2.800" },
+      ],
+    },
+    other: [
       { label: "Dnevni trening", price: "500" },
       { label: "3 meseca", price: "7.500" },
       { label: "6 meseci", price: "13.500" },
       { label: "Godišnja članarina", price: "24.000" },
-    ] },
-  ];
+    ],
+  };
 
   return (
     <div className="min-h-screen bg-background">
@@ -657,35 +663,7 @@ export default async function LocationMarketingPage({
             <p className="text-lg text-foreground-muted">Cene važe od 1. januara 2026. godine.</p>
           </div>
 
-          <div className="grid md:grid-cols-3 gap-6">
-            {pricingGroups.map((group) => (
-              <div key={group.title} className="group relative">
-                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl" style={{ background: `radial-gradient(circle at center, ${accentColor}20 0%, transparent 70%)` }} />
-                <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-white/20 rounded-3xl p-7 transition-all duration-300 group-hover:translate-y-[-4px]">
-                  <div className="flex items-center gap-3 mb-6">
-                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-bold" style={{ backgroundColor: `${accentColor}15`, color: accentColor }}>{group.symbol}</div>
-                    <h3 className="text-xl font-bold text-foreground uppercase tracking-wide">{group.title}</h3>
-                  </div>
-                  <ul className="space-y-1">
-                    {group.items.map((item) => (
-                      <li key={item.label} className="flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0">
-                        <span className={`text-sm ${item.popular ? "text-foreground font-semibold" : "text-foreground-muted"}`}>
-                          {item.label}
-                          {item.popular && (
-                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ backgroundColor: `${accentColor}20`, color: accentColor }}>Popularno</span>
-                          )}
-                        </span>
-                        <span className="flex items-baseline gap-1 shrink-0">
-                          <span className="text-lg font-bold" style={item.popular ? { color: accentColor } : { color: "var(--foreground)" }}>{item.price}</span>
-                          <span className="text-xs text-foreground-muted">RSD</span>
-                        </span>
-                      </li>
-                    ))}
-                  </ul>
-                </div>
-              </div>
-            ))}
-          </div>
+          <PricingTable pricing={pricing} accentColor={accentColor} />
 
           <div className="text-center mt-12">
             <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl group" style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}>

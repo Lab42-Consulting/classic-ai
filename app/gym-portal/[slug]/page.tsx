@@ -165,7 +165,7 @@ export default async function LocationMarketingPage({
 
   const pricing: {
     membership: Record<string, { label: string; desc: string; price: string; unit?: string; popular?: boolean }[]>;
-    other: { label: string; price: string }[];
+    other: { label: string; price: string; months?: number }[];
   } = {
     membership: {
       "Žene": [
@@ -183,9 +183,9 @@ export default async function LocationMarketingPage({
     },
     other: [
       { label: "Dnevni trening", price: "500" },
-      { label: "3 meseca", price: "7.500" },
-      { label: "6 meseci", price: "13.500" },
-      { label: "Godišnja članarina", price: "24.000" },
+      { label: "3 meseca", price: "7.500", months: 3 },
+      { label: "6 meseci", price: "13.500", months: 6 },
+      { label: "Godišnja članarina", price: "24.000", months: 12 },
     ],
   };
 
@@ -646,34 +646,6 @@ export default async function LocationMarketingPage({
         </div>
       </section>
 
-      {/* Pricing Section */}
-      <section id="cenovnik" className="py-24 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '6s' }} />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '2s' }} />
-
-        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
-          <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}>
-              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
-              Cenovnik
-            </span>
-            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-4">
-              Članarine i <span style={{ color: accentColor }}>treninzi</span>
-            </h2>
-            <p className="text-lg text-foreground-muted">Cene važe od 1. januara 2026. godine.</p>
-          </div>
-
-          <PricingTable pricing={pricing} accentColor={accentColor} />
-
-          <div className="text-center mt-12">
-            <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl group" style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}>
-              Postani član
-              <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-            </a>
-          </div>
-        </div>
-      </section>
-
       {/* Gallery Section */}
       {galleryImages.length > 0 && (
         <section id="gallery" className="py-24 relative overflow-hidden">
@@ -784,6 +756,34 @@ export default async function LocationMarketingPage({
           </div>
         </section>
       )}
+
+      {/* Pricing Section */}
+      <section id="cenovnik" className="py-24 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '6s' }} />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '2s' }} />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+              Cenovnik
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-4">
+              Članarine i <span style={{ color: accentColor }}>treninzi</span>
+            </h2>
+            <p className="text-lg text-foreground-muted">Cene važe od 1. januara 2026. godine.</p>
+          </div>
+
+          <PricingTable pricing={pricing} accentColor={accentColor} />
+
+          <div className="text-center mt-12">
+            <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl group" style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}>
+              Postani član
+              <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+            </a>
+          </div>
+        </div>
+      </section>
 
       {/* Contact Section */}
       {hasContact && (

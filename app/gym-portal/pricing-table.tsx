@@ -11,7 +11,7 @@ interface Item {
 }
 interface Pricing {
   membership: Record<string, Item[]>;
-  other: { label: string; price: string }[];
+  other: { label: string; price: string; months?: number }[];
 }
 
 /** Interactive pricing: gender toggle + membership cards + a compact "Ostalo" row. */
@@ -19,6 +19,9 @@ export function PricingTable({ pricing, accentColor }: { pricing: Pricing; accen
   const genders = Object.keys(pricing.membership);
   const [gender, setGender] = useState(genders[0]);
   const items = pricing.membership[gender] || [];
+  const toNum = (s: string) => parseInt(s.replace(/\./g, ""), 10);
+  const fmt = (n: number) => String(n).replace(/\B(?=(\d{3})+(?!\d))/g, ".");
+  const monthly = toNum(items.find((i) => i.label === "Ceo mesec")?.price || "0");
 
   return (
     <div>
@@ -71,15 +74,28 @@ export function PricingTable({ pricing, accentColor }: { pricing: Pricing; accen
           <span className="flex-1 h-px bg-white/10" />
         </div>
         <div className="grid grid-cols-2 lg:grid-cols-4 gap-4">
-          {pricing.other.map((o) => (
-            <div key={o.label} className="rounded-2xl p-5 bg-background-secondary/50 border border-white/10 hover:border-white/25 transition-colors text-center">
-              <div className="flex items-baseline justify-center gap-1">
-                <span className="text-2xl font-black text-foreground">{o.price}</span>
-                <span className="text-xs text-foreground-muted">RSD</span>
+          {pricing.other.map((o) => {
+            const price = toNum(o.price);
+            const savePct = o.months && monthly > 0 ? Math.round((1 - price / (monthly * o.months)) * 100) : 0;
+            const perMonth = o.months ? Math.round(price / o.months) : 0;
+            return (
+              <div key={o.label} className="relative rounded-2xl p-5 bg-background-secondary/50 border border-white/10 hover:border-white/25 transition-colors text-center">
+                {savePct > 0 && (
+                  <span className="absolute top-3 right-3 px-2 py-0.5 rounded-full text-[10px] font-bold text-white" style={{ backgroundColor: accentColor }}>
+                    −{savePct}%
+                  </span>
+                )}
+                <div className="flex items-baseline justify-center gap-1">
+                  <span className="text-2xl font-black text-foreground">{o.price}</span>
+                  <span className="text-xs text-foreground-muted">RSD</span>
+                </div>
+                <div className="text-sm text-foreground-muted mt-1">{o.label}</div>
+                {perMonth > 0 && (
+                  <div className="text-[11px] mt-1.5 font-semibold" style={{ color: accentColor }}>≈ {fmt(perMonth)} RSD/mes</div>
+                )}
               </div>
-              <div className="text-sm text-foreground-muted mt-1">{o.label}</div>
-            </div>
-          ))}
+            );
+          })}
         </div>
       </div>
     </div>

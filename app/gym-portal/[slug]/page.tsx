@@ -157,9 +157,9 @@ export default async function LocationMarketingPage({
   const galleryImages = (gym.galleryImages as unknown as GalleryImage[]) || [];
   // Hero photos — crossfade through these (add/remove Blob URLs to change the rotation).
   const heroImages = [
+    "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v1.png",
     "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v2.png",
     "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v3.png",
-    "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v1.png",
   ];
 
   const pricingGroups: { title: string; symbol: string; items: { label: string; price: string; popular?: boolean }[] }[] = [

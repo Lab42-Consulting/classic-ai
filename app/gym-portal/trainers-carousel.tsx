@@ -82,13 +82,13 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
 
       <div
         ref={scrollerRef}
-        className="flex gap-5 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
+        className="flex items-start gap-5 overflow-x-auto overscroll-x-contain snap-x snap-mandatory pb-4 [scrollbar-width:none] [&::-webkit-scrollbar]:hidden"
       >
         {trainers.map((t) => (
           <article
             key={t.id}
             data-card
-            className="group relative snap-start shrink-0 w-[85%] sm:w-[calc((100%-1.25rem)/2)] md:w-[calc((100%-2.5rem)/3)] lg:w-[calc((100%-3.75rem)/4)] rounded-3xl overflow-hidden bg-background/40 border border-white/10 transition-transform duration-300 hover:-translate-y-1.5"
+            className="group relative snap-start shrink-0 w-[280px] sm:w-[300px] rounded-3xl overflow-hidden bg-background/40 border border-white/10 transition-transform duration-300 hover:-translate-y-1.5"
           >
             {/* Accent border + glow on hover */}
             <div
@@ -97,7 +97,7 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
             />
 
             {/* Portrait */}
-            <div className="relative aspect-[4/5] overflow-hidden">
+            <div className="relative h-[360px] overflow-hidden">
               {t.avatarUrl ? (
                 // eslint-disable-next-line @next/next/no-img-element
                 <img
@@ -134,7 +134,7 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
 
             {/* Bio — clamped + min-height so every card is identical height */}
             <div className="p-5">
-              <p className="text-foreground-muted text-sm leading-relaxed line-clamp-3 min-h-[3.75rem]">
+              <p className="text-foreground-muted text-sm leading-relaxed line-clamp-3 min-h-[4.5rem]">
                 {t.bio || "Posvećen pomoći članovima da ostvare svoje fitness ciljeve kroz personalizovane treninge."}
               </p>
             </div>

@@ -33,10 +33,10 @@ interface ShopResponse {
 }
 
 const PRICE_BUCKETS = [
-  { key: "", label: "Sve cene", min: "", max: "" },
+  { key: "", label: "Sve", min: "", max: "" },
   { key: "lt3000", label: "do 3.000", min: "", max: "3000" },
   { key: "3000-6000", label: "3.000–6.000", min: "3000", max: "6000" },
-  { key: "gt6000", label: "preko 6.000", min: "6000", max: "" },
+  { key: "gt6000", label: "6.000+", min: "6000", max: "" },
 ];
 
 // --- tiny inline icons ---
@@ -159,7 +159,7 @@ export function StorefrontShop({ slug }: { slug: string }) {
       sel ? "bg-accent/10 text-foreground font-semibold ring-1 ring-inset ring-accent/40" : "text-foreground-muted hover:text-foreground hover:bg-white/5"
     }`;
   const pricePill = (on: boolean) =>
-    `px-3 py-1.5 rounded-lg text-xs font-medium transition-all ${
+    `px-2.5 py-1.5 rounded-lg text-xs font-medium transition-all ${
       on ? "bg-accent text-white" : "bg-background-tertiary/70 text-foreground-muted border border-white/10 hover:text-foreground hover:border-white/25"
     }`;
 
@@ -194,7 +194,7 @@ export function StorefrontShop({ slug }: { slug: string }) {
       {/* Kategorije (elastic) */}
       <div className="flex flex-col min-h-0 basis-0 grow-[1.2] border-t border-white/[0.06]">
         <h4 className="shrink-0 px-4 pt-3 pb-2 text-[11px] font-bold uppercase tracking-[0.16em] text-foreground-muted">Kategorije</h4>
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2 space-y-1 [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%_-_12px),transparent)]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-1 pb-2 space-y-1 [mask-image:linear-gradient(to_bottom,black_calc(100%_-_14px),transparent)]">
           <button onClick={() => setParam("category", "")} className={catRow(!activeCategory, false)}>
             <span className="truncate">Sve kategorije</span>
           </button>
@@ -238,7 +238,7 @@ export function StorefrontShop({ slug }: { slug: string }) {
             className="w-full px-3 py-1.5 text-[13px] bg-background-tertiary/60 border border-white/10 rounded-lg text-foreground placeholder:text-foreground-muted focus:outline-none focus:border-accent"
           />
         </div>
-        <div className="flex-1 min-h-0 overflow-y-auto px-3 pb-2 space-y-0.5 [mask-image:linear-gradient(to_bottom,transparent,black_12px,black_calc(100%_-_12px),transparent)]">
+        <div className="flex-1 min-h-0 overflow-y-auto px-3 pt-1 pb-2 space-y-0.5 [mask-image:linear-gradient(to_bottom,black_calc(100%_-_14px),transparent)]">
           <button onClick={() => setParam("brand", "")} className={brandRow(!activeBrand)}>
             <span className="truncate">Svi brendovi</span>
             <RadioDot on={!activeBrand} />
@@ -304,10 +304,10 @@ export function StorefrontShop({ slug }: { slug: string }) {
     <div className="min-h-screen bg-background">
       <StorefrontHeader slug={slug} gymName={data?.gym.name || "Prodavnica"} gymLogo={data?.gym.logo || null} />
 
-      <div className="max-w-[1600px] mx-auto px-4 sm:px-6 lg:px-8">
-        <div className="flex items-start gap-6 lg:gap-8 pt-6">
+      <div className="max-w-[1680px] mx-auto px-4 sm:px-6 lg:px-6">
+        <div className="flex items-start gap-5 lg:gap-6 pt-6">
           {/* Desktop rail */}
-          <aside className="relative hidden lg:flex lg:flex-col shrink-0 w-72 xl:w-80 self-start sticky top-[5.5rem] h-[calc(100vh-7rem)] bg-background-secondary/70 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)]">
+          <aside className="relative hidden lg:flex lg:flex-col shrink-0 w-80 xl:w-[22rem] self-start sticky top-[5.5rem] h-[calc(100vh-7rem)] bg-background-secondary/70 backdrop-blur-xl border border-white/10 rounded-3xl overflow-hidden shadow-[0_24px_60px_-24px_rgba(0,0,0,0.7)]">
             <div className="pointer-events-none absolute -top-16 left-1/2 -translate-x-1/2 h-40 w-40 rounded-full bg-accent/20 blur-3xl opacity-60" />
             <div className="pointer-events-none absolute top-0 left-6 right-6 h-px bg-gradient-to-r from-transparent via-accent/40 to-transparent" />
             {railContent}

@@ -8,7 +8,7 @@ export function HeroImage({ images, alt }: { images: string[]; alt: string }) {
 
   useEffect(() => {
     if (images.length < 2) return;
-    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), 5000);
+    const t = setInterval(() => setIdx((i) => (i + 1) % images.length), 4000);
     return () => clearInterval(t);
   }, [images.length]);
 

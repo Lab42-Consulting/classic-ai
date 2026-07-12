@@ -224,6 +224,20 @@ function MenuOverlay({
           Šta nudimo
         </a>
         <a
+          href="#cenovnik"
+          onClick={onClose}
+          style={{
+            fontSize: "1.5rem",
+            fontWeight: 500,
+            color: "#999",
+            padding: "0.75rem 1.5rem",
+            borderRadius: "0.75rem",
+            textDecoration: "none",
+          }}
+        >
+          Cenovnik
+        </a>
+        <a
           href="#gallery"
           onClick={onClose}
           style={{

@@ -158,7 +158,29 @@ export default async function LocationMarketingPage({
   // Hero photos — crossfade through these (add/remove Blob URLs to change the rotation).
   const heroImages = [
     "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v2.png",
+    "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v3.png",
     "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v1.png",
+  ];
+
+  const pricingGroups: { title: string; symbol: string; items: { label: string; price: string; popular?: boolean }[] }[] = [
+    { title: "Žene", symbol: "♀", items: [
+      { label: "Članarina — ceo mesec", price: "3.200", popular: true },
+      { label: "Članarina — do 16h", price: "2.800" },
+      { label: "12 treninga — do 16h", price: "2.400" },
+      { label: "12 treninga — mesečno", price: "2.800" },
+    ] },
+    { title: "Muškarci", symbol: "♂", items: [
+      { label: "Članarina — ceo mesec", price: "3.600", popular: true },
+      { label: "Članarina — do 16h", price: "3.200" },
+      { label: "12 treninga — do 16h", price: "2.800" },
+      { label: "12 treninga — mesečno", price: "3.200" },
+    ] },
+    { title: "Ostalo", symbol: "★", items: [
+      { label: "Dnevni trening", price: "500" },
+      { label: "3 meseca", price: "7.500" },
+      { label: "6 meseci", price: "13.500" },
+      { label: "Godišnja članarina", price: "24.000" },
+    ] },
   ];
 
   return (
@@ -215,6 +237,12 @@ export default async function LocationMarketingPage({
                   className="text-sm font-medium text-foreground-muted hover:text-foreground px-4 py-2 rounded-xl hover:bg-white/5 transition-all"
                 >
                   Šta nudimo
+                </a>
+                <a
+                  href="#cenovnik"
+                  className="text-sm font-medium text-foreground-muted hover:text-foreground px-4 py-2 rounded-xl hover:bg-white/5 transition-all"
+                >
+                  Cenovnik
                 </a>
                 {hasStore && (
                   <Link
@@ -608,6 +636,62 @@ export default async function LocationMarketingPage({
                 </div>
               </div>
             </div>
+          </div>
+        </div>
+      </section>
+
+      {/* Pricing Section */}
+      <section id="cenovnik" className="py-24 relative overflow-hidden">
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '6s' }} />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '2s' }} />
+
+        <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
+          <div className="text-center max-w-2xl mx-auto mb-16">
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}>
+              <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
+              Cenovnik
+            </span>
+            <h2 className="text-3xl sm:text-4xl lg:text-5xl font-bold text-foreground leading-tight mb-4">
+              Članarine i <span style={{ color: accentColor }}>treninzi</span>
+            </h2>
+            <p className="text-lg text-foreground-muted">Cene važe od 1. januara 2026. godine.</p>
+          </div>
+
+          <div className="grid md:grid-cols-3 gap-6">
+            {pricingGroups.map((group) => (
+              <div key={group.title} className="group relative">
+                <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl" style={{ background: `radial-gradient(circle at center, ${accentColor}20 0%, transparent 70%)` }} />
+                <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-white/20 rounded-3xl p-7 transition-all duration-300 group-hover:translate-y-[-4px]">
+                  <div className="flex items-center gap-3 mb-6">
+                    <div className="w-12 h-12 rounded-2xl flex items-center justify-center text-2xl font-bold" style={{ backgroundColor: `${accentColor}15`, color: accentColor }}>{group.symbol}</div>
+                    <h3 className="text-xl font-bold text-foreground uppercase tracking-wide">{group.title}</h3>
+                  </div>
+                  <ul className="space-y-1">
+                    {group.items.map((item) => (
+                      <li key={item.label} className="flex items-center justify-between gap-3 py-3 border-b border-white/5 last:border-0">
+                        <span className={`text-sm ${item.popular ? "text-foreground font-semibold" : "text-foreground-muted"}`}>
+                          {item.label}
+                          {item.popular && (
+                            <span className="ml-2 text-[10px] font-bold uppercase tracking-wide px-1.5 py-0.5 rounded" style={{ backgroundColor: `${accentColor}20`, color: accentColor }}>Popularno</span>
+                          )}
+                        </span>
+                        <span className="flex items-baseline gap-1 shrink-0">
+                          <span className="text-lg font-bold" style={item.popular ? { color: accentColor } : { color: "var(--foreground)" }}>{item.price}</span>
+                          <span className="text-xs text-foreground-muted">RSD</span>
+                        </span>
+                      </li>
+                    ))}
+                  </ul>
+                </div>
+              </div>
+            ))}
+          </div>
+
+          <div className="text-center mt-12">
+            <a href="#contact" className="inline-flex items-center gap-2 px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl group" style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}>
+              Postani član
+              <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+            </a>
           </div>
         </div>
       </section>

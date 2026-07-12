@@ -14,25 +14,21 @@ const globalForPrisma = globalThis as unknown as {
 };
 
 function createPrismaClient(): PrismaClient {
-  // Database selection logic:
-  // - Local development (NODE_ENV=development): DEV_DATABASE_URL
-  // - Vercel Preview/Development (VERCEL_ENV=preview|development): STAGING_DATABASE_URL
-  // - Vercel Production (VERCEL_ENV=production): DATABASE_URL
-  const vercelEnv = process.env.VERCEL_ENV; // 'production' | 'preview' | 'development' | undefined
-  const isLocalDev = process.env.NODE_ENV === "development" && !vercelEnv;
-  const isVercelPreview = vercelEnv === "preview" || vercelEnv === "development";
+  // Database selection logic (no separate staging environment):
+  // - Local development (NODE_ENV=development, not on Vercel): DEV_DATABASE_URL || DATABASE_URL
+  // - Everything on Vercel — production AND preview: DATABASE_URL
+  //   NOTE: there is no staging DB, so Vercel Preview deployments use the PRODUCTION
+  //   database. Disable Preview deployments in Vercel if that is a concern.
+  const isLocalDev = process.env.NODE_ENV === "development" && !process.env.VERCEL_ENV;
 
   const connectionString = isLocalDev
     ? process.env.DEV_DATABASE_URL || process.env.DATABASE_URL
-    : isVercelPreview
-      ? process.env.STAGING_DATABASE_URL || process.env.DATABASE_URL
-      : process.env.DATABASE_URL;
+    : process.env.DATABASE_URL;
 
   if (!connectionString) {
-    const envType = isLocalDev ? "local" : isVercelPreview ? "staging" : "production";
     throw new Error(
-      `Database URL not configured for ${envType} environment. ` +
-      `Set ${isLocalDev ? "DEV_DATABASE_URL" : isVercelPreview ? "STAGING_DATABASE_URL" : "DATABASE_URL"}.`
+      `Database URL not configured for ${isLocalDev ? "local" : "production"} environment. ` +
+      `Set ${isLocalDev ? "DEV_DATABASE_URL (or DATABASE_URL)" : "DATABASE_URL"}.`
     );
   }
 

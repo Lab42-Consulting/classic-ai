@@ -44,7 +44,7 @@ For a full production deployment walkthrough (Vercel + Neon environments), see [
 
    The `dev` script loads `.env.local` (via `dotenv -e .env.local`), so this is the file your local dev server reads. See [Environment Variables](#environment-variables) below.
 
-> **Env file convention:** local development uses `.env.local`, staging uses `.env.staging`, and production uses `.env.prod`. The `db:*` scripts pick the matching file per environment (see [Database](#database)).
+> **Env file convention:** local development uses `.env.local` and production uses `.env.production`. The `db:*` scripts pick the matching file per environment (see [Database](#database)).
 
 ---
 
@@ -54,9 +54,8 @@ Start from `.env.example`. The most important variables:
 
 | Variable | Required | Purpose |
 |----------|----------|---------|
-| `DATABASE_URL` | Yes | Primary Postgres connection string. Also the fallback for `DEV_`/`STAGING_` when those are unset. In production it is the production database. |
+| `DATABASE_URL` | Yes | Primary Postgres connection string. Also the fallback for `DEV_DATABASE_URL` when it is unset. In production (and Vercel Preview deployments) it is the production database. |
 | `DEV_DATABASE_URL` | Recommended | Local-development database. Used when `NODE_ENV=development` and not running on Vercel. Falls back to `DATABASE_URL` if unset. |
-| `STAGING_DATABASE_URL` | Prod/CI | Database for Vercel Preview/Development deployments (`VERCEL_ENV` = `preview` or `development`). Falls back to `DATABASE_URL` if unset. |
 | `JWT_SECRET` | Yes | Secret for signing session JWTs (jose, HS256), stored in the httpOnly `gym-session` cookie. **Minimum 32 characters**; use a different value per environment. Generate with `openssl rand -base64 32`. If unset, the code falls back to an insecure hardcoded secret — never rely on that outside local dev. |
 | `ANTHROPIC_API_KEY` | Yes (for AI) | Anthropic Claude API key powering AI agents, meal-photo vision, and ingredient deduction. |
 | `NEXT_PUBLIC_APP_URL` | Yes | Public base URL of the app, no trailing slash (`http://localhost:3000` locally). |
@@ -80,20 +79,18 @@ The schema lives in `prisma/schema.prisma` (39 models; PostgreSQL, all tenant da
 There are two ways to get the schema into your database:
 
 - **`npm run db:push`** — runs `prisma db push`. Syncs the schema directly to the database **without creating a migration file**. Fast and convenient for iterating locally on a throwaway dev database.
-- **`npm run db:migrate`** — runs `prisma migrate dev`. Creates and applies a versioned migration under `prisma/migrations/`. Use this when you change the schema and want the change committed to git for staging/production.
+- **`npm run db:migrate`** — runs `prisma migrate dev`. Creates and applies a versioned migration under `prisma/migrations/`. Use this when you change the schema and want the change committed to git for production.
 
 Environment-scoped variants load the matching env file:
 
 | Command | Env file | Underlying action |
 |---------|----------|-------------------|
 | `npm run db:push:local` | `.env.local` | `prisma db push` |
-| `npm run db:push:staging` | `.env.staging` | `prisma db push` |
-| `npm run db:push:prod` | `.env.prod` | `prisma db push` |
+| `npm run db:push:prod` | `.env.production` | `prisma db push` |
 | `npm run db:migrate:local` | `.env.local` | `prisma migrate dev` (creates a migration) |
-| `npm run db:migrate:staging` | `.env.staging` | `prisma migrate deploy` (applies existing migrations, non-destructive) |
-| `npm run db:migrate:prod` | `.env.prod` | `prisma migrate deploy` (non-destructive) |
+| `npm run db:migrate:prod` | `.env.production` | `prisma migrate deploy` (non-destructive) |
 
-> Staging and production use `migrate deploy` (apply committed migrations only), never `migrate dev`. Migrations must be committed to git before deploying.
+> Production uses `migrate deploy` (apply committed migrations only), never `migrate dev`. Migrations must be committed to git before deploying.
 
 ### Seeding
 
@@ -112,13 +109,12 @@ Environment-scoped seed variants use the `TARGET_DB` env var to explicitly selec
 | Command | Target |
 |---------|--------|
 | `npm run db:seed:local` | `TARGET_DB=dev`, `.env.local` |
-| `npm run db:seed:staging` | `TARGET_DB=staging`, `.env.staging` |
-| `npm run db:seed:prod` | `.env.prod`, runs `prisma/seed-prod.ts` (a minimal production seed) |
+| `npm run db:seed:prod` | `.env.production`, runs `prisma/seed-prod.ts` (a minimal production seed) |
 | `npm run db:seed-gym` | Runs `prisma/seed-gym.ts` (a standalone single-gym seed) |
 
 ### Inspecting and resetting
 
-- **`npm run db:studio`** — opens Prisma Studio, a browser GUI for the database. Env-scoped variants: `db:studio:local`, `db:studio:staging`, `db:studio:prod`.
+- **`npm run db:studio`** — opens Prisma Studio, a browser GUI for the database. Env-scoped variants: `db:studio:local`, `db:studio:prod`.
 - **`npm run db:reset`** — runs `prisma migrate reset`, which **drops and recreates** the database, reapplies migrations, and reseeds. Env-scoped variants exist; `db:reset:prod` prints a loud danger warning first. Never run a reset against a database you care about.
 
 ### Typical first-time local flow
@@ -177,8 +173,7 @@ The app chooses its database **automatically at runtime** based on `NODE_ENV` an
 | Runtime context | Condition | Connection string used |
 |-----------------|-----------|------------------------|
 | **Local development** | `NODE_ENV=development` and **not** on Vercel (`VERCEL_ENV` unset) | `DEV_DATABASE_URL` → falls back to `DATABASE_URL` |
-| **Vercel Preview / Development** | `VERCEL_ENV` is `preview` or `development` | `STAGING_DATABASE_URL` → falls back to `DATABASE_URL` |
-| **Vercel Production** | `VERCEL_ENV=production` | `DATABASE_URL` |
+| **Vercel (Production and Preview)** | running on Vercel (`VERCEL_ENV` set) | `DATABASE_URL` (the production database — there is no separate preview/staging database) |
 
 Additional runtime behavior:
 
@@ -186,7 +181,7 @@ Additional runtime behavior:
 - **Missing config throws early:** if the resolved environment's URL is unset (and no `DATABASE_URL` fallback exists), the client throws a descriptive error naming the required variable.
 - **HMR safety:** in non-production the Prisma instance is cached on `globalThis` so hot reloads don't exhaust connections. Query logging is enabled only in development.
 
-The `db:seed*` scripts use a separate, explicit selector: the `TARGET_DB` env var (`dev` | `staging` | `prod`), falling back to `NODE_ENV`-based selection when unset. This is why the seed commands set `TARGET_DB` explicitly.
+The `db:seed*` scripts use a separate, explicit selector: the `TARGET_DB` env var (`dev` | `prod`), falling back to `NODE_ENV`-based selection when unset. This is why the seed commands set `TARGET_DB` explicitly.
 
 ---
 

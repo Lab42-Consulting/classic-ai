@@ -4,6 +4,7 @@ import { notFound } from "next/navigation";
 import { MobileMenu, BackToTop } from "../mobile-menu";
 import { LocationSwitcher } from "./location-switcher";
 import { TrainersCarousel } from "../trainers-carousel";
+import { HeroImage } from "../hero-image";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -154,6 +155,11 @@ export default async function LocationMarketingPage({
   const hasStore = gym.storeEnabled;
   const shopHref = `/gym-portal/${gym.slug}/shop`;
   const galleryImages = (gym.galleryImages as unknown as GalleryImage[]) || [];
+  // Hero photos — crossfade through these (add/remove Blob URLs to change the rotation).
+  const heroImages = [
+    "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v2.png",
+    "https://dslxyjsakbtn7vyc.public.blob.vercel-storage.com/hero/hero_v1.png",
+  ];
 
   return (
     <div className="min-h-screen bg-background">
@@ -304,168 +310,75 @@ export default async function LocationMarketingPage({
         </div>
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8 w-full">
-          <div className="grid lg:grid-cols-2 gap-12 lg:gap-16 items-center">
-            {/* Left Column - Text with staggered animations */}
+          <div className="grid lg:grid-cols-[1fr_1.15fr] gap-12 lg:gap-16 items-center">
+            {/* Left Column - motto, CTAs, stats */}
             <div className="text-center lg:text-left animate-fade-in-up">
-              <div
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border backdrop-blur-sm animate-fade-in-up"
-                style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, animationDelay: '0.1s' }}
-              >
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border backdrop-blur-sm animate-fade-in-up" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, animationDelay: '0.1s' }}>
                 <span className="relative flex h-2 w-2">
-                  <span
-                    className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75"
-                    style={{ backgroundColor: accentColor }}
-                  />
+                  <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: accentColor }} />
                   <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: accentColor }} />
                 </span>
-                <span className="text-sm font-medium" style={{ color: accentColor }}>Dobrodošli</span>
+                <span className="text-sm font-medium" style={{ color: accentColor }}>Dobrodošli u {gym.name}</span>
               </div>
 
-              <h1
-                className="text-4xl sm:text-5xl lg:text-6xl xl:text-7xl font-bold text-foreground leading-tight mb-6 animate-fade-in-up"
-                style={{ animationDelay: '0.2s' }}
-              >
-                {gym.name}
+              <h1 className="text-5xl sm:text-6xl lg:text-6xl xl:text-7xl font-black text-foreground leading-[0.95] tracking-tight mb-6 animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
+                Budi{' '}
+                <span className="bg-clip-text text-transparent" style={{ backgroundImage: `linear-gradient(135deg, ${accentColor}, ${accentColor}88)` }}>najbolja</span>
+                <span className="block">verzija sebe</span>
               </h1>
 
-              <p
-                className="text-lg sm:text-xl text-foreground-muted max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed animate-fade-in-up"
-                style={{ animationDelay: '0.3s' }}
-              >
-                {gym.about || "Vaše mesto za trening, napredak i transformaciju. Pridružite se našoj zajednici i ostvarite svoje fitness ciljeve."}
+              <p className="text-lg sm:text-xl text-foreground-muted max-w-xl mx-auto lg:mx-0 mb-8 leading-relaxed animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
+                {gym.about || "Vrhunska oprema, stručni treneri i zajednica koja te gura napred. Počni svoju transformaciju već danas."}
               </p>
 
-              <div
-                className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-fade-in-up"
-                style={{ animationDelay: '0.4s' }}
-              >
-                <Link
-                  href="#contact"
-                  className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2 group"
-                  style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}
-                >
-                  Postanite član
-                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                    <path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" />
-                  </svg>
+              <div className="flex flex-col sm:flex-row items-center gap-4 justify-center lg:justify-start animate-fade-in-up" style={{ animationDelay: '0.4s' }}>
+                <a href="#contact" className="w-full sm:w-auto px-8 py-4 rounded-xl text-white font-semibold text-lg transition-all hover:scale-105 hover:shadow-xl flex items-center justify-center gap-2 group" style={{ backgroundColor: accentColor, boxShadow: `0 4px 20px -4px ${accentColor}60` }}>
+                  Postani član
+                  <svg className="w-5 h-5 transition-transform group-hover:translate-x-1" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
+                </a>
+                <Link href={shopHref} className="w-full sm:w-auto px-8 py-4 rounded-xl border border-white/10 text-foreground font-semibold text-lg transition-all hover:bg-white/5 hover:border-white/20 hover:scale-105 flex items-center justify-center gap-2">
+                  <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.8}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
+                  Prodavnica
                 </Link>
-                {hasContact && (
-                  <a
-                    href="#contact"
-                    className="w-full sm:w-auto px-8 py-4 rounded-xl border border-white/10 text-foreground font-semibold text-lg transition-all hover:bg-white/5 hover:border-white/20 hover:scale-105 flex items-center justify-center gap-2"
-                  >
-                    <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M17.657 16.657L13.414 20.9a1.998 1.998 0 01-2.827 0l-4.244-4.243a8 8 0 1111.314 0z" />
-                      <path strokeLinecap="round" strokeLinejoin="round" d="M15 11a3 3 0 11-6 0 3 3 0 016 0z" />
-                    </svg>
-                    Gde se nalazimo
-                  </a>
-                )}
+              </div>
+
+              <div className="flex items-center gap-6 justify-center lg:justify-start mt-10 animate-fade-in-up" style={{ animationDelay: '0.5s' }}>
+                <div>
+                  <div className="text-3xl font-bold text-foreground">500+</div>
+                  <div className="text-sm text-foreground-muted">Članova</div>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div>
+                  <div className="text-3xl font-bold text-foreground">{trainers.length}</div>
+                  <div className="text-sm text-foreground-muted">Trenera</div>
+                </div>
+                <div className="w-px h-10 bg-white/10" />
+                <div>
+                  <div className="text-3xl font-bold" style={{ color: accentColor }}>300+</div>
+                  <div className="text-sm text-foreground-muted">Suplemenata</div>
+                </div>
               </div>
             </div>
 
-            {/* Right Column - Enhanced Stats Cards */}
+            {/* Right Column - Hero photo */}
             <div className="relative animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
-              {/* Decorative rings */}
-              <div
-                className="absolute -top-8 -right-8 w-64 h-64 rounded-full border opacity-20 animate-spin-slow"
-                style={{ borderColor: accentColor, animationDuration: '20s' }}
-              />
-              <div
-                className="absolute -bottom-4 -left-4 w-32 h-32 rounded-full border opacity-10 animate-spin-slow"
-                style={{ borderColor: accentColor, animationDuration: '15s', animationDirection: 'reverse' }}
-              />
+              <div className="absolute -inset-4 rounded-[2.5rem] blur-3xl opacity-30 pointer-events-none" style={{ background: `radial-gradient(circle at 60% 40%, ${accentColor}, transparent 70%)` }} />
+              <div className="absolute -top-6 -right-6 w-40 h-40 rounded-full border opacity-20 animate-spin-slow hidden sm:block pointer-events-none" style={{ borderColor: accentColor, animationDuration: '22s' }} />
 
-              <div className="grid grid-cols-2 gap-4">
-                {/* Members Card - Featured */}
-                <div className="col-span-2 group relative overflow-hidden">
-                  {/* Card glow effect */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl"
-                    style={{ background: `radial-gradient(circle at center, ${accentColor}30 0%, transparent 70%)` }}
-                  />
-                  <div className="relative bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-white/20 rounded-3xl p-8 transition-all duration-300 group-hover:translate-y-[-2px]">
-                    {/* Decorative corner accent */}
-                    <div
-                      className="absolute top-0 right-0 w-32 h-32 opacity-10"
-                      style={{ background: `radial-gradient(circle at top right, ${accentColor} 0%, transparent 70%)` }}
-                    />
-                    {/* Animated icon background */}
-                    <div className="relative">
-                      <div
-                        className="absolute inset-0 w-14 h-14 rounded-2xl animate-pulse opacity-50"
-                        style={{ backgroundColor: accentColor, filter: 'blur(12px)', animationDuration: '3s' }}
-                      />
-                      <div
-                        className="relative w-14 h-14 rounded-2xl flex items-center justify-center mb-6 transition-transform duration-300 group-hover:scale-110"
-                        style={{ backgroundColor: `${accentColor}20` }}
-                      >
-                        <svg className="w-7 h-7" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="flex items-end gap-2 mb-2">
-                      <span className="text-5xl font-bold text-foreground">500</span>
-                      <span className="text-2xl font-bold mb-1" style={{ color: accentColor }}>+</span>
-                    </div>
-                    <div className="text-lg text-foreground-muted">Aktivnih članova</div>
-                    {/* Progress bar decoration */}
-                    <div className="mt-4 h-1 bg-white/5 rounded-full overflow-hidden">
-                      <div
-                        className="h-full rounded-full animate-pulse"
-                        style={{ width: '75%', backgroundColor: accentColor, animationDuration: '2s' }}
-                      />
-                    </div>
+              <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60 aspect-[4/5] w-full mx-auto lg:mx-0">
+                <HeroImage images={heroImages} alt={gym.name} />
+                <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
+                <div className="absolute inset-0 mix-blend-overlay opacity-25" style={{ background: `linear-gradient(135deg, ${accentColor}, transparent 60%)` }} />
+
+                <div className="absolute bottom-5 left-5 right-5 flex items-center gap-3 p-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10">
+                  <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accentColor}25` }}>
+                    <svg className="w-6 h-6" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
+                  </div>
+                  <div>
+                    <div className="text-xl font-bold text-white leading-none">500+</div>
+                    <div className="text-xs text-white/70 mt-1">zadovoljnih članova</div>
                   </div>
                 </div>
-
-                {/* Trainers Card */}
-                <div className="group relative overflow-hidden">
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl bg-blue-500/20" />
-                  <div className="relative bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-blue-500/30 rounded-3xl p-5 transition-all duration-300 group-hover:translate-y-[-2px] h-full">
-                    {/* Decorative gradient */}
-                    <div className="absolute top-0 right-0 w-20 h-20 opacity-10 bg-gradient-to-br from-blue-500 to-transparent rounded-bl-full" />
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-xl bg-blue-500/20 flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                        <svg className="w-5 h-5 text-blue-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}>
-                          <path strokeLinecap="round" strokeLinejoin="round" d="M4.26 10.147a60.438 60.438 0 0 0-.491 6.347A48.62 48.62 0 0 1 12 20.904a48.62 48.62 0 0 1 8.232-4.41 60.46 60.46 0 0 0-.491-6.347m-15.482 0a50.636 50.636 0 0 0-2.658-.813A59.906 59.906 0 0 1 12 3.493a59.903 59.903 0 0 1 10.399 5.84c-.896.248-1.783.52-2.658.814m-15.482 0A50.717 50.717 0 0 1 12 13.489a50.702 50.702 0 0 1 7.74-3.342M6.75 15a.75.75 0 1 0 0-1.5.75.75 0 0 0 0 1.5Zm0 0v-3.675A55.378 55.378 0 0 1 12 8.443m-7.007 11.55A5.981 5.981 0 0 0 6.75 15.75v-1.5" />
-                        </svg>
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">{trainers.length}</div>
-                    <div className="text-sm text-foreground-muted">Trenera</div>
-                    {/* Mini dots decoration */}
-                    <div className="absolute bottom-3 right-3 flex gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400/40" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400/30" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-blue-400/20" />
-                    </div>
-                  </div>
-                </div>
-
-                {/* Shop Card */}
-                <Link href={shopHref} className="group relative overflow-hidden block">
-                  <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-xl bg-violet-500/20" />
-                  <div className="relative bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-violet-500/30 rounded-3xl p-5 transition-all duration-300 group-hover:translate-y-[-2px] h-full">
-                    <div className="absolute top-0 right-0 w-20 h-20 opacity-10 bg-gradient-to-br from-violet-500 to-transparent rounded-bl-full" />
-                    <div className="relative">
-                      <div className="w-10 h-10 rounded-xl bg-violet-500/20 flex items-center justify-center mb-3 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                        <svg className="w-5 h-5 text-violet-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15.75 10.5V6a3.75 3.75 0 10-7.5 0v4.5m11.356-1.993 1.263 12c.07.665-.45 1.243-1.119 1.243H4.25a1.125 1.125 0 01-1.12-1.243l1.264-12A1.125 1.125 0 015.513 7.5h12.974c.576 0 1.059.435 1.119 1.007z" /></svg>
-                      </div>
-                    </div>
-                    <div className="text-2xl font-bold text-foreground">Shop</div>
-                    <div className="text-sm text-foreground-muted flex items-center gap-1">
-                      Suplementi
-                      <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M17 8l4 4m0 0l-4 4m4-4H3" /></svg>
-                    </div>
-                    <div className="absolute bottom-3 right-3 flex gap-1">
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/40" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/30" />
-                      <div className="w-1.5 h-1.5 rounded-full bg-violet-400/20" />
-                    </div>
-                  </div>
-                </Link>
               </div>
             </div>
           </div>

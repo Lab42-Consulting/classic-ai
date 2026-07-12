@@ -3,6 +3,7 @@ import prisma from "@/lib/db";
 import { notFound } from "next/navigation";
 import { MobileMenu, BackToTop } from "../mobile-menu";
 import { LocationSwitcher } from "./location-switcher";
+import { TrainersCarousel } from "../trainers-carousel";
 
 // Force dynamic rendering
 export const dynamic = "force-dynamic";
@@ -532,94 +533,7 @@ export default async function LocationMarketingPage({
               </p>
             </div>
 
-            {/* Trainer Cards Grid */}
-            <div className="grid md:grid-cols-2 gap-6">
-              {trainers.slice(0, 4).map((trainer, index) => (
-                <div
-                  key={trainer.id}
-                  className="group relative"
-                >
-                  {/* Card glow effect on hover */}
-                  <div
-                    className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl"
-                    style={{ background: `radial-gradient(circle at center, ${accentColor}25 0%, transparent 70%)` }}
-                  />
-
-                  <div className="relative bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-xl border border-white/10 group-hover:border-white/20 rounded-3xl overflow-hidden transition-all duration-300 group-hover:translate-y-[-4px]">
-                    {/* Decorative corner gradient */}
-                    <div
-                      className="absolute top-0 right-0 w-32 h-32 opacity-0 group-hover:opacity-10 transition-opacity duration-500"
-                      style={{ background: `radial-gradient(circle at top right, ${accentColor} 0%, transparent 70%)` }}
-                    />
-
-                    <div className="flex flex-col sm:flex-row">
-                      {/* Image container */}
-                      <div className="relative sm:w-48 lg:w-56 flex-shrink-0 overflow-hidden">
-                        <div className="aspect-square sm:aspect-auto sm:h-full">
-                          {trainer.avatarUrl ? (
-                            <img
-                              src={trainer.avatarUrl}
-                              alt={trainer.name}
-                              className="w-full h-full object-cover transition-transform duration-500 group-hover:scale-105"
-                            />
-                          ) : (
-                            <div
-                              className="w-full h-full flex items-center justify-center min-h-[200px] transition-all duration-500 group-hover:scale-105"
-                              style={{ background: `linear-gradient(135deg, ${accentColor}30 0%, ${accentColor}10 100%)` }}
-                            >
-                              <span className="text-6xl font-bold transition-transform duration-300 group-hover:scale-110" style={{ color: accentColor }}>
-                                {trainer.name.split(" ").map(n => n[0]).join("").slice(0, 2).toUpperCase()}
-                              </span>
-                            </div>
-                          )}
-                        </div>
-                        {/* Number badge with glow */}
-                        <div className="absolute top-4 left-4">
-                          <div
-                            className="absolute inset-0 rounded-xl blur-md opacity-50 group-hover:opacity-80 transition-opacity"
-                            style={{ backgroundColor: accentColor }}
-                          />
-                          <div
-                            className="relative w-10 h-10 rounded-xl flex items-center justify-center text-lg font-bold text-white backdrop-blur-sm transition-transform duration-300 group-hover:scale-110"
-                            style={{ backgroundColor: `${accentColor}90` }}
-                          >
-                            {String(index + 1).padStart(2, '0')}
-                          </div>
-                        </div>
-                        {/* Gradient overlay on image */}
-                        <div className="absolute inset-0 bg-gradient-to-t from-background/60 via-transparent to-transparent opacity-0 group-hover:opacity-100 transition-opacity duration-300 sm:bg-gradient-to-r" />
-                      </div>
-
-                      {/* Content */}
-                      <div className="flex-1 p-6 lg:p-8 flex flex-col justify-center relative">
-                        <h3 className="text-xl lg:text-2xl font-bold text-foreground mb-3 transition-colors duration-300 group-hover:text-white">
-                          {trainer.name}
-                        </h3>
-                        <span
-                          className="inline-flex items-center gap-1.5 px-3 py-1.5 rounded-lg text-sm font-medium w-fit mb-4 transition-all duration-300 group-hover:scale-105"
-                          style={{ backgroundColor: `${accentColor}15`, color: accentColor }}
-                        >
-                          <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
-                            <path strokeLinecap="round" strokeLinejoin="round" d="M9.813 15.904L9 18.75l-.813-2.846a4.5 4.5 0 00-3.09-3.09L2.25 12l2.846-.813a4.5 4.5 0 003.09-3.09L9 5.25l.813 2.846a4.5 4.5 0 003.09 3.09L15.75 12l-2.846.813a4.5 4.5 0 00-3.09 3.09z" />
-                          </svg>
-                          {trainer.specialty || "Lični trener"}
-                        </span>
-                        <p className="text-foreground-muted text-sm leading-relaxed line-clamp-3">
-                          {trainer.bio || "Posvećen pomoći članovima da ostvare svoje fitness ciljeve kroz personalizovane treninge."}
-                        </p>
-
-                        {/* Decorative dots */}
-                        <div className="absolute bottom-4 right-4 flex gap-1 opacity-0 group-hover:opacity-100 transition-opacity duration-300">
-                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: `${accentColor}60` }} />
-                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: `${accentColor}40` }} />
-                          <div className="w-1.5 h-1.5 rounded-full" style={{ backgroundColor: `${accentColor}20` }} />
-                        </div>
-                      </div>
-                    </div>
-                  </div>
-                </div>
-              ))}
-            </div>
+            <TrainersCarousel trainers={trainers} accentColor={accentColor} />
           </div>
         </section>
       )}

@@ -63,7 +63,7 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
         aria-label="Prethodni"
         onClick={() => scrollByCards(-1)}
         disabled={!canPrev}
-        className="hidden md:flex absolute left-2 top-[42%] -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full bg-background/70 backdrop-blur-md border border-white/15 text-foreground shadow-lg transition-all hover:scale-110 disabled:opacity-0 disabled:pointer-events-none"
+        className="hidden md:flex absolute left-2 top-[42%] -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full bg-background/70 border border-white/15 text-foreground shadow-lg transition-all hover:scale-110 disabled:opacity-0 disabled:pointer-events-none"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M15 19l-7-7 7-7" />
@@ -73,7 +73,7 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
         aria-label="Sledeći"
         onClick={() => scrollByCards(1)}
         disabled={!canNext}
-        className="hidden md:flex absolute right-2 top-[42%] -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full bg-background/70 backdrop-blur-md border border-white/15 text-foreground shadow-lg transition-all hover:scale-110 disabled:opacity-0 disabled:pointer-events-none"
+        className="hidden md:flex absolute right-2 top-[42%] -translate-y-1/2 z-20 w-11 h-11 items-center justify-center rounded-full bg-background/70 border border-white/15 text-foreground shadow-lg transition-all hover:scale-110 disabled:opacity-0 disabled:pointer-events-none"
       >
         <svg className="w-5 h-5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2.2}>
           <path strokeLinecap="round" strokeLinejoin="round" d="M9 5l7 7-7 7" />
@@ -121,7 +121,7 @@ export function TrainersCarousel({ trainers, accentColor }: { trainers: Trainer[
               <div className="absolute inset-x-0 bottom-0 p-5">
                 <h3 className="text-xl font-bold text-white leading-tight drop-shadow-sm">{t.name}</h3>
                 <span
-                  className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-semibold text-white backdrop-blur-sm border border-white/10"
+                  className="inline-flex items-center gap-1.5 mt-2 px-2.5 py-1 rounded-lg text-xs font-semibold text-white border border-white/10"
                   style={{ backgroundColor: `${accentColor}40` }}
                 >
                   <svg className="w-3.5 h-3.5" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>

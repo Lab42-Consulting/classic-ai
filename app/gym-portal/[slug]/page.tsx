@@ -194,7 +194,7 @@ export default async function LocationMarketingPage({
       {/* Header */}
       <header className="fixed top-0 left-0 right-0 z-50">
         <div className="mx-4 sm:mx-6 lg:mx-8 mt-4">
-          <div className="max-w-7xl mx-auto bg-background-secondary/60 backdrop-blur-xl border border-white/10 rounded-2xl shadow-lg shadow-black/5">
+          <div className="max-w-7xl mx-auto bg-background-secondary/60 border border-white/10 rounded-2xl shadow-lg shadow-black/5">
             <div className="flex items-center justify-between h-16 px-4 sm:px-6">
               {/* Logo + Location Switcher */}
               <div className="flex items-center gap-3">
@@ -318,28 +318,28 @@ export default async function LocationMarketingPage({
         <div className="absolute inset-0">
           {/* Primary glow - animated */}
           <div
-            className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[150px] opacity-20 animate-pulse"
+            className="absolute top-0 right-0 w-[800px] h-[800px] rounded-full blur-[64px] opacity-20"
             style={{ backgroundColor: accentColor, animationDuration: '4s' }}
           />
           {/* Secondary glow - animated with delay */}
           <div
-            className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-[120px] opacity-10 bg-blue-500 animate-pulse"
+            className="absolute bottom-0 left-0 w-[600px] h-[600px] rounded-full blur-[64px] opacity-10 bg-blue-500"
             style={{ animationDuration: '5s', animationDelay: '1s' }}
           />
           {/* Tertiary accent */}
           <div
-            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[100px] opacity-10 animate-pulse"
+            className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10"
             style={{ backgroundColor: accentColor, animationDuration: '6s', animationDelay: '2s' }}
           />
           {/* Grid pattern */}
           <div className="absolute inset-0 bg-[linear-gradient(rgba(255,255,255,0.02)_1px,transparent_1px),linear-gradient(90deg,rgba(255,255,255,0.02)_1px,transparent_1px)] bg-[size:72px_72px]" />
           {/* Floating particles */}
           <div className="absolute inset-0 overflow-hidden">
-            <div className="absolute top-20 left-[20%] w-2 h-2 rounded-full bg-white/20 animate-float" style={{ animationDelay: '0s' }} />
-            <div className="absolute top-40 right-[30%] w-1.5 h-1.5 rounded-full bg-white/15 animate-float" style={{ animationDelay: '1s' }} />
-            <div className="absolute bottom-32 left-[40%] w-2.5 h-2.5 rounded-full bg-white/10 animate-float" style={{ animationDelay: '2s' }} />
-            <div className="absolute top-[60%] right-[15%] w-1 h-1 rounded-full bg-white/20 animate-float" style={{ animationDelay: '0.5s' }} />
-            <div className="absolute top-[30%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/15 animate-float" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute top-20 left-[20%] w-2 h-2 rounded-full bg-white/20" style={{ animationDelay: '0s' }} />
+            <div className="absolute top-40 right-[30%] w-1.5 h-1.5 rounded-full bg-white/15" style={{ animationDelay: '1s' }} />
+            <div className="absolute bottom-32 left-[40%] w-2.5 h-2.5 rounded-full bg-white/10" style={{ animationDelay: '2s' }} />
+            <div className="absolute top-[60%] right-[15%] w-1 h-1 rounded-full bg-white/20" style={{ animationDelay: '0.5s' }} />
+            <div className="absolute top-[30%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/15" style={{ animationDelay: '1.5s' }} />
           </div>
         </div>
 
@@ -347,7 +347,7 @@ export default async function LocationMarketingPage({
           <div className="grid lg:grid-cols-[1fr_1.15fr] gap-12 lg:gap-16 items-center">
             {/* Left Column - motto, CTAs, stats */}
             <div className="text-center lg:text-left animate-fade-in-up">
-              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border backdrop-blur-sm animate-fade-in-up" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, animationDelay: '0.1s' }}>
+              <div className="inline-flex items-center gap-2 px-4 py-2 rounded-full mb-6 border animate-fade-in-up" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, animationDelay: '0.1s' }}>
                 <span className="relative flex h-2 w-2">
                   <span className="animate-ping absolute inline-flex h-full w-full rounded-full opacity-75" style={{ backgroundColor: accentColor }} />
                   <span className="relative inline-flex rounded-full h-2 w-2" style={{ backgroundColor: accentColor }} />
@@ -397,14 +397,14 @@ export default async function LocationMarketingPage({
             {/* Right Column - Hero photo */}
             <div className="relative animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
               <div className="absolute -inset-4 rounded-[2.5rem] blur-3xl opacity-30 pointer-events-none" style={{ background: `radial-gradient(circle at 60% 40%, ${accentColor}, transparent 70%)` }} />
-              <div className="absolute -top-6 -right-6 w-40 h-40 rounded-full border opacity-20 animate-spin-slow hidden sm:block pointer-events-none" style={{ borderColor: accentColor, animationDuration: '22s' }} />
+              <div className="absolute -top-6 -right-6 w-40 h-40 rounded-full border opacity-20 hidden sm:block pointer-events-none" style={{ borderColor: accentColor, animationDuration: '22s' }} />
 
               <div className="relative rounded-3xl overflow-hidden border border-white/10 shadow-2xl shadow-black/60 aspect-[4/5] w-full mx-auto lg:mx-0">
                 <HeroImage images={heroImages} alt={gym.name} />
                 <div className="absolute inset-0 bg-gradient-to-t from-black/75 via-black/10 to-transparent" />
-                <div className="absolute inset-0 mix-blend-overlay opacity-25" style={{ background: `linear-gradient(135deg, ${accentColor}, transparent 60%)` }} />
+                <div className="absolute inset-0 opacity-25" style={{ background: `linear-gradient(135deg, ${accentColor}, transparent 60%)` }} />
 
-                <div className="absolute bottom-5 left-5 right-5 flex items-center gap-3 p-4 rounded-2xl bg-black/40 backdrop-blur-xl border border-white/10">
+                <div className="absolute bottom-5 left-5 right-5 flex items-center gap-3 p-4 rounded-2xl bg-black/40 border border-white/10">
                   <div className="w-11 h-11 rounded-xl flex items-center justify-center flex-shrink-0" style={{ backgroundColor: `${accentColor}25` }}>
                     <svg className="w-6 h-6" style={{ color: accentColor }} fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M15 19.128a9.38 9.38 0 002.625.372 9.337 9.337 0 004.121-.952 4.125 4.125 0 00-7.533-2.493M15 19.128v-.003c0-1.113-.285-2.16-.786-3.07M15 19.128v.106A12.318 12.318 0 018.624 21c-2.331 0-4.512-.645-6.374-1.766l-.001-.109a6.375 6.375 0 0111.964-3.07M12 6.375a3.375 3.375 0 11-6.75 0 3.375 3.375 0 016.75 0zm8.25 2.25a2.625 2.625 0 11-5.25 0 2.625 2.625 0 015.25 0z" /></svg>
                   </div>
@@ -434,22 +434,22 @@ export default async function LocationMarketingPage({
         <section id="trainers" className="py-24 bg-background-secondary relative overflow-hidden">
           {/* Animated Background */}
           <div
-            className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-15 animate-pulse"
+            className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[64px] opacity-15"
             style={{ backgroundColor: accentColor, animationDuration: '5s' }}
           />
           <div
-            className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse"
+            className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10"
             style={{ backgroundColor: accentColor, animationDuration: '6s', animationDelay: '2s' }}
           />
           {/* Floating particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-[20%] left-[15%] w-1.5 h-1.5 rounded-full bg-white/15 animate-float" style={{ animationDelay: '0s' }} />
-            <div className="absolute top-[60%] right-[20%] w-2 h-2 rounded-full bg-white/10 animate-float" style={{ animationDelay: '1.5s' }} />
-            <div className="absolute bottom-[30%] left-[60%] w-1 h-1 rounded-full bg-white/20 animate-float" style={{ animationDelay: '3s' }} />
+            <div className="absolute top-[20%] left-[15%] w-1.5 h-1.5 rounded-full bg-white/15" style={{ animationDelay: '0s' }} />
+            <div className="absolute top-[60%] right-[20%] w-2 h-2 rounded-full bg-white/10" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute bottom-[30%] left-[60%] w-1 h-1 rounded-full bg-white/20" style={{ animationDelay: '3s' }} />
           </div>
           {/* Decorative ring */}
           <div
-            className="absolute top-20 right-20 w-48 h-48 rounded-full border opacity-10 animate-spin-slow hidden lg:block"
+            className="absolute top-20 right-20 w-48 h-48 rounded-full border opacity-10 hidden lg:block"
             style={{ borderColor: accentColor, animationDuration: '25s' }}
           />
 
@@ -458,7 +458,7 @@ export default async function LocationMarketingPage({
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
               <div className="max-w-2xl">
                 <span
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border"
                   style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -485,22 +485,22 @@ export default async function LocationMarketingPage({
       <section id="features" className="py-24 relative overflow-hidden">
         {/* Animated Background */}
         <div
-          className="absolute top-1/2 left-0 w-[600px] h-[600px] rounded-full blur-[150px] opacity-15 -translate-y-1/2 animate-pulse"
+          className="absolute top-1/2 left-0 w-[600px] h-[600px] rounded-full blur-[64px] opacity-15 -translate-y-1/2"
           style={{ backgroundColor: accentColor, animationDuration: '5s' }}
         />
         <div
-          className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse"
+          className="absolute top-0 right-0 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10"
           style={{ backgroundColor: accentColor, animationDuration: '6s', animationDelay: '2s' }}
         />
         {/* Floating particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[15%] right-[25%] w-2 h-2 rounded-full bg-white/15 animate-float" style={{ animationDelay: '0.5s' }} />
-          <div className="absolute top-[70%] left-[20%] w-1.5 h-1.5 rounded-full bg-white/10 animate-float" style={{ animationDelay: '2s' }} />
-          <div className="absolute bottom-[20%] right-[10%] w-1 h-1 rounded-full bg-white/20 animate-float" style={{ animationDelay: '3.5s' }} />
+          <div className="absolute top-[15%] right-[25%] w-2 h-2 rounded-full bg-white/15" style={{ animationDelay: '0.5s' }} />
+          <div className="absolute top-[70%] left-[20%] w-1.5 h-1.5 rounded-full bg-white/10" style={{ animationDelay: '2s' }} />
+          <div className="absolute bottom-[20%] right-[10%] w-1 h-1 rounded-full bg-white/20" style={{ animationDelay: '3.5s' }} />
         </div>
         {/* Decorative ring */}
         <div
-          className="absolute bottom-20 left-20 w-40 h-40 rounded-full border opacity-10 animate-spin-slow hidden lg:block"
+          className="absolute bottom-20 left-20 w-40 h-40 rounded-full border opacity-10 hidden lg:block"
           style={{ borderColor: accentColor, animationDuration: '30s', animationDirection: 'reverse' }}
         />
 
@@ -508,7 +508,7 @@ export default async function LocationMarketingPage({
           <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
             <div className="max-w-2xl">
               <span
-                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border"
                 style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
               >
                 <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -530,7 +530,7 @@ export default async function LocationMarketingPage({
             {/* Personal Training - Featured, spans 2 rows */}
             <div className="md:row-span-2 group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-blue-500/20" />
-              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-blue-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
+              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 border border-white/10 group-hover:border-blue-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
                 <div className="absolute top-0 right-0 w-48 h-48 rounded-full blur-[80px] opacity-20 bg-blue-500 group-hover:opacity-40 transition-opacity duration-500" />
                 <div className="relative flex flex-col h-full">
                   <div className="relative mb-6">
@@ -581,7 +581,7 @@ export default async function LocationMarketingPage({
             {/* Supplement Shop */}
             <Link href={shopHref} className="group relative block">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-violet-500/20" />
-              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-violet-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
+              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 border border-white/10 group-hover:border-violet-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-violet-500 to-transparent rounded-bl-full" />
                 <div className="relative">
                   <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-violet-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -603,7 +603,7 @@ export default async function LocationMarketingPage({
             {/* Premium Equipment */}
             <div className="group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-emerald-500/20" />
-              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-emerald-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
+              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 border border-white/10 group-hover:border-emerald-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-emerald-500 to-transparent rounded-bl-full" />
                 <div className="relative">
                   <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-emerald-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
@@ -621,7 +621,7 @@ export default async function LocationMarketingPage({
             {/* Mobile App - Coming soon */}
             <div className="md:col-span-2 group relative">
               <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-3xl bg-orange-500/20" />
-              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 backdrop-blur-xl border border-white/10 group-hover:border-orange-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
+              <div className="relative h-full bg-gradient-to-br from-background-secondary/90 to-background-secondary/50 border border-white/10 group-hover:border-orange-500/30 rounded-3xl p-8 transition-all duration-300 overflow-hidden group-hover:translate-y-[-4px]">
                 <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-orange-500 to-transparent rounded-bl-full" />
                 <div className="flex flex-col sm:flex-row sm:items-center gap-6">
                   <div className="relative flex-shrink-0">
@@ -651,22 +651,22 @@ export default async function LocationMarketingPage({
         <section id="gallery" className="py-24 relative overflow-hidden">
           {/* Animated Background */}
           <div
-            className="absolute top-1/2 right-0 w-[600px] h-[600px] rounded-full blur-[150px] opacity-15 -translate-y-1/2 animate-pulse"
+            className="absolute top-1/2 right-0 w-[600px] h-[600px] rounded-full blur-[64px] opacity-15 -translate-y-1/2"
             style={{ backgroundColor: accentColor, animationDuration: '5s' }}
           />
           <div
-            className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse"
+            className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10"
             style={{ backgroundColor: accentColor, animationDuration: '6s', animationDelay: '2s' }}
           />
           {/* Floating particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-[25%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/15 animate-float" style={{ animationDelay: '0s' }} />
-            <div className="absolute top-[50%] right-[15%] w-2 h-2 rounded-full bg-white/10 animate-float" style={{ animationDelay: '1.5s' }} />
-            <div className="absolute bottom-[25%] left-[70%] w-1 h-1 rounded-full bg-white/20 animate-float" style={{ animationDelay: '3s' }} />
+            <div className="absolute top-[25%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/15" style={{ animationDelay: '0s' }} />
+            <div className="absolute top-[50%] right-[15%] w-2 h-2 rounded-full bg-white/10" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute bottom-[25%] left-[70%] w-1 h-1 rounded-full bg-white/20" style={{ animationDelay: '3s' }} />
           </div>
           {/* Decorative ring */}
           <div
-            className="absolute top-20 left-20 w-40 h-40 rounded-full border opacity-10 animate-spin-slow hidden lg:block"
+            className="absolute top-20 left-20 w-40 h-40 rounded-full border opacity-10 hidden lg:block"
             style={{ borderColor: accentColor, animationDuration: '25s' }}
           />
 
@@ -674,7 +674,7 @@ export default async function LocationMarketingPage({
             <div className="flex flex-col lg:flex-row lg:items-end lg:justify-between gap-6 mb-16">
               <div className="max-w-2xl">
                 <span
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border"
                   style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -724,7 +724,7 @@ export default async function LocationMarketingPage({
                         style={{ backgroundColor: accentColor }}
                       />
                       <div
-                        className="relative px-3 py-1.5 rounded-xl text-xs font-semibold text-white backdrop-blur-sm transition-transform duration-300 group-hover:scale-110"
+                        className="relative px-3 py-1.5 rounded-xl text-xs font-semibold text-white transition-transform duration-300 group-hover:scale-110"
                         style={{ backgroundColor: `${accentColor}90` }}
                       >
                         Glavna
@@ -738,7 +738,7 @@ export default async function LocationMarketingPage({
                       <p className="text-white text-sm font-medium">{image.caption}</p>
                     )}
                     {/* View icon */}
-                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 backdrop-blur-sm flex items-center justify-center border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-100 scale-75">
+                    <div className="absolute top-1/2 left-1/2 -translate-x-1/2 -translate-y-1/2 w-12 h-12 rounded-full bg-white/10 flex items-center justify-center border border-white/20 opacity-0 group-hover:opacity-100 transition-all duration-300 group-hover:scale-100 scale-75">
                       <svg className="w-5 h-5 text-white" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
                         <path strokeLinecap="round" strokeLinejoin="round" d="M21 21l-5.197-5.197m0 0A7.5 7.5 0 105.196 5.196a7.5 7.5 0 0010.607 10.607zM10.5 7.5v6m3-3h-6" />
                       </svg>
@@ -759,12 +759,12 @@ export default async function LocationMarketingPage({
 
       {/* Pricing Section */}
       <section id="cenovnik" className="py-24 relative overflow-hidden">
-        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '6s' }} />
-        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 animate-pulse" style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '2s' }} />
+        <div className="absolute top-0 right-0 w-[500px] h-[500px] rounded-full blur-[64px] opacity-10" style={{ backgroundColor: accentColor, animationDuration: '6s' }} />
+        <div className="absolute bottom-0 left-0 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10" style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '2s' }} />
 
         <div className="relative max-w-7xl mx-auto px-4 sm:px-6 lg:px-8">
           <div className="text-center max-w-2xl mx-auto mb-16">
-            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}>
+            <span className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border" style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}>
               <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}><path strokeLinecap="round" strokeLinejoin="round" d="M2.25 8.25h19.5M2.25 9h19.5m-16.5 5.25h6m-6 2.25h3m-3.75 3h15a2.25 2.25 0 002.25-2.25V6.75A2.25 2.25 0 0019.5 4.5h-15a2.25 2.25 0 00-2.25 2.25v10.5A2.25 2.25 0 004.5 19.5z" /></svg>
               Cenovnik
             </span>
@@ -790,27 +790,27 @@ export default async function LocationMarketingPage({
         <section id="contact" className="py-24 bg-background-secondary relative overflow-hidden">
           {/* Animated Background */}
           <div
-            className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full blur-[150px] opacity-15 animate-pulse"
+            className="absolute top-0 left-0 w-[500px] h-[500px] rounded-full blur-[64px] opacity-15"
             style={{ backgroundColor: accentColor, animationDuration: '5s' }}
           />
           <div
-            className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full blur-[120px] opacity-10 bg-blue-500 animate-pulse"
+            className="absolute bottom-0 right-0 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10 bg-blue-500"
             style={{ animationDuration: '6s', animationDelay: '2s' }}
           />
           <div
-            className="absolute top-1/2 right-1/4 w-[300px] h-[300px] rounded-full blur-[100px] opacity-10 animate-pulse"
+            className="absolute top-1/2 right-1/4 w-[300px] h-[300px] rounded-full blur-[64px] opacity-10"
             style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '3s' }}
           />
           {/* Floating particles */}
           <div className="absolute inset-0 overflow-hidden pointer-events-none">
-            <div className="absolute top-[20%] right-[30%] w-2 h-2 rounded-full bg-white/15 animate-float" style={{ animationDelay: '0s' }} />
-            <div className="absolute top-[60%] left-[15%] w-1.5 h-1.5 rounded-full bg-white/10 animate-float" style={{ animationDelay: '1.5s' }} />
-            <div className="absolute bottom-[25%] right-[20%] w-1 h-1 rounded-full bg-white/20 animate-float" style={{ animationDelay: '3s' }} />
-            <div className="absolute top-[40%] left-[40%] w-2 h-2 rounded-full bg-white/10 animate-float" style={{ animationDelay: '4s' }} />
+            <div className="absolute top-[20%] right-[30%] w-2 h-2 rounded-full bg-white/15" style={{ animationDelay: '0s' }} />
+            <div className="absolute top-[60%] left-[15%] w-1.5 h-1.5 rounded-full bg-white/10" style={{ animationDelay: '1.5s' }} />
+            <div className="absolute bottom-[25%] right-[20%] w-1 h-1 rounded-full bg-white/20" style={{ animationDelay: '3s' }} />
+            <div className="absolute top-[40%] left-[40%] w-2 h-2 rounded-full bg-white/10" style={{ animationDelay: '4s' }} />
           </div>
           {/* Decorative ring */}
           <div
-            className="absolute bottom-20 right-20 w-48 h-48 rounded-full border opacity-10 animate-spin-slow hidden lg:block"
+            className="absolute bottom-20 right-20 w-48 h-48 rounded-full border opacity-10 hidden lg:block"
             style={{ borderColor: accentColor, animationDuration: '25s' }}
           />
 
@@ -819,7 +819,7 @@ export default async function LocationMarketingPage({
               {/* Left - Info */}
               <div className="animate-fade-in-up">
                 <span
-                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border backdrop-blur-sm"
+                  className="inline-flex items-center gap-2 px-4 py-2 rounded-full text-sm font-medium mb-6 border"
                   style={{ backgroundColor: `${accentColor}10`, borderColor: `${accentColor}30`, color: accentColor }}
                 >
                   <svg className="w-4 h-4" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={2}>
@@ -857,7 +857,7 @@ export default async function LocationMarketingPage({
                       className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-2xl"
                       style={{ background: `radial-gradient(circle at center, ${accentColor}20 0%, transparent 70%)` }}
                     />
-                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-xl rounded-2xl border border-white/10 group-hover:border-white/20 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
+                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 rounded-2xl border border-white/10 group-hover:border-white/20 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
                       {/* Decorative corner gradient */}
                       <div
                         className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500"
@@ -903,7 +903,7 @@ export default async function LocationMarketingPage({
                   <div className="group relative animate-fade-in-up" style={{ animationDelay: '0.2s' }}>
                     {/* Card glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-2xl bg-emerald-500/20" />
-                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-xl rounded-2xl border border-white/10 group-hover:border-emerald-500/30 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
+                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 rounded-2xl border border-white/10 group-hover:border-emerald-500/30 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
                       {/* Decorative corner gradient */}
                       <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-emerald-500 to-transparent rounded-bl-full" />
                       <div className="flex items-start gap-5">
@@ -941,7 +941,7 @@ export default async function LocationMarketingPage({
                   <div className="group relative animate-fade-in-up" style={{ animationDelay: '0.3s' }}>
                     {/* Card glow effect on hover */}
                     <div className="absolute inset-0 opacity-0 group-hover:opacity-100 transition-opacity duration-500 blur-2xl rounded-2xl bg-violet-500/20" />
-                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 backdrop-blur-xl rounded-2xl border border-white/10 group-hover:border-violet-500/30 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
+                    <div className="relative bg-gradient-to-br from-background/90 to-background/50 rounded-2xl border border-white/10 group-hover:border-violet-500/30 p-6 transition-all duration-300 group-hover:translate-y-[-4px] overflow-hidden">
                       {/* Decorative corner gradient */}
                       <div className="absolute top-0 right-0 w-24 h-24 opacity-0 group-hover:opacity-20 transition-opacity duration-500 bg-gradient-to-br from-violet-500 to-transparent rounded-bl-full" />
                       <div className="flex items-start gap-5">
@@ -977,22 +977,22 @@ export default async function LocationMarketingPage({
       <footer className="relative overflow-hidden">
         {/* Animated Background */}
         <div
-          className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full blur-[150px] opacity-10 animate-pulse"
+          className="absolute top-0 left-1/4 w-[400px] h-[400px] rounded-full blur-[64px] opacity-10"
           style={{ backgroundColor: accentColor, animationDuration: '6s' }}
         />
         <div
-          className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full blur-[120px] opacity-10 animate-pulse"
+          className="absolute bottom-0 right-1/4 w-[300px] h-[300px] rounded-full blur-[64px] opacity-10"
           style={{ backgroundColor: accentColor, animationDuration: '7s', animationDelay: '3s' }}
         />
         {/* Floating particles */}
         <div className="absolute inset-0 overflow-hidden pointer-events-none">
-          <div className="absolute top-[30%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/10 animate-float" style={{ animationDelay: '0s' }} />
-          <div className="absolute top-[50%] right-[20%] w-1 h-1 rounded-full bg-white/15 animate-float" style={{ animationDelay: '2s' }} />
-          <div className="absolute bottom-[40%] left-[60%] w-2 h-2 rounded-full bg-white/10 animate-float" style={{ animationDelay: '4s' }} />
+          <div className="absolute top-[30%] left-[10%] w-1.5 h-1.5 rounded-full bg-white/10" style={{ animationDelay: '0s' }} />
+          <div className="absolute top-[50%] right-[20%] w-1 h-1 rounded-full bg-white/15" style={{ animationDelay: '2s' }} />
+          <div className="absolute bottom-[40%] left-[60%] w-2 h-2 rounded-full bg-white/10" style={{ animationDelay: '4s' }} />
         </div>
         {/* Decorative ring */}
         <div
-          className="absolute top-10 right-10 w-32 h-32 rounded-full border opacity-5 animate-spin-slow hidden lg:block"
+          className="absolute top-10 right-10 w-32 h-32 rounded-full border opacity-5 hidden lg:block"
           style={{ borderColor: accentColor, animationDuration: '30s' }}
         />
 
@@ -1147,7 +1147,7 @@ export default async function LocationMarketingPage({
                 <div className="group flex items-center gap-2 text-xs text-foreground-muted/60">
                   <span>Powered by</span>
                   <span className="font-medium text-foreground-muted group-hover:text-foreground transition-colors duration-300 flex items-center gap-1.5">
-                    <svg className="w-3.5 h-3.5 text-violet-400 animate-pulse" style={{ animationDuration: '3s' }} fill="currentColor" viewBox="0 0 24 24">
+                    <svg className="w-3.5 h-3.5 text-violet-400" style={{ animationDuration: '3s' }} fill="currentColor" viewBox="0 0 24 24">
                       <path d="M12 0L14.59 9.41L24 12L14.59 14.59L12 24L9.41 14.59L0 12L9.41 9.41L12 0Z" />
                     </svg>
                     Classic AI

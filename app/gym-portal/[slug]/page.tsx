@@ -608,7 +608,7 @@ export default async function LocationMarketingPage({
                 <div className="relative">
                   <div className="absolute inset-0 w-14 h-14 rounded-2xl bg-emerald-500 blur-lg opacity-20 group-hover:opacity-40 transition-opacity" />
                   <div className="relative w-14 h-14 rounded-2xl bg-emerald-500/20 flex items-center justify-center mb-5 transition-transform duration-300 group-hover:scale-110 group-hover:rotate-3">
-                    <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5}><path strokeLinecap="round" strokeLinejoin="round" d="M6.75 7.5v9m-3-9v9m10.5-9v9m3-9v9M2.25 12h1.5m16.5 0h1.5M3.75 9.75h3m10.5 0h3M3.75 14.25h3m10.5 0h3" /></svg>
+                    <svg className="w-7 h-7 text-emerald-400" fill="none" viewBox="0 0 24 24" stroke="currentColor" strokeWidth={1.5} strokeLinecap="round" strokeLinejoin="round"><rect x="1.75" y="8" width="4" height="8" rx="1.5" /><rect x="18.25" y="8" width="4" height="8" rx="1.5" /><path d="M5.75 12h12.5M9 9.5v5M15 9.5v5" /></svg>
                   </div>
                 </div>
                 <h3 className="text-xl font-bold text-foreground mb-2 transition-colors duration-300 group-hover:text-white">Vrhunska oprema</h3>
